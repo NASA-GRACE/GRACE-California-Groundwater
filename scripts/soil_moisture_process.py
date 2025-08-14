@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), and GitHub Copilot (it/its).
+Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
 Concatenate all netCDF files found under a folder (in subdirectories)
 into a single netCDF file.
 
@@ -43,9 +43,9 @@ def parse_arguments(options: Options) -> None:
         epilog=("Usage example:\n  python3 concatenate_netcdf.py /data/GLDAS_NOAH025 ./combined_output.nc\n"),
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument("in_dir", nargs="?", default=options.default_in_dir,
+    parser.add_argument("in_dir", type=Path, nargs="?", default=options.default_in_dir,
                         help="Directory containing input .nc/.nc4 files.")
-    parser.add_argument("out_dir", nargs="?", default=options.default_out_dir,
+    parser.add_argument("out_dir", type=Path, nargs="?", default=options.default_out_dir,
                         help="Directory where output (.nc or .nc4) files will be written.")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
@@ -116,14 +116,16 @@ def discover_files(options: Options) -> None:
     Populate options.in_files with all matching .nc/.nc4 files found recursively inside the in_dir.
 
     Args:
-        options: An Options instance with parsed arguments.
-    
+        options: An Options instance with parsed arguments. Contains:
+        - in_dir: Directory to search for .nc/.nc4 files.
+        - out_dir: Directory where output files will be written.
+
     Returns:
         None. Updates options.in_files with list of file paths.
 
     Raises:
         FileNotFoundError: If no .nc/.nc4 files are found.
-        ValueError: If duplicate, empty, non-netCDF, non-readable, or mismatched-extension files are found.
+        ValueError:        If duplicate, empty, non-netCDF, non-readable, or mismatched-extension files are found.
     """
     pattern = options.in_dir / "**" / "*.nc*"
     options.in_files = sorted(glob.glob(str(pattern), recursive=True))
@@ -164,7 +166,8 @@ def infer_model(options: Options) -> None:
     Infer the model name from the basenames of the options.in_files.
     
     Args:
-        options: An Options instance with parsed arguments.
+        options: An Options instance with parsed arguments. Contains:
+           - in_files: List of input file paths.
     
     Returns:
         None. Updates options.model with inferred model name.
@@ -197,7 +200,9 @@ def check_variable_consistency(options: Options, thetol: float = 1e-8) -> None:
     Ensure all files share the same data variables, dimensions, and coordinate values.
     
     Args:
-        options: An Options instance with parsed arguments.
+        options: An Options instance with parsed arguments. Contains:
+           - in_files: List of input file paths.
+           - out_dir: Directory where output files will be written.
         thetol:  Tolerance for comparing lat/lon values (default: 1e-8).
     
     Returns:
@@ -268,8 +273,10 @@ def check_time_continuity(options: Options) -> None:
     Verify that files' time axes do not overlap (last of i < first of i+1). Raises if any overlap is detected.
     
     Args:
-        options: An Options instance with parsed arguments.
-    
+        options: An Options instance with parsed arguments. Contains:
+           - in_files: List of input file paths.
+           - out_dir: Directory where output files will be written.
+
     Returns:
         None.
     
@@ -318,8 +325,12 @@ def create_out_filepath(options: Options) -> None:
     Create an output filename based on the model and datespan, store in options.out_filepath.
     
     Args:
-        options: An Options instance with model, datespan_string, out_dir, and ext.
-    
+        options: An Options instance with parsed arguments. Contains:
+           - out_dir: Directory where output files will be written.
+           - model:   Inferred model name.
+           - datespan_string: String representing the date span.
+           - ext:     File extension (e.g., .nc or .nc4).
+
     Returns:
         None. Updates options.out_filepath.
     
@@ -335,7 +346,11 @@ def concatenate_and_save(options: Options) -> None:
     Open, concatenate, and save the dataset. Cleans up a partial output file on failure.
     
     Args:
-        options: An Options instance with in_files and out_filepath.
+        options: An Options instance with parsed arguments. Contains:
+           - in_files: List of input file paths.
+           - out_dir: Directory where output files will be written.
+           - model:   Inferred model name.
+           - ext:     File extension (e.g., .nc or .nc4).
     
     Returns:
         None.

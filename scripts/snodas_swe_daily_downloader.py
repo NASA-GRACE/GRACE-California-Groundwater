@@ -40,7 +40,7 @@ def parse_arguments(options: Options) -> None:
 
 
 def main() -> None:
-    """Main function to """
+    """Main function to download and process snow water equivalent (SWE) data over a date range."""
     options = Options()
     parse_arguments(options)
 

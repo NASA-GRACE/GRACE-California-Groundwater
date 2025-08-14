@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), and GitHub Copilot (it/its).
+Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
 Based on code provided by Munish Sikka (he/him) and Jack McNelis (he/him).
 """
 
@@ -39,7 +39,7 @@ def parse_arguments(options: Options) -> None:
                 f"This will create a mask for the Sacramento basin and save it as '{options.soil_moisture_model}_sacramento_mask.nc'.\n"),
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument("-b", "--basin", help=f"Basin identifier ({', '.join(options.valid_basins)}).", default=options.default_basin)
+    parser.add_argument("-b", "--basin", type=str, help=f"Basin identifier ({', '.join(options.valid_basins)}).", default=options.default_basin)
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -61,7 +61,22 @@ def main() -> None:
 
 
 def create_mask_for_NLDAS(options: Options) -> None:
-    """Create a river basin mask for NLDAS data."""
+    """
+    Create a river basin mask for NLDAS data.
+    
+    Args:
+        options: An Options instance with parsed command line arguments in options.args. Contains:
+           - basin: Basin identifier (e.g., 'California', 'Sacramento', etc.).
+           - shape_dir: Directory containing shapefiles.
+           - masks_dir: Directory to save generated masks.
+           - gridded_data_dir: Directory containing gridded soil moisture data (netCDF files).
+    
+    Returns:
+        None. Saves the generated mask as a netCDF file in masks_dir.
+    
+    Raises:
+        ValueError: If the specified basin is unknown.    
+    """
 
     gdal.UseExceptions()  # Enable GDAL exceptions for error handling
     logging.info(f"Creating mask for basin: {options.args.basin}")

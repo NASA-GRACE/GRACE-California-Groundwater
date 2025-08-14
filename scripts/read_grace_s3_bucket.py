@@ -4,7 +4,21 @@ import numpy as np
 import xarray as xr
 
 #Written by Munish Sikka
-def store_aws_keys(endpoint: str="https://archive.podaac.earthdata.nasa.gov/s3credentials"):    
+
+
+def store_aws_keys(endpoint: str="https://archive.podaac.earthdata.nasa.gov/s3credentials") -> dict[str, str]:
+    """
+    Fetch temporary AWS credentials from the specified endpoint.
+
+    Args:
+        endpoint: URL to fetch the AWS credentials from.
+    
+    Returns:
+        A dictionary containing AccessKeyId, SecretAccessKey, SessionToken, and expiration.
+    
+    Raises:
+        None.
+    """
     with requests.get(endpoint, "w") as r:
         accessKeyId, secretAccessKey, sessionToken, expiration = list(r.json().values())
 
@@ -17,7 +31,20 @@ def store_aws_keys(endpoint: str="https://archive.podaac.earthdata.nasa.gov/s3cr
     return creds
 
 
-def grace_connection(ShortName,grace_filename):
+def grace_connection(ShortName: str, grace_filename: str) -> xr.Dataset:
+    """
+    Establish a connection to the GRACE dataset on AWS S3.
+
+    Args:
+        ShortName: The short name of the GRACE dataset.
+        grace_filename: The specific filename of the GRACE data to access.
+
+    Returns:
+        An xarray Dataset object containing the GRACE data.
+
+    Raises:
+        None.
+    """
     #Source: Jinbo Wang (Email: jinbo.wang@jpl.nasa.gov)
     creds = store_aws_keys()
     #print(creds)
@@ -29,7 +56,7 @@ def grace_connection(ShortName,grace_filename):
     )
     #print(f"\nThe current session token expires at {creds['expiration']}.\n")
 
-# Ask PODAAC for the collection id using the 'short name'
+    # Ask PODAAC for the collection id using the 'short name'
     response = requests.get(
         url='https://cmr.earthdata.nasa.gov/search/collections.umm_json', 
         params={'provider': "POCLOUD",
@@ -48,8 +75,22 @@ def grace_connection(ShortName,grace_filename):
         
     return dataset
 
-def read_grace_dataset(ShortName,grace_filename):
-    dataset = grace_connection(ShortName,grace_filename)
+
+def read_grace_dataset(ShortName: str, grace_filename: str) -> xr.Dataset:
+    """
+    Read a GRACE dataset from AWS S3 using temporary credentials.
+
+    Args:
+        ShortName:      The short name of the GRACE dataset.
+        grace_filename: The specific filename of the GRACE data to access.
     
+    Returns:
+        An xarray Dataset object containing the GRACE data.
+    
+    Raises:
+        None.
+    """
+    dataset = grace_connection(ShortName, grace_filename)
+
     return dataset
 

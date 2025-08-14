@@ -62,7 +62,18 @@ def main() -> None:
 
 
 def generate_15th_dates(df: pd.DataFrame) -> pd.DatetimeIndex:
-    """Generate all 15th-of-month dates between min and max of df index"""
+    """
+    Generate all 15th-of-month dates between min and max of df index.
+
+    Args:
+        df: DataFrame with datetime index.
+    
+    Returns:
+        DatetimeIndex of all 15th-of-month dates in the range of df's index.
+
+    Raises:
+        None.
+    """
     start = df.index.min().replace(day=1)
     end = df.index.max().replace(day=1)
     month_starts = pd.date_range(start=start, end=end, freq='MS')
@@ -72,12 +83,17 @@ def generate_15th_dates(df: pd.DataFrame) -> pd.DatetimeIndex:
 def interpolate_and_filter(df: pd.DataFrame, columns: list, max_gap_days: int = 10000) -> pd.DataFrame:
     """
     Interpolate specified columns to 15th of each month, filtering out months without any data.
+
     Args:
-        df: DataFrame with datetime index and columns to interpolate.
-        columns: List of column names to interpolate.
+        df:           DataFrame with datetime index and columns to interpolate.
+        columns:       List of column names to interpolate.
         max_gap_days: Maximum gap in days to allow interpolation (default 10000, effectively no limit).
+
     Returns:
         DataFrame with interpolated values on 15th of each month, filtered to only include months with at least one known value.
+    
+    Raises:
+        None.
     """
     # Ensure datetime index
     df = df.copy()

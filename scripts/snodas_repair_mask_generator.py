@@ -65,7 +65,23 @@ def main() -> None:
 
 
 def repair_mask_generation_for_SNODAS(options: Options) -> None:
-    """Run the repair mask generation for SNODAS data."""
+    """
+    Run the repair mask generation for SNODAS data.
+    
+    Args:
+        options: An Options instance with parsed command line arguments in options.args. Contains:
+           - full_tif:     Path to full SNODAS zero repair mask (GeoTIFF).
+           - template_tif: Path to template GeoTIFF for cropping (defines region).
+           - cropped_tif:  Path to save cropped repair mask as GeoTIFF.
+           - base_masks:   List of base mask CSV files to repair.
+           - output_dir:   Directory to save repaired CSV masks.
+        
+    Returns:
+        None. Saves cropped repair mask and repaired CSV masks to output directory.
+    
+    Raises:
+        None.
+    """
 
     # Step 1: Crop the SNODAS repair mask
     cropped_arr, _ = crop_by_template(options.args.full_tif, options.args.template_tif, options.args.cropped_tif)
@@ -73,13 +89,13 @@ def repair_mask_generation_for_SNODAS(options: Options) -> None:
     # Step 2: Apply to each base mask
     for base_mask_path in options.args.base_masks:
         base_name = os.path.basename(base_mask_path)
-        print(base_name)
+        logging.info(base_name)
         # Replace 'snodas' with 'repaired' in the filename
         if base_name.startswith("snodas_"):
             output_name = base_name.replace("snodas_", "repaired_", 1)
         else:
             output_name = f"repaired_{base_name}"
-        print(output_name)
+        logging.info(output_name)
         output_path = os.path.join(options.args.output_dir, output_name)
         repair_mask(base_mask_path, cropped_arr, output_path)
 
@@ -125,7 +141,7 @@ def crop_by_template(full_tif: str, template_tif: str, output_tif: str) -> tuple
     ds_out = gdal.Open(output_tif)
     arr = ds_out.ReadAsArray()
     gt_out = ds_out.GetGeoTransform()
-    print(f"Cropped and loaded array with shape: {arr.shape}")
+    logging.info(f"Cropped and loaded array with shape: {arr.shape}")
     return arr, gt_out
 
 
@@ -156,7 +172,7 @@ def repair_mask(base_mask_path: str, repair_mask_arr: np.ndarray, output_path: s
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     pd.DataFrame(mask_repaired).to_csv(output_path, index=False, header=False)
-    print(f"Repaired mask saved to {output_path}")
+    logging.info(f"Repaired mask saved to {output_path}")
 
 
 if __name__ == "__main__":

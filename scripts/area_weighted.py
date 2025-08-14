@@ -49,6 +49,9 @@ def area_weighted_stats(data: np.ndarray, weights: np.ndarray, mask: np.ndarray)
             - weighted_mean: Mean of variable weighted by area (same units as data)
             - weighted_sum: Total volume/mass (data*weights, e.g., cm*km²)
             - total_weight: Total area/weight included (e.g., km²)
+    
+    Raises:
+        None.
     """
     mask = mask.astype(bool)
 
@@ -76,10 +79,16 @@ def run_cli(data_csv: str, weights_csv: str, mask_csv: str, output_csv: str = No
     Run the area-weighted stats calculation using CSV files.
 
     Args:
-        data_csv (str): Path to CSV file with the variable values.
-        weights_csv (str): Path to CSV file with area weights.
-        mask_csv (str): Path to CSV file with mask (1=include, 0=exclude).
-        output_csv (str, optional): If given, save results here.
+        data_csv:    Path to CSV file with the variable values.
+        weights_csv: Path to CSV file with area weights.
+        mask_csv:    Path to CSV file with mask (1=include, 0=exclude).
+        output_csv:  If given, save results here.
+    
+    Returns:
+        None. Prints results to console and optionally saves to output_csv.
+    
+    Raises:
+        None.
     """
     data    = load_csv_as_array(data_csv)
     weights = load_csv_as_array(weights_csv)

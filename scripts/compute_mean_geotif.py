@@ -4,16 +4,24 @@ from osgeo import gdal
 import logging
 
 #Written by Munish Sikka and ChatGPT
-def compute_mean_raster(file_list, output_path,scale_factor):
+
+
+def compute_mean_raster(file_list: list[str], output_path: str, scale_factor: float) -> None:
     """
     Computes the mean of a list of raster (.tif) files at each pixel location
     and saves the result as a new raster with filename containing start and end day.
 
-    Parameters:
-        file_list (list): Sorted list of raster file paths.
-        output_dir (str): Directory to save the output mean raster.
-        start_day (str): Start day in 'YYYYMMDD' format.
-        end_day (str): End day in 'YYYYMMDD' format.
+    Args:
+        file_list:  Sorted list of raster file paths.
+        output_dir: Directory to save the output mean raster.
+        start_day:  Start day in 'YYYYMMDD' format.
+        end_day:    End day in 'YYYYMMDD' format.
+    
+    Returns:
+        None. Saves the mean raster to output_path.
+    
+    Raises:
+        ValueError: If file_list is empty.
     """
     if not file_list:
         raise ValueError("No valid files provided.")
@@ -61,6 +69,5 @@ def compute_mean_raster(file_list, output_path,scale_factor):
     out_band.SetNoDataValue(np.nan)
     out_band.FlushCache()
     out_ds = None  # Close file
-    print(f"Mean raster saved to: {output_path}")
     logging.info(f"Mean raster saved to: {output_path}")
 

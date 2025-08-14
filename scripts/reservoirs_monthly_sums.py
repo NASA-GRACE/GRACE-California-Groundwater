@@ -63,7 +63,26 @@ def main() -> None:
 
 
 def monthly_sums_CDEC(options: Options) -> None:
-    """Map CDEC sites to regions from shapefile, generate mapping CSVs and regional monthly sums"""
+    """
+    Map CDEC sites to regions from shapefile, generate mapping CSVs and regional monthly sums
+    
+    Args:
+        options: An Options instance with parsed command line arguments in options.args. Contains:
+           - shapefile:              Path to shapefile defining regions.
+           - shapefile_name_field:   Field in shapefile for region names (ignored if region _name=ca).
+           - input_xlsx:             Excel file with site info (Station ID, LATITUDE, LONGITUDE).
+           - sheet_name:             Sheet index in Excel (default 0).
+           - allowed_names:          Region names (strings) or SORT codes (if region_name=ca).
+           - region_name:            Overall region name, e.g. 'ca' to use SORT field.
+           - data_dir:               Directory containing site CSVs.
+           - output_dir:             Directory to save per-region outputs.
+    
+    Returns:
+        None. Saves mapping CSVs and regional monthly sums CSVs to output_dir.
+    
+    Raises:
+        None.    
+    """
     shapefile            = options.args.shapefile
     shapefile_name_field = options.args.shapefile_name_field
     input_xlsx           = options.args.input_xlsx
@@ -134,7 +153,7 @@ def monthly_sums_CDEC(options: Options) -> None:
             mapping_csv = os.path.join(output_dir, f"sites_{sanitized_region}.csv")
 
         pd.DataFrame({'sitename': sites}).to_csv(mapping_csv, index=False)
-        print(f"Saved site-to-region mapping: {mapping_csv}")
+        logging.info(f"Saved site-to-region mapping: {mapping_csv}")
 
         # Generate regional time series CSV
         monthly_dfs = []
@@ -143,7 +162,7 @@ def monthly_sums_CDEC(options: Options) -> None:
             if os.path.exists(file_path):
                 monthly_dfs.append(read_monthly_csv(file_path))
             else:
-                print(f"[Missing] {file_path}")
+                logging.error(f"[Missing] {file_path}")
 
         if monthly_dfs:
             combined_df = pd.concat(monthly_dfs, axis=1).fillna(0)
@@ -161,40 +180,18 @@ def monthly_sums_CDEC(options: Options) -> None:
             else:
                 region_csv = os.path.join(output_dir, f"{sanitized_region}_monthly_km3.csv")
             region_df.to_csv(region_csv, index=False)
-            print(f"Saved time series: {region_csv}")
+            logging.info(f"Saved time series: {region_csv}")
         else:
-            print(f"No data found for region: {region_key}")
+            logging.warning(f"No data found for region: {region_key}")
 
 
 def clean_unicode_whitespace(val: str) -> str:
-    """
-    Normalize string to remove non-breaking spaces or invisible characters.
-    
-    Args:
-        val: Input string.
-    
-    Returns:
-        Cleaned string with unicode whitespace removed.
-    
-    Raises:
-        None.
-    """
+    """Normalize string to remove non-breaking spaces or invisible characters."""
     return ''.join(ch for ch in str(val) if not unicodedata.category(ch).startswith('Z'))
 
 
 def sanitize_name(name: str) -> str:
-    """
-    Lowercase and replace spaces/hyphens with underscores for filenames.
-    
-    Args:
-        name: Input region name.
-    
-    Returns:
-        Sanitized name string.
-    
-    Raises:
-        None.
-    """
+    """Lowercase and replace spaces/hyphens with underscores for filenames."""
     return re.sub(r'[-\s]+', '_', str(name).lower())
 
 

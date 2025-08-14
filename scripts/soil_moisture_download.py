@@ -1,4 +1,4 @@
-# Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o1 (it/its), and GitHub Copilot (it/its).
+# Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o1 (it/its), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
 # Based on the example given here: https://disc.gsfc.nasa.gov/information/howto?keywords=python&title=How%20to%20Access%20GES%20DISC%20Data%20Using%20Python
 # This program will only work if Earthdata prerequisite files have already been generated. See https://disc.gsfc.nasa.gov/information/howto?title=How%20to%20Generate%20Earthdata%20Prerequisite%20Files
 # Documentation:
@@ -42,11 +42,11 @@ def parse_arguments(options: Options) -> None:
               "10.5067/WB224IA3PVOJ : NLDAS Noah   LSM L4 Monthly 0.125 degree v2.0\n"
               "10.5067/TS58ZCJZIWT5 : NLDAS Mosaic LSM L4 Hourly  0.125 degree v2.0\n"
               "10.5067/YQ1P3OP48R8M : NLDAS Mosaic LSM L4 Monthly 0.125 degree v2.0\n\n"))
-    parser.add_argument("-timespan", nargs=2, default=options.default_timespan,
+    parser.add_argument("-timespan", type=str, nargs=2, default=options.default_timespan,
                         help=f"Timespan as two dates or datetimes in YYYY, YYYY-MM, YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS format. A datetime of 'NOW' will return the current datetime. For example: '-timespan 1980-01-01 1981-01-01' or 'timespan 1980-01-01T00:00:00 1980-01-01T12:30:00' or 'timespan 2017-02 NOW' (default: {' '.join(options.default_timespan)})\n\n")
-    parser.add_argument("-region", nargs=4, type=float, default=options.default_region,
+    parser.add_argument("-region", type=float, nargs=4, default=options.default_region,
                         help=f"Optional region specified as four floats: west south east north. If not provided, the script will default to ({' '.join(map(str, options.default_region))}).\n\n")
-    parser.add_argument("-local_dir", default=options.default_local_dir,
+    parser.add_argument("-local_dir", type=Path, default=options.default_local_dir,
                         help=f"Local directory to download files to (default: '{options.default_local_dir}').")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
@@ -73,7 +73,11 @@ def download_NLDAS_data(options: Options) -> None:
     Search for and download NLDAS soil moisture data using Earthaccess.
 
     Args:
-        options: An Options instance with parsed command line arguments in options.args.
+        options: An Options instance with parsed arguments. Contains:
+           - doi:         DOI to use for the search_data call.
+           - timespan:    Tuple of two strings representing start and end dates/datetimes.
+           - region:      Tuple of four floats representing west, south, east, north bounding box.
+           - local_dir:   Local directory to download files to.
 
     Returns:
         None. Downloads files to the specified local directory.
@@ -104,7 +108,10 @@ def validate_inputs(options: Options) -> tuple[dt.datetime, dt.datetime]:
     Validate the command line input arguments, make the desired local directory if it doesn't exist, print the input arguments, and return the start/end time datetime objects.
 
     Args:
-        options: An Options instance with parsed command line arguments in options.args.
+        options: An Options instance with parsed arguments. Contains:
+           - region:      Tuple of four floats representing west, south, east, north bounding box.
+           - timespan:    Tuple of two strings representing start and end dates/datetimes.
+           - local_dir:   Local directory to download files to.
 
     Returns:
         A tuple of two datetime.datetime objects: (start_dt, end_dt).

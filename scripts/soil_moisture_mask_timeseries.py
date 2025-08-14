@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), and GitHub Copilot (it/its).
+Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
 This program computes water storage anomalies within a polygon’s footprint from a
 concatenated soil moisture (e.g. NLDAS) netCDF file. It outputs both a CSV file containing the region’s
 mean anomaly time series and a NetCDF file with the corresponding subset anomalies.
@@ -49,15 +49,15 @@ def parse_arguments(options: Options) -> None:
         description="Compute water storage anomalies using a concatenated data netCDF file and a polygon shapefile.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument("-input_nc", default=options.default_input_nc,
+    parser.add_argument("-input_nc", type=Path, default=options.default_input_nc,
                         help=f"Input concatenated data netCDF file (default: {options.default_input_nc})")
-    parser.add_argument("-out_dir", default=options.default_out_dir,
+    parser.add_argument("-out_dir", type=Path, default=options.default_out_dir,
                         help=f"Output directory for CSV and NetCDF files (default: {options.default_out_dir})")
-    parser.add_argument("-output_csv", default=options.default_csv,
+    parser.add_argument("-output_csv", type=Path, default=options.default_csv,
                         help=f"Output CSV file for the region mean anomaly time series (default: {options.default_csv})")
-    parser.add_argument("-output_nc", default=options.default_nc,
+    parser.add_argument("-output_nc", type=Path, default=options.default_nc,
                         help=f"Output netCDF file for gridded and masked data anomalies (default: {options.default_nc})")
-    parser.add_argument("-mask_nc", default=options.default_mask,
+    parser.add_argument("-mask_nc", type=Path, default=options.default_mask,
                         help=f"Input netCDF mask file in {options.masks_dir} (0/1 values, rows=lat, cols=lon) (default: {options.default_mask})")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")

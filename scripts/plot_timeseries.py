@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), and GitHub Copilot (it/its).
+# Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
 
 import os
 from pathlib import Path
@@ -35,8 +35,7 @@ class Options(ra.PlotOptions):
         """Initialize the options with values from run_all.PlotOptions and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:                  Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_timeseries_dir:   Path = self.project_root / "input_data" / "masked_timeseries"
-        self.default_csv_files:  list[Path] = [self.default_timeseries_dir / 'LATEST.csv']  # default to latest CSV in default_timeseries_dir
+        self.default_csv_files:  list[Path] = [self.timeseries_dir / 'LATEST.csv']  # default to latest CSV in self.timeseries_dir
 
         # Dates at which to break the plotted lines (list of datetime.datetime)
         # self.discontinuities: list[dt.datetime] = []  # Uncomment this line to have no discontinuities
@@ -50,16 +49,14 @@ class Options(ra.PlotOptions):
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description='Plot time series from CSV file(s)')
-    parser.add_argument('--timeseries_dir', default=options.default_timeseries_dir,
-                        help=f'Directory containing time series CSV files (defaults to {options.default_timeseries_dir})')
-    parser.add_argument('--csv_files', default=options.default_csv_files,
-                        help=f'Path(s) to your CSV file(s); if none given, uses the latest .csv file in the timeseries_dir (which defaults to {options.default_timeseries_dir})')
+    parser.add_argument('--csv_files', type=list[Path], default=options.default_csv_files,
+                        help=f'Path(s) to your CSV file(s); if none given, uses the latest .csv file in {options.timeseries_dir})')
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
         options.log_mode = "DEBUG"
-    options.default_csv_files = [options.args.timeseries_dir / 'LATEST.csv']  # update default_csv_files in case timeseries_dir was overridden
+    options.default_csv_files = [options.timeseries_dir / 'LATEST.csv']  # update default_csv_files in case timeseries_dir was overridden
 
 
 def main() -> None:
@@ -72,7 +69,7 @@ def main() -> None:
     # Resolve "no args" → take the LATEST.csv default behavior
     csv_files = options.args.csv_files
     if csv_files == options.default_csv_files:
-        csv_files = [Path(max(glob.glob(str(options.default_timeseries_dir / '*.csv')), key=os.path.getctime)).expanduser().resolve()]
+        csv_files = [Path(max(glob.glob(str(options.timeseries_dir / '*.csv')), key=os.path.getctime)).expanduser().resolve()]
 
     # Extract datatype for each file, ensure they all match
     dlist = []

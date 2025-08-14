@@ -166,7 +166,26 @@ def prepare_grid_and_mask(dataset: xr.Dataset, mask_array: np.ndarray) -> tuple[
 
 def compute_timeseries(dataset: xr.Dataset, region_mask: np.ndarray, ma: np.ndarray,
                        scale_factor: int, start_date: str, end_date: str) -> tuple:
-    """Compute regional TWS time series and uncertainty."""
+    """
+    Compute regional TWS time series and uncertainty.
+
+    Args:
+        dataset:      Loaded GRACE dataset.
+        region_mask:  2D numpy array of the aligned mask.
+        ma:           2D numpy array of area weights multiplied by mask.
+        scale_factor: 1 to apply scaling factor, 0 to skip.
+        start_date:   Start date (YYYY-MM-DD).
+        end_date:     End date (YYYY-MM-DD).
+    
+    Returns:
+        tuple: (regional_ts, bsn_sig, dates)
+            - regional_ts: 1D numpy array of regional TWS time series.
+            - bsn_sig:     1D numpy array of basin uncertainty time series.
+            - dates:       1D numpy array of datetime64 dates.
+    
+    Raises:
+        None.
+    """
     lwe = dataset["lwe_thickness"].sel(time=slice(start_date, end_date)).values
     scale = dataset["scale_factor"].values if scale_factor else np.ones_like(lwe[0])
 
@@ -186,7 +205,20 @@ def compute_timeseries(dataset: xr.Dataset, region_mask: np.ndarray, ma: np.ndar
 
 
 def compute_uncertainty(sig_lwe: np.ndarray, mascon_id: np.ndarray, ma: np.ndarray) -> np.ndarray:
-    """Aggregate mascon-level uncertainty to the basin scale."""
+    """
+    Aggregate mascon-level uncertainty to the basin scale.
+
+    Args:
+        sig_lwe:     3D numpy array of mascon uncertainties (time, lat, lon).
+        mascon_id:   2D numpy array of mascon IDs.
+        ma:          2D numpy array of area weights multiplied by mask.
+    
+    Returns:
+        np.ndarray: 1D numpy array of basin uncertainty time series.
+    
+    Raises:
+        None.
+    """
     ma_t = ma.T
     bool_mask = ma_t != 0
     new_sig = np.array([np.transpose(sig)[bool_mask] for sig in sig_lwe])
@@ -206,7 +238,24 @@ def compute_uncertainty(sig_lwe: np.ndarray, mascon_id: np.ndarray, ma: np.ndarr
 
 def save_results(output_csv: str, dates: np.ndarray, tws: np.ndarray, bsn_sig: np.ndarray,
                  ma: np.ndarray, units: str = "km3", baseline: tuple = None) -> None:
-    """Save final time series with optional anomaly calculation."""
+    """
+    Save final time series with optional anomaly calculation.
+    
+    Args:
+        output_csv: Path to save the output CSV.
+        dates:      1D numpy array of datetime64 dates.
+        tws:        1D numpy array of TWS time series.
+        bsn_sig:    1D numpy array of basin uncertainty time series.
+        ma:         2D numpy array of area weights multiplied by mask.
+        units:      "km3" or "cm" for output units.
+        baseline:   Optional tuple of (start_date, end_date) for anomaly baseline.
+    
+    Returns:
+        None. Saves output CSV to output_csv.
+    
+    Raises:
+        None.
+    """
     if units.lower() == "km3":
         tws = (tws / 100000) * (np.sum(ma) / 1e6)
         bsn_sig = (bsn_sig / 100000) * (np.sum(ma) / 1e6)

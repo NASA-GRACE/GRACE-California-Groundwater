@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), and GitHub Copilot (it/its).
+Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
+
 
 Compute a "groundwater" time series by subtracting snow water equivalent mass,
 soil moisture mass, and reservoirs mass from total water mass (obtained from GRACE),
 while propagating (presumably independent) uncertainties as variances.
 
 Each input CSV should have at least these columns:
-    date  : date or datetime (ISO format)
-    value : measured mass (e.g., mm water equivalent)
-    error : associated uncertainty (standard deviation)
+    date:        Date or datetime (ISO format)
+    value:       Measured mass (e.g., mm water equivalent)
+    error:       Associated uncertainty (standard deviation)
 
 The output CSV will include:
-    date            : aligned datetime index
-    groundwater     : computed groundwater mass
-    error           : propagated uncertainty
+    date:        Aligned datetime index
+    groundwater: Computed groundwater mass
+    error:       Propagated uncertainty
 """
 import os
 import sys
@@ -44,17 +45,17 @@ class Options(ra.Options):
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Compute groundwater series with uncertainty propagation")
-    parser.add_argument("-b", "--basin", default=options.default_basin,
+    parser.add_argument("-b", "--basin", type=str, default=options.default_basin,
                         help=f"Basin identifier ({', '.join(options.valid_basins)}).")
-    parser.add_argument(f'--soilm',  default=options.default_soil_moisture_csv,
+    parser.add_argument(f'--soilm', type=str, default=options.default_soil_moisture_csv,
                         help=f'Input  {options.soil_moisture_model} CSV file in {options.timeseries_dir} (default: {options.default_soil_moisture_csv})')
-    parser.add_argument(f'--reservoirs',   default=options.default_reservoirs_csv,
+    parser.add_argument(f'--reservoirs', type=str, default=options.default_reservoirs_csv,
                         help=f'Input   {options.reservoirs_model} CSV file in {options.timeseries_dir} (default: {options.default_reservoirs_csv})')
-    parser.add_argument(f'--swe', default=options.default_swe_csv,
+    parser.add_argument(f'--swe', type=str, default=options.default_swe_csv,
                         help=f'Input {options.swe_model} CSV file in {options.timeseries_dir} (default: {options.default_swe_csv})')
-    parser.add_argument('--grace',  default=options.default_grace_csv,
+    parser.add_argument('--grace', type=str, default=options.default_grace_csv,
                         help=f'Input  GRACE CSV file in {options.timeseries_dir} (default: {options.default_grace_csv})')
-    parser.add_argument('--output', default=options.default_output_csv,
+    parser.add_argument('--output', type=str, default=options.default_output_csv,
                         help=f'Output CSV path (default: {options.default_output_csv})')
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
@@ -151,6 +152,17 @@ def load_series(path: str | os.PathLike[str], date_col: str = 'date', target_day
     """
     Load a time series CSV with one date column and two data columns.
     Whatever the column names are, they get renamed to ['value','error'].
+
+    Args:
+        path:                Path to the input CSV file.
+        date_col:            Name of the date column in the CSV (default 'date').
+        target_day_of_month: Day of month to which all dates are aligned (default 15).
+    
+    Returns:
+        DataFrame with index as datetime and columns ['value','error'].
+    
+    Raises:
+        ValueError: If the CSV does not have exactly two data columns besides the date column.
     """
     # df = pd.read_csv(path, parse_dates=[date_col])
 
@@ -178,15 +190,27 @@ def load_series(path: str | os.PathLike[str], date_col: str = 'date', target_day
 
 
 def show_monthly_duplicates(df: pd.DataFrame, name: str) -> None:
-    """Show any duplicate months in the DataFrame index."""
+    """
+    Show any duplicate months in the DataFrame index.
+
+    Args:
+        df:   The DataFrame to check for duplicate months.
+        name: A name to identify the DataFrame in log messages.
+
+    Returns:
+        None
+    
+    Raises:
+        None
+    """
     # keep=False marks *all* occurrences of a duplicated label
     dup_idx = df.index[df.index.duplicated(keep=False)]
     if not dup_idx.empty:
-        print(f"\n{name} has {len(dup_idx)} total rows on these duplicate months:")
+        logging.info(f"\n{name} has {len(dup_idx)} total rows on these duplicate months:")
         for month in sorted(dup_idx.unique()):
             # show each month and the rows that fell into it
-            print(f"\n–– {month.date()} ––")
-            print(df.loc[month])
+            logging.info(f"\n–– {month.date()} ––")
+            logging.info(df.loc[month])
 
 
 def remove_mean(series:     pd.Series,
@@ -195,19 +219,16 @@ def remove_mean(series:     pd.Series,
     """
     Subtracts the mean of 'series' over [start_time, end_time] from the entire series.
 
-    Parameters
-    ----------
-    series : pd.Series
-        Time-indexed data.
-    start_time : str or pd.Timestamp
-        Start of the window over which to compute the mean.
-    end_time : str or pd.Timestamp
-        End of the window over which to compute the mean.
+    Args:
+        series:     Time-indexed data.
+        start_time: Start of the window over which to compute the mean.
+        end_time:   End of the window over which to compute the mean.
 
-    Returns
-    -------
-    pd.Series
+    Returns:
         The demeaned series.
+    
+    Raises:
+        None.
     """
     # ensure pandas timestamps
     start = pd.to_datetime(start_time)
@@ -236,7 +257,19 @@ def compute_groundwater(grace:      pd.DataFrame,
 
         sigma_sw = sqrt(sigma_grace^2 + sigma_swe^2 + sigma_soilm^2 + sigma_reservoirs^2)
 
-    Returns a DataFrame with columns ['groundwater','error'].
+    Args:
+        grace:      DataFrame with GRACE TWS data, columns ['value','error']
+        swe:        DataFrame with snow water equivalent data, columns ['value','error']
+        soilm:      DataFrame with soil moisture data, columns ['value','error']
+        reservoirs: DataFrame with reservoirs data, columns ['value','error']
+        start_time: Start of the window over which to compute long-term means.
+        end_time:   End of the window over which to compute long-term means.
+    
+    Returns:
+        DataFrame with columns ['groundwater','error'].
+    
+    Raises:
+        None.
     """
 
     # Combine into one DataFrame (with errors untouched)
@@ -275,18 +308,16 @@ def smooth_timeseries(sw: pd.DataFrame, window: int = 3) -> pd.DataFrame:
     Smooths the groundwater series (and its propagated error) with a centered
     moving average of length 'window' (in months).
 
-    Parameters
-    ----------
-    sw : pd.DataFrame
-        DataFrame with columns ['groundwater', 'error'] indexed by date.
-    window : int, optional
-        Size of the moving window (default is 3).
+    Args:
+    sw:     DataFrame with columns ['groundwater', 'error'] indexed by date.
+    window: Size of the moving window (default is 3).
 
-    Returns
-    -------
-    pd.DataFrame
+    Returns:
         A new DataFrame 'sw_smoothed' with the same structure as 'sw',
         where both 'groundwater' and 'error' have been smoothed.
+    
+    Raises:
+        None.
     """
     # make a copy so we don't overwrite the original
     sw_smoothed = sw.copy()
@@ -300,21 +331,20 @@ def average_timeseries(sw: pd.DataFrame, year_type: str = "calendar") -> pd.Data
     """
     Aggregate a monthly groundwater series into yearly averages.
 
-    Parameters
+    Args:
     ----------
-    sw : pd.DataFrame
-        DataFrame with columns ['groundwater','error'] indexed by month (date).
-    year_type : str, optional
-        Type of year to use for averaging:
+    sw:     DataFrame with columns ['groundwater','error'] indexed by month (date).
+    year_type: Type of year to use for averaging:
         - "calendar": Jan 1–Dec 31
         - "water"   : Oct 1–Sep 30 (water year).
         Default is "calendar".
 
-    Returns
-    -------
-    pd.DataFrame
+    Returns:
         Yearly-averaged DataFrame with index = year (as Timestamp at Dec 31 for
         calendar years, or Sep 30 for water years), and columns ['groundwater','error'].
+    
+    Raises:
+        ValueError: If year_type is not 'calendar' or 'water'.
     """
     if year_type not in ('calendar', 'water'):
         raise ValueError(f"year_type must be 'calendar' or 'water', got '{year_type}'")

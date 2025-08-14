@@ -61,7 +61,20 @@ def main() -> None:
 
 
 def reservoirs_download_CDEC(options: Options) -> None:
-    """Download reservoirs data from CDEC."""
+    """
+    Download reservoirs data from CDEC.
+    
+    Args:
+        options: An Options instance with parsed command line arguments in options.args. Contains:
+           - reservoir_list_file: CSV file containing reservoir names and station IDs.
+           - output_dir:          Directory for outputting reservoirs data.
+    
+    Returns:
+        None. Downloads data and saves to output_dir.
+    
+    Raises:
+        None.
+    """
     reservoir_list_file = options.args.reservoir_list_file
     output_dir          = options.args.output_dir
 

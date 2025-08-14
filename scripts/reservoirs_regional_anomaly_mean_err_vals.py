@@ -63,7 +63,23 @@ def main() -> None:
 
 
 def calculate_anomaly_and_errors_for_CDEC(options: Options) -> None:
-    """Compute anomalies and error values for CDEC regional CSV files."""
+    """
+    Compute anomalies and error values for CDEC regional CSV files.
+    
+    Args:
+        options: An Options instance with parsed command line arguments in options.args. Contains:
+           - csv_files:   List of CSV files (e.g., a_monthly_km3.csv b_monthly_km3.csv).
+           - output_dir:  Directory to save anomaly CSVs.
+           - start_date:  Baseline start date (YYYY-MM-DD).
+           - end_date:    Baseline end date (YYYY-MM-DD).
+           - err_val:     Error coefficient (e.g., 0.05 for 5%).
+    
+    Returns:
+        None. Saves anomaly CSVs to output_dir.
+
+    Raises:
+        None.
+    """
     for csv_file in options.args.csv_files:
         process_csv(csv_file, options.args.output_dir, options.args.start_date, options.args.end_date, options.args.err_val)
 

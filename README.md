@@ -1,6 +1,6 @@
 This software suite downloads and processes data representing the mass of soil moisture,
 snow water equivalent, and water in reservoirs. It masks these data using one of several
-specified river basin masks, generates anomaly timeseries and estimated error bars, then
+specified river basin masks, generates anomaly timeseries and estimates error bars, then
 subtracts those masses from the total mass anomaly timeseries derived from GRACE over the
 same river basin.
 

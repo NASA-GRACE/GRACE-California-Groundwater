@@ -109,16 +109,16 @@ def monthly_anomalies_for_SNODAS(options: Options) -> None:
 
     # Collect SWE files
     swe_files = sorted(glob.glob(os.path.join(input_dir, '*.tif')))
-    print(f"Found {len(swe_files)} SWE files")
+    logging.info(f"Found {len(swe_files)} SWE files")
 
     # Print summary (for now - replace with your actual processing code)
-    print(f"err_coeff: {err_coeff}")
-    print(f"Output directory: {output_dir}")
-    print(f"Mask1 directory: {mask1_dir}")
-    print(f"Mask2 directory: {mask2_dir}")
-    print(f"Regions: {regions}")
-    print(f"Output region names: {output_regions}")
-    print(f"Date range for alt processing: {start_alt.date()} to {end_alt.date()}")
+    logging.info(f"err_coeff: {err_coeff}")
+    logging.info(f"Output directory: {output_dir}")
+    logging.info(f"Mask1 directory: {mask1_dir}")
+    logging.info(f"Mask2 directory: {mask2_dir}")
+    logging.info(f"Regions: {regions}")
+    logging.info(f"Output region names: {output_regions}")
+    logging.info(f"Date range for alt processing: {start_alt.date()} to {end_alt.date()}")
 
     # processing
     region_masks = load_region_masks_from_subdirs(regions, mask1_dir, mask2_dir)
@@ -213,7 +213,7 @@ def compute_means_with_mask_switch(file_list: list, region_masks: dict,
         else:
             period = 'repaired_mask'
 
-        print(f"{mid_date.strftime('%Y-%m')}: Using {period}")
+        logging.info(f"{mid_date.strftime('%Y-%m')}: Using {period}")
 
         for j in range(len(region_names)):
             mask = region_masks[(j, period)]  # use tuple key here
@@ -242,7 +242,7 @@ def compute_means_with_mask_switch(file_list: list, region_masks: dict,
         baseline_mean = swe_values[time_mask].mean()
         df['swe'] = swe_values - baseline_mean
         df.drop(columns=['YearMonth']).to_csv(f"{output_dir}/anomaly_timeseries_snodas_{safe_name}.csv", index=False)
-    print("CSV files saved:", [f"{output_dir}/{r.replace(' ','_')}.csv" for r in region_names])
+    logging.info("CSV files saved:", [f"{output_dir}/{r.replace(' ','_')}.csv" for r in region_names])
 
 
 def extract_date_from_filename(filename: str) -> datetime:
