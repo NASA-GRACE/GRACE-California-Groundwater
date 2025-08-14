@@ -1,0 +1,31 @@
+└── [94minput_data/[0m
+    ├── [94mmasked_timeseries/[0m
+    ├── [94mmasks/[0m
+    ├── [94mreservoirs/[0m
+    │   └── [94mCDEC/[0m
+    │       ├── cdec_data_webpage.csv
+    │       ├── cdec_data_webpage.xlsx
+    │       ├── cdec_monthly_sums.py
+    │       └── cdec_regional_anomaly_mean_err_vals.py
+    ├── [94mshapefiles/[0m
+    │   ├── [94mHUC2/[0m
+    │   │   ├── HUC2-18_WBDHU4.zip
+    │   │   ├── WBDHU4.dbf
+    │   │   ├── WBDHU4.prj
+    │   │   ├── WBDHU4.shp
+    │   │   └── WBDHU4.shx
+    │   ├── hybas_na_lev04_v1c.dbf
+    │   ├── hybas_na_lev04_v1c.prj
+    │   ├── hybas_na_lev04_v1c.sbn
+    │   ├── hybas_na_lev04_v1c.sbx
+    │   ├── hybas_na_lev04_v1c.shp
+    │   ├── hybas_na_lev04_v1c.shp.xml
+    │   ├── hybas_na_lev04_v1c.shx
+    │   └── HydroBASINS_TechDoc_v1c.pdf
+    ├── [94msnow_water_equivalent/[0m
+    │   └── [94mSNODAS/[0m
+    │       └── SNODAS_Zero_Repair_Mask.tif
+    └── [94msoil_moisture/[0m
+        └── [94mNLDAS/[0m
+            ├── [94mdata_concatenated/[0m
+            └── [94mdata_monthly/[0m

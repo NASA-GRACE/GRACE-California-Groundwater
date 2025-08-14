@@ -1,0 +1,14 @@
+2025-08-11 17:25:40,116 - INFO - Logging to /Users/killett/GRACE/CA-groundwater/repo/logs/.mypy-log-20250811-172540.out and /Users/killett/GRACE/CA-groundwater/repo/logs/.mypy-log-20250811-172540.err with level INFO
+2025-08-11 17:25:40,178 - INFO - Loading custom modules from /Users/killett/GRACE/CA-groundwater/repo/.mypy_custom_modules_RAYL-C01432_20250805-145430.pkl
+2025-08-11 17:25:40,182 - INFO - Custom modules file /Users/killett/GRACE/CA-groundwater/repo/.mypy_custom_modules_RAYL-C01432_20250805-145430.pkl is from date 20250805-145430 which is older than the point when paths were stored as Paths (which happened on 20250810-224900). Converting all paths to pathlib.Path objects.
+2025-08-11 17:25:40,211 - INFO - dict_of_custom_modules() took 0:00:00.033568
+2025-08-11 17:25:40,212 - INFO - Elapsed time: 0:00:00.132315
+2025-08-11 17:25:40,213 - INFO - Processing a single Python script: /Users/killett/treeview.py.
+2025-08-11 17:25:40,214 - INFO - Processing module: /Users/killett/treeview.py where type(module_path) = <class 'pathlib.PosixPath'>
+2025-08-11 17:25:40,216 - INFO - Processing module: /Users/killett/univ_defs.py where type(module_path) = <class 'pathlib.PosixPath'>
+2025-08-11 17:25:40,303 - INFO - Found no file or network operations in the python script (/Users/killett/treeview.py) or custom modules (univ_defs).
+2025-08-11 17:25:40,306 - INFO - No imports found.
+2025-08-11 17:25:40,306 - INFO - Uninstalled imports: set()
+2025-08-11 17:25:40,306 - INFO - Imported files in the same directory as the script: [PosixPath('/Users/killett/univ_defs.py')]
+2025-08-11 17:25:40,306 - INFO - All required packages are already installed.
+2025-08-11 17:25:40,410 - INFO - Runtime: 0:00:00.103602

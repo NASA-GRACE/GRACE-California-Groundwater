@@ -1,0 +1,13 @@
+2025-08-12 19:47:12,212 - INFO - Logging to /Users/killett/GRACE/CA-groundwater/repo/scripts/logs/.mypy-log-20250812-194712.out and /Users/killett/GRACE/CA-groundwater/repo/scripts/logs/.mypy-log-20250812-194712.err with level INFO
+2025-08-12 19:47:12,295 - INFO - Computer name: RAYL-C01432
+2025-08-12 19:47:12,621 - INFO - Loading custom modules from most recent pickle file: /Users/killett/GRACE/CA-groundwater/repo/scripts/.mypy_custom_modules_RAYL-C01432_20250806-212917.pkl
+2025-08-12 19:47:12,626 - INFO - Custom modules file /Users/killett/GRACE/CA-groundwater/repo/scripts/.mypy_custom_modules_RAYL-C01432_20250806-212917.pkl is from date 20250806-212917 which is older than the point when paths were stored as Paths (which happened on 20250810-224900). Converting all paths to pathlib.Path objects.
+2025-08-12 19:47:13,007 - INFO - dict_of_custom_modules() took 0:00:00.386806
+2025-08-12 19:47:13,012 - INFO - Elapsed time: 0:00:00.807572
+2025-08-12 19:47:13,013 - INFO - Processing a single Python script: /Users/killett/GRACE/CA-groundwater/repo/scripts/run_all.py.
+2025-08-12 19:47:13,022 - INFO - Processing module: /Users/killett/GRACE/CA-groundwater/repo/scripts/run_all.py where type(module_path) = <class 'pathlib.PosixPath'>
+2025-08-12 19:47:13,088 - INFO - Found no file or network operations in the python script (/Users/killett/GRACE/CA-groundwater/repo/scripts/run_all.py) or custom modules ().
+2025-08-12 19:47:13,088 - INFO - No imports found.
+2025-08-12 19:47:13,088 - INFO - Uninstalled imports: set()
+2025-08-12 19:47:13,088 - INFO - All required packages are already installed.
+2025-08-12 19:51:38,309 - INFO - Runtime: 0:04:25.220069

@@ -1,0 +1,166 @@
+2025-08-12 19:47:13,344 - INFO - Logging to /Users/killett/GRACE/CA-groundwater/repo/scripts/logs/.mypy-log-20250812-194713.out and /Users/killett/GRACE/CA-groundwater/repo/scripts/logs/.mypy-log-20250812-194713.err with level INFO
+2025-08-12 19:47:13,366 - INFO - Computer name: RAYL-C01432
+2025-08-12 19:47:13,420 - INFO - Loading custom modules from most recent pickle file: /Users/killett/GRACE/CA-groundwater/repo/scripts/.mypy_custom_modules_RAYL-C01432_20250806-212917.pkl
+2025-08-12 19:47:13,422 - INFO - Custom modules file /Users/killett/GRACE/CA-groundwater/repo/scripts/.mypy_custom_modules_RAYL-C01432_20250806-212917.pkl is from date 20250806-212917 which is older than the point when paths were stored as Paths (which happened on 20250810-224900). Converting all paths to pathlib.Path objects.
+2025-08-12 19:47:13,782 - INFO - dict_of_custom_modules() took 0:00:00.363143
+2025-08-12 19:47:13,783 - INFO - Elapsed time: 0:00:00.442531
+2025-08-12 19:47:13,783 - INFO - Processing a single Python script: /Users/killett/GRACE/CA-groundwater/repo/scripts/soil_moisture_download.py.
+2025-08-12 19:47:13,785 - INFO - Processing module: /Users/killett/GRACE/CA-groundwater/repo/scripts/soil_moisture_download.py where type(module_path) = <class 'pathlib.PosixPath'>
+2025-08-12 19:47:13,789 - INFO - Processing module: /Users/killett/GRACE/CA-groundwater/repo/scripts/run_all.py where type(module_path) = <class 'pathlib.PosixPath'>
+2025-08-12 19:47:13,816 - INFO - Found no file or network operations in the python script (/Users/killett/GRACE/CA-groundwater/repo/scripts/soil_moisture_download.py) or custom modules (run_all).
+2025-08-12 19:47:17,872 - INFO - Checking import earthaccess : 1/1 -  NO - NOT installed
+2025-08-12 19:47:18,092 - INFO - Uninstalled imports: {'earthaccess'}
+2025-08-12 19:47:18,092 - INFO - Imported files in the same directory as the script: [PosixPath('/Users/killett/GRACE/CA-groundwater/repo/scripts/run_all.py')]
+2025-08-12 19:47:18,093 - INFO - No previous JSON files found in the script directory.
+2025-08-12 19:47:18,093 - INFO - Trying to load the latest matching venv now.
+2025-08-12 19:47:18,093 - INFO - Checking the cache for a virtual environment with all the required packages...
+2025-08-12 19:47:18,108 - INFO - Found 2 matching venv folders in the cache.
+2025-08-12 19:47:18,248 - ERROR - The cached venv directory /Users/killett/mypy/myenv-versionless-20250709-234707-astropy-backports.statistics-cartopy-dask-earthaccess-and-12-more failed check_packages_in_venv.
+2025-08-12 19:47:18,249 - ERROR - The latest venv in the cache is invalid. Giving up on the cache and starting from scratch.
+2025-08-12 19:47:18,251 - INFO - Creating new virtual environment 'myenv'...
+2025-08-12 19:47:18,251 - INFO - Creating virtual environment...
+2025-08-12 19:47:21,850 - INFO - Virtual environment created.
+2025-08-12 19:47:21,851 - INFO - Running pip install: /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/bin/pip install wheel
+2025-08-12 19:47:23,219 - INFO - Wheel installed in the virtual environment.
+2025-08-12 19:47:23,220 - INFO - Writing download script to /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/download_packages.sh
+2025-08-12 19:47:23,220 - INFO - Executing command: /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/download_packages.sh
+2025-08-12 19:47:23,566 - INFO - Upgrading pip...
+2025-08-12 19:47:24,000 - INFO - Requirement already satisfied: pip in /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/lib/python3.11/site-packages (24.1.2)
+2025-08-12 19:47:24,127 - INFO - Collecting pip
+2025-08-12 19:47:24,130 - INFO - Using cached pip-25.2-py3-none-any.whl.metadata (4.7 kB)
+2025-08-12 19:47:24,138 - INFO - Using cached pip-25.2-py3-none-any.whl (1.8 MB)
+2025-08-12 19:47:24,199 - INFO - Installing collected packages: pip
+2025-08-12 19:47:24,199 - INFO - Attempting uninstall: pip
+2025-08-12 19:47:24,203 - INFO - Found existing installation: pip 24.1.2
+2025-08-12 19:47:24,255 - INFO - Uninstalling pip-24.1.2:
+2025-08-12 19:47:24,268 - INFO - Successfully uninstalled pip-24.1.2
+2025-08-12 19:47:25,644 - INFO - Successfully installed pip-25.2
+2025-08-12 19:47:25,766 - INFO - Local setuptools files found.
+2025-08-12 19:47:25,782 - INFO - Local wheel files found.
+2025-08-12 19:47:25,782 - INFO - Downloading packages...
+2025-08-12 19:47:26,727 - INFO - Collecting earthaccess (from -r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:26,728 - INFO - File was already downloaded /Users/killett/mypy/packages/earthaccess-0.14.0-py3-none-any.whl
+2025-08-12 19:47:26,811 - INFO - Collecting fsspec>=2022.11 (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:26,811 - INFO - File was already downloaded /Users/killett/mypy/packages/fsspec-2025.7.0-py3-none-any.whl
+2025-08-12 19:47:26,909 - INFO - Collecting importlib-resources>=6.3.2 (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:26,909 - INFO - File was already downloaded /Users/killett/mypy/packages/importlib_resources-6.5.2-py3-none-any.whl
+2025-08-12 19:47:26,977 - INFO - Collecting multimethod>=1.8 (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:26,977 - INFO - File was already downloaded /Users/killett/mypy/packages/multimethod-2.0-py3-none-any.whl
+2025-08-12 19:47:27,035 - INFO - Collecting pqdm>=0.1 (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:27,035 - INFO - File was already downloaded /Users/killett/mypy/packages/pqdm-0.2.0-py2.py3-none-any.whl
+2025-08-12 19:47:27,108 - INFO - Collecting python-cmr>=0.10.0 (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:27,108 - INFO - File was already downloaded /Users/killett/mypy/packages/python_cmr-0.13.0-py3-none-any.whl
+2025-08-12 19:47:27,201 - INFO - Collecting requests>=2.26 (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:27,202 - INFO - File was already downloaded /Users/killett/mypy/packages/requests-2.32.4-py3-none-any.whl
+2025-08-12 19:47:27,272 - INFO - Collecting s3fs>=2022.11 (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:27,275 - INFO - Using cached s3fs-2025.7.0-py3-none-any.whl.metadata (1.4 kB)
+2025-08-12 19:47:27,325 - INFO - Collecting tinynetrc>=1.3.1 (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:27,326 - INFO - File was already downloaded /Users/killett/mypy/packages/tinynetrc-1.3.1-py2.py3-none-any.whl
+2025-08-12 19:47:27,395 - INFO - Collecting typing-extensions>=4.10.0 (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:27,395 - INFO - File was already downloaded /Users/killett/mypy/packages/typing_extensions-4.14.1-py3-none-any.whl
+2025-08-12 19:47:27,447 - INFO - Collecting bounded-pool-executor (from pqdm>=0.1->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:27,448 - INFO - File was already downloaded /Users/killett/mypy/packages/bounded_pool_executor-0.0.3-py3-none-any.whl
+2025-08-12 19:47:27,534 - INFO - Collecting tqdm (from pqdm>=0.1->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:27,534 - INFO - File was already downloaded /Users/killett/mypy/packages/tqdm-4.67.1-py3-none-any.whl
+2025-08-12 19:47:27,597 - INFO - Collecting python-dateutil<3.0.0,>=2.8.2 (from python-cmr>=0.10.0->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:27,598 - INFO - File was already downloaded /Users/killett/mypy/packages/python_dateutil-2.9.0.post0-py2.py3-none-any.whl
+2025-08-12 19:47:27,691 - INFO - Collecting six>=1.5 (from python-dateutil<3.0.0,>=2.8.2->python-cmr>=0.10.0->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:27,692 - INFO - File was already downloaded /Users/killett/mypy/packages/six-1.17.0-py2.py3-none-any.whl
+2025-08-12 19:47:27,847 - INFO - Collecting charset_normalizer<4,>=2 (from requests>=2.26->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:28,029 - INFO - Downloading charset_normalizer-3.4.3-cp311-cp311-macosx_10_9_universal2.whl.metadata (36 kB)
+2025-08-12 19:47:28,125 - INFO - Collecting idna<4,>=2.5 (from requests>=2.26->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:28,127 - INFO - File was already downloaded /Users/killett/mypy/packages/idna-3.10-py3-none-any.whl
+2025-08-12 19:47:28,207 - INFO - Collecting urllib3<3,>=1.21.1 (from requests>=2.26->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:28,207 - INFO - File was already downloaded /Users/killett/mypy/packages/urllib3-2.5.0-py3-none-any.whl
+2025-08-12 19:47:28,275 - INFO - Collecting certifi>=2017.4.17 (from requests>=2.26->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:28,290 - INFO - Downloading certifi-2025.8.3-py3-none-any.whl.metadata (2.4 kB)
+2025-08-12 19:47:28,388 - INFO - Collecting aiobotocore<3.0.0,>=2.5.4 (from s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:28,403 - INFO - Downloading aiobotocore-2.24.0-py3-none-any.whl.metadata (25 kB)
+2025-08-12 19:47:29,242 - INFO - Collecting aiohttp!=4.0.0a0,!=4.0.0a1 (from s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:29,296 - INFO - Downloading aiohttp-3.12.15-cp311-cp311-macosx_10_9_x86_64.whl.metadata (7.7 kB)
+2025-08-12 19:47:29,435 - INFO - Collecting aioitertools<1.0.0,>=0.5.1 (from aiobotocore<3.0.0,>=2.5.4->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:29,436 - INFO - File was already downloaded /Users/killett/mypy/packages/aioitertools-0.12.0-py3-none-any.whl
+2025-08-12 19:47:30,002 - INFO - Collecting botocore<1.39.12,>=1.39.9 (from aiobotocore<3.0.0,>=2.5.4->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:30,002 - INFO - File was already downloaded /Users/killett/mypy/packages/botocore-1.39.11-py3-none-any.whl
+2025-08-12 19:47:30,160 - INFO - Collecting jmespath<2.0.0,>=0.7.1 (from aiobotocore<3.0.0,>=2.5.4->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:30,162 - INFO - File was already downloaded /Users/killett/mypy/packages/jmespath-1.0.1-py3-none-any.whl
+2025-08-12 19:47:30,529 - INFO - Collecting multidict<7.0.0,>=6.0.0 (from aiobotocore<3.0.0,>=2.5.4->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:30,559 - INFO - Downloading multidict-6.6.4-cp311-cp311-macosx_10_9_x86_64.whl.metadata (5.3 kB)
+2025-08-12 19:47:30,787 - INFO - Collecting wrapt<2.0.0,>=1.10.10 (from aiobotocore<3.0.0,>=2.5.4->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:30,813 - INFO - Downloading wrapt-1.17.3-cp311-cp311-macosx_10_9_x86_64.whl.metadata (6.4 kB)
+2025-08-12 19:47:30,898 - INFO - Collecting aiohappyeyeballs>=2.5.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:30,915 - INFO - Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)
+2025-08-12 19:47:30,991 - INFO - Collecting aiosignal>=1.4.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:31,007 - INFO - Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)
+2025-08-12 19:47:31,090 - INFO - Collecting attrs>=17.3.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:31,091 - INFO - File was already downloaded /Users/killett/mypy/packages/attrs-25.3.0-py3-none-any.whl
+2025-08-12 19:47:31,233 - INFO - Collecting frozenlist>=1.1.1 (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:31,252 - INFO - Downloading frozenlist-1.7.0-cp311-cp311-macosx_10_9_x86_64.whl.metadata (18 kB)
+2025-08-12 19:47:31,386 - INFO - Collecting propcache>=0.2.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:31,404 - INFO - Downloading propcache-0.3.2-cp311-cp311-macosx_10_9_x86_64.whl.metadata (12 kB)
+2025-08-12 19:47:31,816 - INFO - Collecting yarl<2.0,>=1.17.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:31,840 - INFO - Downloading yarl-1.20.1-cp311-cp311-macosx_10_9_x86_64.whl.metadata (73 kB)
+2025-08-12 19:47:31,974 - INFO - Downloading charset_normalizer-3.4.3-cp311-cp311-macosx_10_9_universal2.whl (204 kB)
+2025-08-12 19:47:32,069 - INFO - Downloading certifi-2025.8.3-py3-none-any.whl (161 kB)
+2025-08-12 19:47:32,150 - INFO - Downloading s3fs-2025.7.0-py3-none-any.whl (30 kB)
+2025-08-12 19:47:32,211 - INFO - Downloading aiobotocore-2.24.0-py3-none-any.whl (84 kB)
+2025-08-12 19:47:32,279 - INFO - Downloading aiohttp-3.12.15-cp311-cp311-macosx_10_9_x86_64.whl (483 kB)
+2025-08-12 19:47:32,400 - INFO - Downloading multidict-6.6.4-cp311-cp311-macosx_10_9_x86_64.whl (44 kB)
+2025-08-12 19:47:32,449 - INFO - Downloading wrapt-1.17.3-cp311-cp311-macosx_10_9_x86_64.whl (38 kB)
+2025-08-12 19:47:32,494 - INFO - Downloading yarl-1.20.1-cp311-cp311-macosx_10_9_x86_64.whl (91 kB)
+2025-08-12 19:47:32,541 - INFO - Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)
+2025-08-12 19:47:32,583 - INFO - Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)
+2025-08-12 19:47:32,628 - INFO - Downloading frozenlist-1.7.0-cp311-cp311-macosx_10_9_x86_64.whl (48 kB)
+2025-08-12 19:47:32,675 - INFO - Downloading propcache-0.3.2-cp311-cp311-macosx_10_9_x86_64.whl (43 kB)
+2025-08-12 19:47:32,718 - INFO - Saved /Users/killett/mypy/packages/charset_normalizer-3.4.3-cp311-cp311-macosx_10_9_universal2.whl
+2025-08-12 19:47:32,719 - INFO - Saved /Users/killett/mypy/packages/certifi-2025.8.3-py3-none-any.whl
+2025-08-12 19:47:32,720 - INFO - Saved /Users/killett/mypy/packages/s3fs-2025.7.0-py3-none-any.whl
+2025-08-12 19:47:32,721 - INFO - Saved /Users/killett/mypy/packages/aiobotocore-2.24.0-py3-none-any.whl
+2025-08-12 19:47:32,722 - INFO - Saved /Users/killett/mypy/packages/aiohttp-3.12.15-cp311-cp311-macosx_10_9_x86_64.whl
+2025-08-12 19:47:32,723 - INFO - Saved /Users/killett/mypy/packages/multidict-6.6.4-cp311-cp311-macosx_10_9_x86_64.whl
+2025-08-12 19:47:32,723 - INFO - Saved /Users/killett/mypy/packages/wrapt-1.17.3-cp311-cp311-macosx_10_9_x86_64.whl
+2025-08-12 19:47:32,724 - INFO - Saved /Users/killett/mypy/packages/yarl-1.20.1-cp311-cp311-macosx_10_9_x86_64.whl
+2025-08-12 19:47:32,725 - INFO - Saved /Users/killett/mypy/packages/aiohappyeyeballs-2.6.1-py3-none-any.whl
+2025-08-12 19:47:32,726 - INFO - Saved /Users/killett/mypy/packages/aiosignal-1.4.0-py3-none-any.whl
+2025-08-12 19:47:32,726 - INFO - Saved /Users/killett/mypy/packages/frozenlist-1.7.0-cp311-cp311-macosx_10_9_x86_64.whl
+2025-08-12 19:47:32,727 - INFO - Saved /Users/killett/mypy/packages/propcache-0.3.2-cp311-cp311-macosx_10_9_x86_64.whl
+2025-08-12 19:47:32,728 - INFO - Successfully downloaded earthaccess fsspec importlib-resources multimethod pqdm python-cmr python-dateutil requests charset_normalizer idna typing-extensions urllib3 certifi s3fs aiobotocore aiohttp aioitertools botocore jmespath multidict wrapt yarl aiohappyeyeballs aiosignal attrs frozenlist propcache six tinynetrc bounded-pool-executor tqdm
+2025-08-12 19:47:33,056 - INFO - Installing all packages simultaneously...
+2025-08-12 19:47:33,056 - INFO - Executing command: /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/bin/python -m pip install --no-index --find-links /Users/killett/mypy/packages -r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt
+2025-08-12 19:47:33,462 - INFO - Looking in links: /Users/killett/mypy/packages
+2025-08-12 19:47:33,495 - INFO - Processing /Users/killett/mypy/packages/earthaccess-0.14.0-py3-none-any.whl (from -r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,511 - INFO - Processing /Users/killett/mypy/packages/fsspec-2025.7.0-py3-none-any.whl (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,541 - INFO - Processing /Users/killett/mypy/packages/importlib_resources-6.5.2-py3-none-any.whl (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,547 - INFO - Processing /Users/killett/mypy/packages/multimethod-2.0-py3-none-any.whl (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,550 - INFO - Processing /Users/killett/mypy/packages/pqdm-0.2.0-py2.py3-none-any.whl (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,553 - INFO - Processing /Users/killett/mypy/packages/python_cmr-0.13.0-py3-none-any.whl (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,557 - INFO - Processing /Users/killett/mypy/packages/requests-2.32.4-py3-none-any.whl (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,562 - INFO - Processing /Users/killett/mypy/packages/s3fs-2025.7.0-py3-none-any.whl (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,565 - INFO - Processing /Users/killett/mypy/packages/tinynetrc-1.3.1-py2.py3-none-any.whl (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,568 - INFO - Processing /Users/killett/mypy/packages/typing_extensions-4.14.1-py3-none-any.whl (from earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,574 - INFO - Processing /Users/killett/mypy/packages/bounded_pool_executor-0.0.3-py3-none-any.whl (from pqdm>=0.1->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,577 - INFO - Processing /Users/killett/mypy/packages/tqdm-4.67.1-py3-none-any.whl (from pqdm>=0.1->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,587 - INFO - Processing /Users/killett/mypy/packages/python_dateutil-2.9.0.post0-py2.py3-none-any.whl (from python-cmr>=0.10.0->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,594 - INFO - Processing /Users/killett/mypy/packages/six-1.17.0-py2.py3-none-any.whl (from python-dateutil<3.0.0,>=2.8.2->python-cmr>=0.10.0->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,598 - INFO - Processing /Users/killett/mypy/packages/charset_normalizer-3.4.3-cp311-cp311-macosx_10_9_universal2.whl (from requests>=2.26->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,604 - INFO - Processing /Users/killett/mypy/packages/idna-3.10-py3-none-any.whl (from requests>=2.26->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,609 - INFO - Processing /Users/killett/mypy/packages/urllib3-2.5.0-py3-none-any.whl (from requests>=2.26->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,615 - INFO - Processing /Users/killett/mypy/packages/certifi-2025.8.3-py3-none-any.whl (from requests>=2.26->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,623 - INFO - Processing /Users/killett/mypy/packages/aiobotocore-2.24.0-py3-none-any.whl (from s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,631 - INFO - Processing /Users/killett/mypy/packages/aiohttp-3.12.15-cp311-cp311-macosx_10_9_x86_64.whl (from s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,640 - INFO - Processing /Users/killett/mypy/packages/aioitertools-0.12.0-py3-none-any.whl (from aiobotocore<3.0.0,>=2.5.4->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,646 - INFO - Processing /Users/killett/mypy/packages/botocore-1.39.11-py3-none-any.whl (from aiobotocore<3.0.0,>=2.5.4->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,704 - INFO - Processing /Users/killett/mypy/packages/jmespath-1.0.1-py3-none-any.whl (from aiobotocore<3.0.0,>=2.5.4->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,708 - INFO - Processing /Users/killett/mypy/packages/multidict-6.6.4-cp311-cp311-macosx_10_9_x86_64.whl (from aiobotocore<3.0.0,>=2.5.4->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,711 - INFO - Processing /Users/killett/mypy/packages/wrapt-1.17.3-cp311-cp311-macosx_10_9_x86_64.whl (from aiobotocore<3.0.0,>=2.5.4->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,715 - INFO - Processing /Users/killett/mypy/packages/aiohappyeyeballs-2.6.1-py3-none-any.whl (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,718 - INFO - Processing /Users/killett/mypy/packages/aiosignal-1.4.0-py3-none-any.whl (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,721 - INFO - Processing /Users/killett/mypy/packages/attrs-25.3.0-py3-none-any.whl (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,731 - INFO - Processing /Users/killett/mypy/packages/frozenlist-1.7.0-cp311-cp311-macosx_10_9_x86_64.whl (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,736 - INFO - Processing /Users/killett/mypy/packages/propcache-0.3.2-cp311-cp311-macosx_10_9_x86_64.whl (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,741 - INFO - Processing /Users/killett/mypy/packages/yarl-1.20.1-cp311-cp311-macosx_10_9_x86_64.whl (from aiohttp!=4.0.0a0,!=4.0.0a1->s3fs>=2022.11->earthaccess->-r /Users/killett/mypy/failed-myenv-versionless-20250812-194713-earthaccess/requirements.txt (line 1))
+2025-08-12 19:47:33,851 - INFO - Installing collected packages: tinynetrc, bounded-pool-executor, wrapt, urllib3, typing-extensions, tqdm, six, propcache, multimethod, multidict, jmespath, importlib-resources, idna, fsspec, frozenlist, charset_normalizer, certifi, attrs, aioitertools, aiohappyeyeballs, yarl, requests, python-dateutil, pqdm, aiosignal, python-cmr, botocore, aiohttp, aiobotocore, s3fs, earthaccess
+2025-08-12 19:47:36,720 - INFO - 
+2025-08-12 19:47:36,722 - INFO - Successfully installed aiobotocore-2.24.0 aiohappyeyeballs-2.6.1 aiohttp-3.12.15 aioitertools-0.12.0 aiosignal-1.4.0 attrs-25.3.0 botocore-1.39.11 bounded-pool-executor-0.0.3 certifi-2025.8.3 charset_normalizer-3.4.3 earthaccess-0.14.0 frozenlist-1.7.0 fsspec-2025.7.0 idna-3.10 importlib-resources-6.5.2 jmespath-1.0.1 multidict-6.6.4 multimethod-2.0 pqdm-0.2.0 propcache-0.3.2 python-cmr-0.13.0 python-dateutil-2.9.0.post0 requests-2.32.4 s3fs-2025.7.0 six-1.17.0 tinynetrc-1.3.1 tqdm-4.67.1 typing-extensions-4.14.1 urllib3-2.5.0 wrapt-1.17.3 yarl-1.20.1
+2025-08-12 19:47:36,809 - INFO - All packages installed successfully.
+2025-08-12 19:47:36,877 - CRITICAL - Failed to create a virtual environment.

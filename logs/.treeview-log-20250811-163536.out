@@ -1,0 +1,117 @@
+│   ├── frames/
+│   │   └── frame_000.png
+│   └── CDEC/
+│       ├── cdec_data_webpage.csv
+│       ├── cdec_data_webpage.xlsx
+│       ├── cdec_monthly_sums.py
+│       └── cdec_regional_anomaly_mean_err_vals.py
+│   ├── HUC2/
+│   │   ├── HUC2-18_WBDHU4.zip
+│   │   ├── WBDHU4.dbf
+│   │   ├── WBDHU4.prj
+│   │   ├── WBDHU4.shp
+│   │   └── WBDHU4.shx
+│   └── SNODAS/
+│       └── SNODAS_Zero_Repair_Mask.tif
+│   ├── reservoirs/
+│   │   └── CDEC/
+│   │       ├── cdec_data_webpage.csv
+│   │       ├── cdec_data_webpage.xlsx
+│   │       ├── cdec_monthly_sums.py
+│   │       └── cdec_regional_anomaly_mean_err_vals.py
+│   ├── shapefiles/
+│   │   ├── HUC2/
+│   │   │   ├── HUC2-18_WBDHU4.zip
+│   │   │   ├── WBDHU4.dbf
+│   │   │   ├── WBDHU4.prj
+│   │   │   ├── WBDHU4.shp
+│   │   │   └── WBDHU4.shx
+│   │   ├── hybas_na_lev04_v1c.dbf
+│   │   ├── hybas_na_lev04_v1c.prj
+│   │   ├── hybas_na_lev04_v1c.sbn
+│   │   ├── hybas_na_lev04_v1c.sbx
+│   │   ├── hybas_na_lev04_v1c.shp
+│   │   ├── hybas_na_lev04_v1c.shp.xml
+│   │   ├── hybas_na_lev04_v1c.shx
+│   │   └── HydroBASINS_TechDoc_v1c.pdf
+│   └── snow_water_equivalent/
+│       └── SNODAS/
+│           └── SNODAS_Zero_Repair_Mask.tif
+├── docker/
+│   ├── build_docker.sh
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── run_docker.sh
+├── graphics/
+│   ├── frames/
+│   │   └── frame_000.png
+│   ├── GRACE_comparison_light_mode_20250806_224355_png.png
+│   ├── NLDAS_comparison_light_mode_20250805_150644_png.png
+│   ├── SMTa_map_20250805_150529.png
+│   └── SMTa_movie__20250805_150529.mp4
+│   └── CDEC/
+│       ├── cdec_data_webpage.csv
+│       ├── cdec_data_webpage.xlsx
+│       ├── cdec_monthly_sums.py
+│       └── cdec_regional_anomaly_mean_err_vals.py
+│   ├── HUC2/
+│   │   ├── HUC2-18_WBDHU4.zip
+│   │   ├── WBDHU4.dbf
+│   │   ├── WBDHU4.prj
+│   │   ├── WBDHU4.shp
+│   │   └── WBDHU4.shx
+│   └── SNODAS/
+│       └── SNODAS_Zero_Repair_Mask.tif
+├── input_data/
+│   ├── reservoirs/
+│   │   └── CDEC/
+│   │       ├── cdec_data_webpage.csv
+│   │       ├── cdec_data_webpage.xlsx
+│   │       ├── cdec_monthly_sums.py
+│   │       └── cdec_regional_anomaly_mean_err_vals.py
+│   ├── shapefiles/
+│   │   ├── HUC2/
+│   │   │   ├── HUC2-18_WBDHU4.zip
+│   │   │   ├── WBDHU4.dbf
+│   │   │   ├── WBDHU4.prj
+│   │   │   ├── WBDHU4.shp
+│   │   │   └── WBDHU4.shx
+│   │   ├── hybas_na_lev04_v1c.dbf
+│   │   ├── hybas_na_lev04_v1c.prj
+│   │   ├── hybas_na_lev04_v1c.sbn
+│   │   ├── hybas_na_lev04_v1c.sbx
+│   │   ├── hybas_na_lev04_v1c.shp
+│   │   ├── hybas_na_lev04_v1c.shp.xml
+│   │   ├── hybas_na_lev04_v1c.shx
+│   │   └── HydroBASINS_TechDoc_v1c.pdf
+│   └── snow_water_equivalent/
+│       └── SNODAS/
+│           └── SNODAS_Zero_Repair_Mask.tif
+├── scripts/
+│   ├── area_weighted.py
+│   ├── call_raster_mask_generator.py
+│   ├── cdec_monthly_sums.py
+│   ├── cdec_regional_anomaly_mean_err_vals.py
+│   ├── compute_groundwater.py
+│   ├── compute_mean_geotif.py
+│   ├── delete_all_work.sh
+│   ├── ellipsoidal_area.py
+│   ├── get_cdec_reservoirs.py
+│   ├── grace_orientation.py
+│   ├── grace_tws_anomaly.py
+│   ├── interpolate_grace.py
+│   ├── mask_from_shapefile.py
+│   ├── plot_timeseries.py
+│   ├── read_grace_s3_bucket.py
+│   ├── run_all.py
+│   ├── snodas_monthly_anomaly.py
+│   ├── snodas_monthly_mean.py
+│   ├── snodas_repair_mask_generator.py
+│   ├── snodas_swe_daily_downloader.py
+│   ├── soil_moisture_create_mask.py
+│   ├── soil_moisture_download.py
+│   ├── soil_moisture_map_fields.py
+│   ├── soil_moisture_mask_timeseries.py
+│   └── soil_moisture_process.py
+├── compute_groundwater_notebook.ipynb
+└── README.md
