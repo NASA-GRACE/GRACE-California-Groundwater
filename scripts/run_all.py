@@ -90,11 +90,11 @@ def main() -> None:
     run_script(options, "soil_moisture_create_mask.py")
 
     logging.info("Apply the mask to the processed soil moisture data, extract time series "
-          "for the basin, then save as CSV and NetCDF files.")
+                 "for the basin, then save as CSV and NetCDF files.")
     run_script(options, "soil_moisture_mask_timeseries.py")
 
     logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "
-          "the masked NetCDF file)")
+                 "the masked NetCDF file)")
     run_script(options, "soil_moisture_map_fields.py")
 
     logging.info("Generate a time series plot of the masked soil moisture data.")
