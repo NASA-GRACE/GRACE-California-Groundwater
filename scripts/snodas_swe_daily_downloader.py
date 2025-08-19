@@ -19,15 +19,17 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_swe_start_date: str = "2005-01-01"
+        self.default_swe_end_date:   str = "2005-12-31"
 
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("start_date",
-                        help="Start date (YYYY-MM-DD)")
-    parser.add_argument("end_date",
-                        help="End date (YYYY-MM-DD)")
+    parser.add_argument("start_date", default=options.default_swe_start_date,
+                        help=f"Start date (YYYY-MM-DD) (default: {options.default_swe_start_date})")
+    parser.add_argument("end_date", default=options.default_swe_end_date,
+                        help=f"End date (YYYY-MM-DD) (default: {options.default_swe_end_date})")
     parser.add_argument("output_dir",
                         help="Directory to save files")
     parser.add_argument("log_file",

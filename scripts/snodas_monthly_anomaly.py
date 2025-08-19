@@ -26,6 +26,7 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_err_coeff: float = 0.1  # Default error coefficient (10%)
 
 
 def parse_arguments(options: Options) -> None:
@@ -33,8 +34,8 @@ def parse_arguments(options: Options) -> None:
     parser = argparse.ArgumentParser(description="Process SNODAS SWE data by region and date thresholds.")
 
     parser.add_argument("--input_dir", required=True, help="Directory containing SWE .tif files")
-    parser.add_argument("--err_coeff", type=float, required=True,
-                        help="Fraction of weighted sum used as error (e.g., 0.1 for 10%)")
+    parser.add_argument("--err_coeff", type=float, default=options.default_err_coeff,
+                        help=f"Fraction of weighted sum used as error (e.g., {options.default_err_coeff} for {options.default_err_coeff * 100}%)")
     #parser.add_argument("--err_coeff", required=True, help="fraction of value to be used as errors")
     parser.add_argument("--output_dir", required=True,
                         help="Directory for output results")
