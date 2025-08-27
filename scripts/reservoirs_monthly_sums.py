@@ -6,6 +6,7 @@ from osgeo import ogr
 import re
 from pathlib import Path
 import logging
+import datetime
 
 import run_all as ra
 
@@ -19,29 +20,40 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:            Path = Path(__file__).stem  # The name of this script without the .py extension
-        
-        self.default_output_dir: Path = self.reservoirs_dir / "reservoir_data"
-
-
+        self.default_data_dir: Path = self.reservoirs_dir / "reservoir_data"
+        self.default_output_dir: Path = self.reservoirs_dir / "monthly_sums"
+        self.default_region_name: str = options.default_basin
+        self.default_input_xlsx: Path = self.reservoirs_dir / "cdec_data_webpage.xlsx"
+        self.shapefile: Path = self.project_root / "input_data" / "shapefiles" / "hybas_na_lev04_v1c.shp"
+        self.default_start_date: str = "2005-01-01"
+        self.default_end_date: str = "2005-12-31"
+        self.default_allowed_names: list = [22]
+                    
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description=f"Map {options.reservoirs_model} sites to regions and generate time series + mapping CSVs.")
-    parser.add_argument("--shapefile", required=True,
+    parser.add_argument("--shapefile", default=options.default_shapefile, required=True,
                         help="Path to shapefile defining regions")
     parser.add_argument("--shapefile_name_field", default="name",
                         help="Field in shapefile for region names (ignored if region_name=ca)")
-    parser.add_argument("--input_xlsx", required=True,
+    parser.add_argument("--input_xlsx", default=options.default_input_xlsx, required=True,
                         help="Excel file with site info (Station ID, LATITUDE, LONGITUDE)")
     parser.add_argument("--sheet_name", type=int, default=0,
                         help="Sheet index in Excel (default 0)")
-    parser.add_argument("--allowed_names", nargs="+", required=True,
+    parser.add_argument("--allowed_names", default=default_allowed_names, nargs="+", required=True,
                         help="Region names (strings) or SORT codes (if region_name=ca)")
-    parser.add_argument("--region_name", required=True,
+    parser.add_argument("--region_name", default=options.default_region_name, required=True,
                         help="Overall region name, e.g. 'ca' to use SORT field")
-    parser.add_argument("--data_dir", required=True,
+    parser.add_argument("--data_dir", default=options.default_data_dir, required=True,
                         help="Directory containing site CSVs")
-    parser.add_argument("--output_dir", required=True,
+    parser.add_argument("--output_dir", default=options.default_output_dir, required=True,
                         help="Directory to save per-region outputs")
+    parser.add_argument("--start_date", default=options.default_start_date, required=True,
+                        help="start date yyyy-mm-dd format in reservoir filenames")
+    parser.add_argument("--end_date", default=options.default_end_date, required=True,
+                        help="end date yyyy-mm-dd format in reservoir filenames")
+    parser.add_argument("--units", default="km3", choices=["km3", "m3"],
+                        help="Units for output")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -91,7 +103,9 @@ def monthly_sums_CDEC(options: Options) -> None:
     region_name          = options.args.region_name
     data_dir             = options.args.data_dir
     output_dir           = options.args.output_dir
-
+    start_date           = options.args.start_date
+    end_date             = options.args.end_date
+    
     os.makedirs(output_dir, exist_ok=True)
 
     # Load site data from Excel
@@ -107,6 +121,16 @@ def monthly_sums_CDEC(options: Options) -> None:
     required_cols = {'sitename', 'latitude', 'longitude'}
     if not required_cols.issubset(site_df.columns):
         raise ValueError(f"Excel file must have columns: {required_cols}")
+
+    try:
+        date_format = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+    except ValueError:
+        print("Incorrect date format. Try yyyy-mm-dd")
+        
+    try:
+        date_format = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+    except ValueError:
+        print("Incorrect date format. Try yyyy-mm-dd")
 
     site_names = site_df['sitename'].tolist()
     latitudes = site_df['latitude'].tolist()
@@ -157,8 +181,13 @@ def monthly_sums_CDEC(options: Options) -> None:
 
         # Generate regional time series CSV
         monthly_dfs = []
+        """
+        Look in directory for files with pattern *_monthly_m3_YYYY-MM-DD_to_YYYY-MM-DD.csv
+        """
+        pattern = f"monthly_m3_{start_date}_to_{end_date}"
+
         for sitename in sites:
-            file_path = os.path.join(data_dir, f"{sitename}_monthly_m3_2002-04-01_to_2025-05-28.csv")
+            file_path = os.path.join(data_dir, f"{sitename}_{pattern}.csv")
             if os.path.exists(file_path):
                 monthly_dfs.append(read_monthly_csv(file_path))
             else:
@@ -166,8 +195,13 @@ def monthly_sums_CDEC(options: Options) -> None:
 
         if monthly_dfs:
             combined_df = pd.concat(monthly_dfs, axis=1).fillna(0)
-            region_series = combined_df.sum(axis=1) / 1e9  # Convert m³ to km³
-
+            if units.lower() == "km3":
+                 region_series = combined_df.sum(axis=1) / 1e9  # Convert m³ to km³
+            elif units.lower() == "m3":
+                 region_series = combined_df.sum(axis=1)
+            else:
+                 raise ValueError(f"Unsupported units: {units}. Use 'm3' or 'km3'.")     
+            
             if use_sort_field:
                 region_df = pd.DataFrame({'date': region_series.index, region_name.casefold(): region_series.values})
             else:
@@ -218,7 +252,7 @@ if __name__ == "__main__":
     main()
 
 '''
-This script matches sites from the Excel file to the shapefile region f0or each shapefile region name (or SORT code)
+This script matches sites from the Excel file to the shapefile region for each shapefile region name (or SORT code)
 
 Saves a mapping CSV:sites_<region>.csv
 Reads all corresponding *_monthly_m3_*.csv files for those sites.
@@ -228,7 +262,7 @@ Combines and sums them to produce a regional time series CSV:<region>_monthly_km
 
 Example usage 
 For string-based shapefile names:
-    python script.py --shapefile "C:/regions.shp" `
+python script.py --shapefile "C:/regions.shp" `
                  --shapefile_name_field "name" `
                  --input_xlsx "C:/sites.xlsx" `
                  --allowed_names "Sacramento" "San Joaquin" `
@@ -237,7 +271,7 @@ For string-based shapefile names:
                  --output_dir "C:/outputs"
 
 python script.py --shapefile "C:/california_basins.shp" `
-                 --allowed_names 22 35 40 `
+                 --allowed_names [22] `
                  --region_name "ca" `
                  --input_xlsx "C:/sites.xlsx" `
                  --data_dir "C:/cdec_data" `

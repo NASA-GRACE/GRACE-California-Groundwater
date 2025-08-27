@@ -29,20 +29,24 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-
+        self.default_repaired_masks_dir: Path = self.swe_dir / "masks" / "repaired_masks"
+        if self.default_basin == "California":
+            self.default_base_masks_files: list[Path] = [self.swe_dir / "masks" / "basin_masks" / "snodas_ca_mask.csv"]
+        self.default_template_tif: Path = self.swe_dir / "monthly_data" / "monthly_mean_200501.tif"
+        
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Crop SNODAS repair mask and apply to multiple base masks.")
-    parser.add_argument("full_tif",
-                        help="Path to full SNODAS zero repair mask (GeoTIFF)")
-    parser.add_argument("template_tif",
+    parser.add_argument("full_tif", default=options.swe_model, required=True,
+                        help="Path to full SNODAS zero repair mask (GeoTIFF) to be combined with base mask to generate repaired mask for 2014 oct to 2019 oct")
+    parser.add_argument("template_tif",default=options.default_template_tif, required=True,
                         help="Template GeoTIFF for cropping (defines region)")
-    parser.add_argument("cropped_tif",
-                        help="Path to save cropped repair mask as GeoTIFF")
-    parser.add_argument("base_masks", nargs='+',
+    parser.add_argument("cropped_tif", default=options.swe_model,
+                        help="Path to save cropped CONUS repair mask as GeoTIFF")
+    parser.add_argument("base_masks", default=options.default_base_masks_files, nargs='+', required=True,
                         help="List of base mask CSV files to repair")
-    parser.add_argument("output_dir",
+    parser.add_argument("output_dir", default=options.default_repaired_masks_dir,
                         help="Directory to save repaired CSV masks")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")

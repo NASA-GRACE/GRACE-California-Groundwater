@@ -30,8 +30,10 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
         self.default_csv_file: Path = self.reservoirs_dir / "cdec_data_webpage.csv"  # default reservoir list file
-        self.default_out_dir:    Path = self.reservoirs_dir / "reservoir_data"
-
+        self.default_out_dir: Path = self.reservoirs_dir / "reservoir_data"
+        self.default_start_date: str = "2005-01-01"
+        self.default_end_date: str = "2005-12-31"
+        self.default_data_type_input: str = "M"
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
@@ -40,6 +42,13 @@ def parse_arguments(options: Options) -> None:
                         help=f"CSV file containing reservoir names and station IDs (default: '{options.default_csv_file}')")
     parser.add_argument("--output_dir", default=options.default_out_dir,
                         help=f"Directory for outputting {options.reservoirs_model} data (default: '{options.default_out_dir}')")
+    parser.add_argument('--data_type_input', default=options.default_data_type_input,
+                        help="download monthly data for reservoirs.")
+    parser.add_argument('--start_date_str_input', default=options.default_start_date,
+                        help=f"End date (YYYY-MM-DD) (default: {options.default_start_date})")
+    parser.add_argument('--end_date_str_input', default=options.default_end_date,
+                        help=f"End date (YYYY-MM-DD) (default: {options.default_end_date})")
+
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -87,18 +96,11 @@ def reservoirs_download_CDEC(options: Options) -> None:
         logging.error(f"Exiting: Could not load reservoir list from '{reservoir_list_file}'.")
         return # Exit if reservoir list can't be loaded
 
-    while True:
-        data_type_input = input("Download (D)aily or (M)onthly data? [D/M]: ").upper()
-        if data_type_input in ["D", "M"]:
-            break
-        logging.warning("Invalid input. Please enter 'D' or 'M'.")
-
     duration_code = data_type_input
     time_period_name = "Daily" if duration_code == "D" else "Monthly"
 
     while True:
         try:
-            end_date_str_input = input(f"Enter end date (YYYY-MM-DD) for {time_period_name} data (default: yesterday): ")
             if not end_date_str_input:
                 end_date = datetime.now() - timedelta(days=1)
             else:
@@ -116,7 +118,6 @@ def reservoirs_download_CDEC(options: Options) -> None:
                 default_start_days = 365 * 2 # Default to 2 years for monthly, 5 can be a lot
                 period_name_prompt = f"days (for ~{default_start_days//365} years of monthly data)"
 
-            start_date_str_input = input(f"Enter start date (YYYY-MM-DD) (default: {default_start_days} {period_name_prompt} before end date): ")
             if not start_date_str_input:
                 start_date = end_date - timedelta(days=default_start_days)
             else:
@@ -485,6 +486,3 @@ def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
 if __name__ == "__main__":
     main()
 
-# python get_cdec_reservoirs.py `
-#   --reservoir_list_file "C:\cdec\cdec_data_webpage.csv" `
-#   --output_dir "C:\cdec\cdec_reservoir_data_m3"
