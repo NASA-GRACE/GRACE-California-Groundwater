@@ -26,30 +26,38 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_err_coeff: float = 0.1  # Default error coefficient (10%)
-
-
+        self.default_err_coeff: float = 0.20  # Default error coefficient (20%)
+        self.default_input_dir: Path = self.swe_dir / "monthly_data"
+        self.default_output_dir: Path = self.swe_dir / "monthly_anomaly"
+        self.default_mask1_dir: Path = self.swe_dir / "masks" / "basin_masks"
+        self.default_mask2_dir: Path = self.swe_dir / "masks" / "repaired_masks"
+        if self.default_basin == "California":
+            self.default_regions: list = ["ca"]
+            self.default_output_regions: list = ["california_mask"]
+        self.default_start_date: str = "2005-01-01" #"2014-10-01"
+        self.default_end_date: str = "2005-03-31" #"2019-10-31"
+        
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Process SNODAS SWE data by region and date thresholds.")
 
-    parser.add_argument("--input_dir", required=True, help="Directory containing SWE .tif files")
+    parser.add_argument("--input_dir", default=options.default_input_dir, required=True,
+                        help="Directory containing monthly SWE .tif files")
     parser.add_argument("--err_coeff", type=float, default=options.default_err_coeff,
                         help=f"Fraction of weighted sum used as error (e.g., {options.default_err_coeff} for {options.default_err_coeff * 100}%)")
-    #parser.add_argument("--err_coeff", required=True, help="fraction of value to be used as errors")
-    parser.add_argument("--output_dir", required=True,
+    parser.add_argument("--output_dir", default=options.default_output_dir, required=True,
                         help="Directory for output results")
-    parser.add_argument("--mask1_dir", required=True,
-                        help="Directory for first mask set")
-    parser.add_argument("--mask2_dir", required=True,
-                        help="Directory for second mask set")
-    parser.add_argument("--regions", nargs="+", required=True,
+    parser.add_argument("--mask1_dir", default=options.default_mask1_dir, required=True,
+                        help="Directory for base mask generated using our scripts")
+    parser.add_argument("--mask2_dir", default=options.default_mask2_dir, required=True,
+                        help="Directory for mask generated using base mask and repaired mask file for 2014 Oct to 2019 Oct")
+    parser.add_argument("--regions", default=options.default_regions, nargs="+", required=True,
                         help="List of region codes (e.g., a b v d)")
-    parser.add_argument("--output_regions", nargs="+", required=True,
+    parser.add_argument("--output_regions", default=options.default_output_regions, nargs="+", required=True,
                         help="List of output mask names")
-    parser.add_argument("--start_date", required=True,
+    parser.add_argument("--start_date", default=options.default_start_date, required=True,
                         help="Start date for alternate period (YYYY-MM-DD)")
-    parser.add_argument("--end_date", required=True,
+    parser.add_argument("--end_date", default=options.default_end_date, required=True,
                         help="End date for alternate period (YYYY-MM-DD)")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")

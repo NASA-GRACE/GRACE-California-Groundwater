@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from osgeo import gdal
-#import s3fs
 from grace_orientation import shift_to_grace_orientation
 from ellipsoidal_area import area
 from read_grace_s3_bucket import read_grace_dataset
@@ -23,34 +22,42 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-
-
+        self.default_grace_file: Path = self.grace_dir / "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
+        self.default_grace_input_dir: Path = self.grace_dir
+        self.default_start_date: str = "2004-01-01"
+        self.default_end_date: str = "2012-12-31"
+        if self.default_basin == "California":
+            self.default_mask_file: Path = self.grace_dir / "masks" / "grace_ca_mask.csv"
+            self.default_output_path: Path = self.grace_dir / "monthly_grace_anomaly" / "anomaly_timeseries_GRACE_ca_mask.csv"
+        self.default_baseline_start: str = "2004-01-01"
+        self.default_baseline_end: str = "2009-12-31"
+        
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Process GRACE TWS data for a basin.")
-    parser.add_argument("--start_date", required=True,
+    parser.add_argument("--start_date", default=options.default_start_date, required=True,
                         help="Start date (YYYY-MM-DD)")
-    parser.add_argument("--end_date", required=True,
+    parser.add_argument("--end_date", default=options.default_end_date, required=True,
                         help="End date (YYYY-MM-DD)")
     parser.add_argument("--scaling_factor", type=int, choices=[0, 1], default=1,
                         help="Apply scaling factor (1=yes, 0=no)")
-    parser.add_argument("--file_access_type", default="local", choices=["local", "cloud"],
-                        help="Where to read GRACE data from")
-    parser.add_argument("--grace_input_dir", required=True,
-                        help="Path to GRACE data (or S3 bucket prefix)")
-    parser.add_argument("--grace_filename", required=True,
-                        help="GRACE NetCDF filename")
+    parser.add_argument("--file_access_type", default="local", required=True,
+                        help="Where to read GRACE data from. currently takes only local dir, cloud option can be added later")
+    parser.add_argument("--grace_input_dir",default=options.default_grace_input_dir,
+                        help="Path to GRACE data when read locally")
+    parser.add_argument("--grace_filename", default=options.default_grace_file, required=True,
+                        help="GRACE-FO Mascons NetCDF filename containing all the months")
     parser.add_argument("--shortname_mass", default="TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.1_V3",
-                        help="Short name for PODAAC dataset")
-    parser.add_argument("--mask_basin", required=True,
+                        help="Short name for PODAAC dataset when assessing data from cloud s3 bucket")
+    parser.add_argument("--mask_basin", required=True, default=default_mask_file,
                         help="Mask file (CSV)")
-    parser.add_argument("--output_csv", required=True,
-                        help="Path to save the output CSV")
-    parser.add_argument("--units", default="cm", choices=["km3", "cm"],
+    parser.add_argument("--output_csv", required=True, default=default_output_path,
+                        help="Full path and filename to save the output CSV")
+    parser.add_argument("--units", default="km3", choices=["km3", "cm"],
                         help="Units for output")
-    parser.add_argument("--baseline_start",
+    parser.add_argument("--baseline_start", default=default_baseline_start,
                         help="Optional anomaly baseline start date (YYYY-MM-DD)")
-    parser.add_argument("--baseline_end",
+    parser.add_argument("--baseline_end", default=default_baseline_end,
                         help="Optional anomaly baseline end date (YYYY-MM-DD)")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
@@ -84,7 +91,7 @@ def load_dataset(grace_input_dir: str, grace_filename: str, file_access_type: st
     Args:
         grace_input_dir:  Directory or S3 bucket prefix for GRACE data.
         grace_filename:   GRACE NetCDF filename.
-        file_access_type: "local" or "cloud".
+        file_access_type: "local"
         shortname_mass:   Short name for PODAAC dataset.
     
     Returns:
@@ -93,15 +100,10 @@ def load_dataset(grace_input_dir: str, grace_filename: str, file_access_type: st
     Raises:
         ValueError: If file_access_type is invalid.
     """
-    full_filename = os.path.join(grace_input_dir, grace_filename)
-
     if file_access_type.lower() == "local":
         print(f"Reading GRACE mascon dataset locally: {full_filename}")
+        full_filename = os.path.join(grace_input_dir, grace_filename)
         return xr.open_dataset(full_filename)
-    elif file_access_type.lower() == "cloud":
-        print(f"Reading GRACE mascon dataset from PODAAC cloud: {grace_filename}")
-        import s3fs
-        return read_grace_dataset(shortname_mass,grace_filename)
     else:
         raise ValueError(f"Invalid file access type: {file_access_type}")
 

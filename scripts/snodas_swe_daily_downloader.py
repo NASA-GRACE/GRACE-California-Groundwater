@@ -20,8 +20,9 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
         self.default_swe_start_date: str = "2005-01-01"
-        self.default_swe_end_date:   str = "2005-12-31"
-
+        self.default_swe_end_date:   str = "2005-06-31"
+        current_time = datetime.datetime.now()
+        self.default_log_file: Path = self.swe_dir /  "logs" / f"swe_download_{current_time.strftime('%Y-%m-%d_%H-%M-%S')}.log" 
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
@@ -30,10 +31,10 @@ def parse_arguments(options: Options) -> None:
                         help=f"Start date (YYYY-MM-DD) (default: {options.default_swe_start_date})")
     parser.add_argument("end_date", default=options.default_swe_end_date,
                         help=f"End date (YYYY-MM-DD) (default: {options.default_swe_end_date})")
-    parser.add_argument("output_dir",
-                        help="Directory to save files")
-    parser.add_argument("log_file",
-                        help="Path to log file (e.g., C:/work/snodas_download.log)")
+    parser.add_argument("output_dir", default=options.default_output_dir,
+                        help="Directory to download, untar and save swe files from Snodas")
+    parser.add_argument("log_file", default=options.default_log_file,
+                        help=f"Path to log file (e.g., {options.default_log_file})")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()

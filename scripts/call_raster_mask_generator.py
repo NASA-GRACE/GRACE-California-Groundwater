@@ -24,20 +24,25 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-
-
+        self.shape_dir: Path = self.project_root / "input_data" / "shapefiles"
+        self.default_input_shapefile = self.shape_dir / "hybas_na_lev04_v1c.shp"
+        self.default_output_file: Path = self.project_root / "input_data" / "masks"
+        self.default_region_name: str = options.default_basin
+        self.default_dataset_name: str = "grace_mascon"
+        self.default_target_dataset: Path = self.grace_dir / "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
+        
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Generate mask array as csv using input shapefile")
-    parser.add_argument("--input_shapefile", required=True,
+    parser.add_argument("--input_shapefile", default=options.default_input_shapefile, required=True,
                         help="path to shapefile")
-    parser.add_argument("--output_file", required=True,
+    parser.add_argument("--output_file", default=options.default_output_file, required=True,
                         help="path to save output csv file")
-    parser.add_argument("--region_name", required=True,
+    parser.add_argument("--region_name", default=options.default_region_name, required=True,
                         help="mask file region")
-    parser.add_argument("--dataset_name", required=True,
+    parser.add_argument("--dataset_name", default=options.default_dataset_name, required=True,
                         help="grace mascon or any other dataset")
-    parser.add_argument("--target_dataset", required=True,
+    parser.add_argument("--target_dataset", default=options.default_target_dataset, required=True,
                         help="grid on which mask should be created")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")

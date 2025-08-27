@@ -21,16 +21,19 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-
+        self.default_daily_dir: Path = self.swe_dir /  "daily_data"
+        self.default_output_dir: Path = self.swe_dir / "monthly_data"
+        self.default_scale_factor: float = 1000.0
+        
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Compute monthly mean rasters from daily .tif files")
-    parser.add_argument("daily_dir",
+    parser.add_argument("daily_dir", default=options.default_daily_dir
                         help="Directory with daily .tif files")
-    parser.add_argument("output_dir",
+    parser.add_argument("output_dir", default=options.default_output_dir,
                         help="Directory to save monthly mean rasters")
-    parser.add_argument("scale_factor",
+    parser.add_argument("scale_factor", default=options.default_scale_factor,
                         type=float,
                         help="Scale factor to apply to raster values")
     parser.add_argument('-debug', action='store_true',

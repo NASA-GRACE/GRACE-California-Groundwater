@@ -26,22 +26,25 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:            Path = Path(__file__).stem  # The name of this script without the .py extension
         self.default_cdec_dir:   Path = self.project_root / "input_data" / "reservoirs" / "CDEC"
-        self.default_output_dir: Path = self.default_cdec_dir / "reservoir_data"
-
+        self.default_csv_files:  list[Path] = [self.default_cdec_dir / "monthly_sums" / "ca_monthly_km3.csv"]
+        self.default_output_dir: Path = self.default_cdec_dir / "monthly_anomaly"
+        self.default_baseline_start: str = "2005-01-01" #"2004-01-01"
+        self.default_baseline_end: str = "2005-03-31" #"2009-12-31"
+        self.default_err_val: float = 0.05  # Default error coefficient (5%)
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Compute anomalies and error values for CDEC regional CSVs.")
-    parser.add_argument("--csv_files", nargs="+", required=True,
+    parser.add_argument("--csv_files", default=options.default_csv_files, nargs="+", required=True,
                         help="List of CSV files (e.g., a_monthly_km3.csv b_monthly_km3.csv)")
-    parser.add_argument("--output_dir", required=True,
+    parser.add_argument("--output_dir", default=options.default_output_dir, required=True,
                         help="Directory to save anomaly CSVs")
-    parser.add_argument("--start_date", required=True,
-                        help="Baseline start date (YYYY-MM-DD)")
-    parser.add_argument("--end_date", required=True,
-                        help="Baseline end date (YYYY-MM-DD)")
-    parser.add_argument("--err_val", type=float, required=True,
-                        help="Error coefficient (e.g., 0.05 for 5%)")
+    parser.add_argument("--start_date", default=options.default_baseline_start, required=True,
+                        help=f"Baseline start date ({options.default_baseline_start})")
+    parser.add_argument("--end_date", default=options.default_baseline_end, required=True,
+                        help=f"Baseline end date ({options.default_baseline_end})")
+    parser.add_argument("--err_val", type=float, default=options.default_err_val, required=True,
+                        help=f"Error coefficient (e.g., {options.default_err_val} for {options.default_err_val * 100}%)")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()

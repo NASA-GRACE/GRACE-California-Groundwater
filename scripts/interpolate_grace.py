@@ -17,16 +17,20 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-
+        if self.default_basin == "California":
+            self.default_input_file: Path = self.grace_dir / "monthly_grace_anomaly" / "anomaly_timeseries_GRACE_ca_mask.csv"
+            self.default_output_filename: str = "anomaly_timeseries_GRACE_ca_mask.csv"
+        self.default_output_path: Path = self.grace_dir / "monthly_interpolated_grace_anomaly" 
+        
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Interpolate GRACE data on 15th-of-month")
-    parser.add_argument("input_file",
+    parser.add_argument("input_file", default=options.default_input_file
                         help="Path to input CSV with date, tws, tws_error")
-    parser.add_argument("output_dir",
+    parser.add_argument("output_dir", default=options.default_output_path
                         help="Output directory (will be created if it doesn't exist)")
-    parser.add_argument("output_file",
+    parser.add_argument("output_file", default=options.default_output_filename
                         help="Output filename (e.g., result.csv)")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
