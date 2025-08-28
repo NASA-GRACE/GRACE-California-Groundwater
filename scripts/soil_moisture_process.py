@@ -12,7 +12,6 @@ Assumptions:
 
 import os
 from pathlib import Path
-import sys
 import glob
 import argparse
 import logging
@@ -51,7 +50,7 @@ def parse_arguments(options: Options) -> None:
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def main() -> None:

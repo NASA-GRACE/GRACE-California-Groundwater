@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Written by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), and GitHub Copilot (it/its).
+# Written by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
 from __future__ import annotations  # For Python 3.7+ compatibility with type annotations
 import os
 from pathlib import Path
@@ -31,23 +31,21 @@ class Options:
                                               self.reservoirs_model,
                                               "Groundwater"]
 
-        self.default_mode:                        str = "test" # choices: "test", "production"
-
         self.valid_basins:                  list[str] = ["California", "Sacramento", "San Joaquin", "Tulare-Buena Vista Lakes"]
         self.default_basin:                       str = self.valid_basins[0]
 
         self.keep_these_soil_moisture_vars: list[str] = ['SoilM_0_100cm']  # leave [] to keep everything
 
-        self.swe_dir:            Path = self.project_root / "input_data" / "snow_water_equivalent" / self.swe_model
-        self.soil_moisture_dir:  Path = self.project_root / "input_data" / "soil_moisture"         / self.soil_moisture_model
-        self.reservoirs_dir:     Path = self.project_root / "input_data" / "reservoirs"            / self.reservoirs_model
-        self.grace_dir:          Path = self.project_root / "input_data" / "grace_tws"
-        self.timeseries_dir:     Path = self.project_root / "input_data" / "masked_timeseries"
-        self.output_dir:         Path = self.project_root / "output"
-        self.graphics_dir:       Path = self.project_root / "graphics"
+        self.swe_dir:           Path = self.project_root / "input_data" / "snow_water_equivalent" / self.swe_model
+        self.soil_moisture_dir: Path = self.project_root / "input_data" / "soil_moisture"         / self.soil_moisture_model
+        self.reservoirs_dir:    Path = self.project_root / "input_data" / "reservoirs"            / self.reservoirs_model
+        self.grace_dir:         Path = self.project_root / "input_data" / "grace_tws"
+        self.timeseries_dir:    Path = self.project_root / "input_data" / "masked_timeseries"
+        self.output_dir:        Path = self.project_root / "output"
+        self.graphics_dir:      Path = self.project_root / "graphics"
 
-        self.log_mode:            str = "INFO"  # Use the -debug command line argument to change to DEBUG.
-        self.separator_line:      str = "-" * 60  # A line of dashes for logging separation
+        self.log_mode:           int = logging.INFO  # Use the -debug command line argument to change to DEBUG.
+        self.separator_line:     str = "-" * 60  # A line of dashes for logging separation
 
         # Generate safe names for basins (no spaces or special characters) and dictionaries for mapping between them.
         self.basin_safenames:           list[str] = [title.replace(' ', '_').replace('-', '_').casefold() for title in self.valid_basins]
@@ -69,7 +67,7 @@ def parse_arguments(options: Options) -> None:
                         help="Run all programs in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def main() -> None:
@@ -91,6 +89,15 @@ def main() -> None:
 
     logging.info("Apply the mask to the processed soil moisture data, extract time series "
                  "for the basin, then save as CSV and NetCDF files.")
+    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
+    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
+    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
+    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
+    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
+    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
+    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
+    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
+    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
     run_script(options, "soil_moisture_mask_timeseries.py")
 
     logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "

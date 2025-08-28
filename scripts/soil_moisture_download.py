@@ -6,7 +6,6 @@
 # https://earthaccess.readthedocs.io/en/latest/
 # https://earthaccess.readthedocs.io/en/latest/quick-start/
 
-import os
 from pathlib import Path
 import datetime as dt
 import argparse
@@ -52,7 +51,7 @@ def parse_arguments(options: Options) -> None:
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def main() -> None:
@@ -139,7 +138,7 @@ def validate_inputs(options: Options) -> tuple[dt.datetime, dt.datetime]:
     if start_dt > end_dt:
         raise ValueError("Start date must be before end date.")
 
-    Path(options.args.local_dir).mkdir(parents=True, exist_ok=True)
+    options.args.local_dir.mkdir(parents=True, exist_ok=True)
 
     logging.info(f"Local directory: {options.args.local_dir}")
     logging.info(f"DOI: {options.args.doi}")

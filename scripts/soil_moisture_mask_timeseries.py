@@ -21,11 +21,6 @@ from pyproj import Geod
 
 import run_all as ra
 
-# Unit conversion factors
-UNIT_FACTORS = {"mm H2O": 1000, "kg/m2": 1000, "kg/m^2": 1000, "cm": 100, "dm": 10, "m": 1, "km": 0.001}
-
-newvar = "SMTa"  # New variable name for soil moisture
-
 
 class Options(ra.Options):
     """Class that has all global options in one place."""
@@ -34,6 +29,7 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:          Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.newvar:            str = "SMTa"  # New variable name for soil moisture
         self.masks_dir:        Path = self.project_root     / "input_data" / "masks"
         self.gridded_data_dir: Path = self.project_root     / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_concatenated"
         self.default_input_nc: Path = self.gridded_data_dir / f"LATEST IN {self.gridded_data_dir}"
@@ -41,6 +37,7 @@ class Options(ra.Options):
         self.default_csv:      Path = self.default_out_dir  / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.csv"
         self.default_nc:       Path = self.default_out_dir  / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.nc"
         self.default_mask:      str = f"{self.soil_moisture_model}_{self.default_basin}_mask.nc"
+        self.unit_factors:     dict = {"mm H2O": 1000, "kg/m2": 1000, "kg/m^2": 1000, "cm": 100, "dm": 10, "m": 1, "km": 0.001}  # Conversions from meters to other units.
 
 
 def parse_arguments(options: Options) -> None:
@@ -63,7 +60,7 @@ def parse_arguments(options: Options) -> None:
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def main() -> None:
@@ -84,10 +81,17 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     Compute water storage anomalies using a river basin mask for NLDAS data.
 
     Args:
-        options: An Options instance with parsed arguments.
-    
+        options: An Options instance with parsed arguments. Contains:
+            - args:                Command-line arguments
+            - soil_moisture_model: The soil moisture model being used
+            - masks_dir:           Directory containing mask files
+            - gridded_data_dir:    Directory containing gridded data files
+            - default_input_nc:    Default input NetCDF file path
+            - default_output_csv:  Default output CSV file path
+            - default_output_nc:   Default output NetCDF file path
+
     Returns:
-        None. Outputs CSV and NetCDF files as specified in options.
+        None. Creates CSV and NetCDF files as specified in options.
     
     Raises:
         None.
@@ -185,7 +189,7 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
         logging.info(f"Processing variable: {var}")
         var_data = ds[var].data
         var_units = ds[var].attrs.get('units', 'm')
-        var_factor = UNIT_FACTORS.get(var_units, 1)
+        var_factor = options.unit_factors.get(var_units, 1)
         # compute both anomalies and errors
         avg = calculate_long_term_avg(var_data, total_interest, interest_lon, interest_lat, time_steps)
         anomalies, errors = compute_anomaly_timeseries(var_data, var_factor, avg, time_steps,
@@ -293,7 +297,7 @@ def calculate_surface_area(total: int, lon_step: float, lat_step: float,
     return areas
 
 
-def sum_soil_moisture_by_depth(ds: xr.Dataset) -> None:
+def sum_soil_moisture_by_depth(options: Options, ds: xr.Dataset) -> None:
     """
     Sum soil moisture over all depths and adjust the dataset.
 
