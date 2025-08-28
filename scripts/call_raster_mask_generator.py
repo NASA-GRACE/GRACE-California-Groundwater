@@ -28,9 +28,13 @@ class Options(ra.Options):
         self.default_input_shapefile = self.shape_dir / "hybas_na_lev04_v1c.shp"
         self.default_output_file: Path = self.project_root / "input_data" / "masks"
         self.default_region_name: str = options.default_basin
-        self.default_dataset_name: str = "grace_mascon"
-        self.default_target_dataset: Path = self.grace_dir / "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
-        
+        if self.default_dataset == "swe":
+            self.default_dataset_name: str = "snodas"
+            self.default_target_dataset: Path = self.swe_dir / "monthly_data" / "monthly_mean_200501.tif
+        else:
+            self.default_dataset_name: str = "grace_mascon"
+            self.default_target_dataset: Path = self.grace_dir / "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
+            
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Generate mask array as csv using input shapefile")
