@@ -61,8 +61,6 @@ def parse_arguments(options: Options) -> None:
     parser = argparse.ArgumentParser(description="Run all processing scripts in order.")
     parser.add_argument("--dry_run", action="store_true",
                         help="If set, print commands without executing them")
-    parser.add_argument("--mode", choices=["test", "production"], default=options.default_mode,
-                        help=f"NOT FINISHED!!!!!!!!!!!!!!!!!!! Mode to run the scripts in (default: {options.default_mode})")
     parser.add_argument('-debug', action='store_true',
                         help="Run all programs in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -89,15 +87,6 @@ def main() -> None:
 
     logging.info("Apply the mask to the processed soil moisture data, extract time series "
                  "for the basin, then save as CSV and NetCDF files.")
-    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
-    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
-    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
-    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
-    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
-    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
-    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
-    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
-    logging.error("IN soil_moisture_mask_timeseries.py, MOVE newvar AND UNIT_FACTORS INTO THE Options CLASS")
     run_script(options, "soil_moisture_mask_timeseries.py")
 
     logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "
@@ -132,19 +121,19 @@ def main() -> None:
     section_header(options, "Processing SNODAS snow water equivalent data")
 
     logging.info("Downloading snow water equivalent (SWE) data...")
-    run_script(options, "snodas_swe_daily_downloader.py")
+    run_script(options, "swe_daily_downloader.py")
 
     logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
-    run_script(options, "call_raster_mask_generator.py")
+    run_script(options, "call_raster_mask_generator.py -target-dataset='swe'")
 
     logging.info("Processing snow water equivalent (SWE) data into monthly means and anomalies...")
-    run_script(options, "snodas_repair_mask_generator.py")
+    run_script(options, "swe_repair_mask_generator.py")
 
     logging.info("Processing snow water equivalent (SWE) data into monthly means...")
-    run_script(options, "snodas_monthly_mean.py")
+    run_script(options, "swe_monthly_mean.py")
 
     logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
-    run_script(options, "snodas_monthly_anomaly.py")
+    run_script(options, "swe_monthly_anomaly.py")
 
     section_header(options, "Computing groundwater anomaly and plotting results")
 

@@ -148,9 +148,9 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     lat_step = abs(float(lats[1]) - float(lats[0]))
 
     # Process soil moisture data if available
-    sum_soil_moisture_by_depth(ds)
+    sum_soil_moisture_by_depth(options,ds)
 
-    var_list = [newvar]  # Initialize with new soil moisture variable ONLY
+    var_list = [options.newvar]  # Initialize with new soil moisture variable ONLY
     # Only keep variables that have dims (t_var,y_var,x_var)
     # var_list = [
     #     var for var in ds.data_vars
@@ -319,15 +319,15 @@ def sum_soil_moisture_by_depth(options: Options, ds: xr.Dataset) -> None:
     if len(found) == 1:
         var = found[0]
         if 'depth' in ds[var].dims:
-            # sum over the depth dimension and call it newvar
-            ds[newvar] = ds[var].sum(dim='depth')
-            ds[newvar].attrs['units'] = 'mm H2O'
+            # sum over the depth dimension and call it options.newvar
+            ds[options.newvar] = ds[var].sum(dim='depth')
+            ds[options.newvar].attrs['units'] = 'mm H2O'
             # drop the original var and any depth bounds
             ds = ds.drop_vars([var, 'depth_bnds'], errors='ignore')
-            logging.info(f"Summed '{var}' by depth into '{newvar}'.")
+            logging.info(f"Summed '{var}' by depth into '{options.newvar}'.")
         else:
-            ds[newvar] = ds[var]
-            ds[newvar].attrs['units'] = 'mm H2O'
+            ds[options.newvar] = ds[var]
+            ds[options.newvar].attrs['units'] = 'mm H2O'
             logging.info(f"'{var}' has no 'depth' dimension; skipping soil-moisture summation.")
     elif len(found) == 0:
         raise ValueError(f"No soil moisture variable found.\nTried: {soil_moisture_names!r};\nAvailable: {list(ds.data_vars)}")

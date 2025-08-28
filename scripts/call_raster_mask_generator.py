@@ -38,15 +38,15 @@ class Options(ra.Options):
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Generate mask array as csv using input shapefile")
-    parser.add_argument("--input_shapefile", default=options.default_input_shapefile, required=True,
+    parser.add_argument("--input_shapefile", default=options.default_input_shapefile,
                         help="path to shapefile")
-    parser.add_argument("--output_file", default=options.default_output_file, required=True,
+    parser.add_argument("--output_file", default=options.default_output_file,
                         help="path to save output csv file")
-    parser.add_argument("--region_name", default=options.default_region_name, required=True,
+    parser.add_argument("--region_name", default=options.default_region_name,
                         help="mask file region")
-    parser.add_argument("--dataset_name", default=options.default_dataset_name, required=True,
+    parser.add_argument("--dataset_name", default=options.default_dataset_name,
                         help="grace mascon or any other dataset")
-    parser.add_argument("--target_dataset", default=options.default_target_dataset, required=True,
+    parser.add_argument("--target_dataset", default=options.default_target_dataset,
                         help="grid on which mask should be created")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")

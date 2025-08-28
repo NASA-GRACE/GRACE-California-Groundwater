@@ -4,6 +4,7 @@ earthaccess
 python-dateutil
 s3fs
 pandas
+openpyxl
 Pillow
 netCDF4
 unidecode

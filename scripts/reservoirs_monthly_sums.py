@@ -19,38 +19,38 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name:            Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_data_dir: Path = self.reservoirs_dir / "reservoir_data"
-        self.default_output_dir: Path = self.reservoirs_dir / "monthly_sums"
-        self.default_region_name: str = options.default_basin
-        self.default_input_xlsx: Path = self.reservoirs_dir / "cdec_data_webpage.xlsx"
-        self.shapefile: Path = self.project_root / "input_data" / "shapefiles" / "hybas_na_lev04_v1c.shp"
-        self.default_start_date: str = "2005-01-01"
-        self.default_end_date: str = "2005-12-31"
+        self.my_name:               Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_data_dir:      Path = self.reservoirs_dir / "reservoir_data"
+        self.default_output_dir:    Path = self.reservoirs_dir / "monthly_sums"
+        self.default_region_name:    str = self.default_basin
+        self.default_input_xlsx:    Path = self.reservoirs_dir / "cdec_data_webpage.xlsx"
+        self.default_shapefile:     Path = self.project_root / "input_data" / "shapefiles" / "hybas_na_lev04_v1c.shp"
+        self.default_start_date:     str = "2005-01-01"
+        self.default_end_date:       str = "2005-12-31"
         self.default_allowed_names: list = [22]
                     
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description=f"Map {options.reservoirs_model} sites to regions and generate time series + mapping CSVs.")
-    parser.add_argument("--shapefile", default=options.default_shapefile, required=True,
+    parser.add_argument("--shapefile", default=options.default_shapefile,
                         help="Path to shapefile defining regions")
     parser.add_argument("--shapefile_name_field", default="name",
                         help="Field in shapefile for region names (ignored if region_name=ca)")
-    parser.add_argument("--input_xlsx", default=options.default_input_xlsx, required=True,
+    parser.add_argument("--input_xlsx", default=options.default_input_xlsx,
                         help="Excel file with site info (Station ID, LATITUDE, LONGITUDE)")
     parser.add_argument("--sheet_name", type=int, default=0,
                         help="Sheet index in Excel (default 0)")
-    parser.add_argument("--allowed_names", default=default_allowed_names, nargs="+", required=True,
+    parser.add_argument("--allowed_names", default=options.default_allowed_names, nargs="+",
                         help="Region names (strings) or SORT codes (if region_name=ca)")
-    parser.add_argument("--region_name", default=options.default_region_name, required=True,
+    parser.add_argument("--region_name", default=options.default_region_name,
                         help="Overall region name, e.g. 'ca' to use SORT field")
-    parser.add_argument("--data_dir", default=options.default_data_dir, required=True,
+    parser.add_argument("--data_dir", default=options.default_data_dir,
                         help="Directory containing site CSVs")
-    parser.add_argument("--output_dir", default=options.default_output_dir, required=True,
+    parser.add_argument("--output_dir", default=options.default_output_dir,
                         help="Directory to save per-region outputs")
-    parser.add_argument("--start_date", default=options.default_start_date, required=True,
+    parser.add_argument("--start_date", default=options.default_start_date,
                         help="start date yyyy-mm-dd format in reservoir filenames")
-    parser.add_argument("--end_date", default=options.default_end_date, required=True,
+    parser.add_argument("--end_date", default=options.default_end_date,
                         help="end date yyyy-mm-dd format in reservoir filenames")
     parser.add_argument("--units", default="km3", choices=["km3", "m3"],
                         help="Units for output")

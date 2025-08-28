@@ -96,15 +96,15 @@ def reservoirs_download_CDEC(options: Options) -> None:
         logging.error(f"Exiting: Could not load reservoir list from '{reservoir_list_file}'.")
         return # Exit if reservoir list can't be loaded
 
-    duration_code = data_type_input
+    duration_code = options.args.data_type_input
     time_period_name = "Daily" if duration_code == "D" else "Monthly"
 
     while True:
         try:
-            if not end_date_str_input:
+            if not options.args.end_date_str_input:
                 end_date = datetime.now() - timedelta(days=1)
             else:
-                end_date = datetime.strptime(end_date_str_input, "%Y-%m-%d")
+                end_date = datetime.strptime(options.args.end_date_str_input, "%Y-%m-%d")
             break
         except ValueError:
             logging.error("Invalid date format. Please use YYYY-MM-DD.")
@@ -118,10 +118,10 @@ def reservoirs_download_CDEC(options: Options) -> None:
                 default_start_days = 365 * 2 # Default to 2 years for monthly, 5 can be a lot
                 period_name_prompt = f"days (for ~{default_start_days//365} years of monthly data)"
 
-            if not start_date_str_input:
+            if not options.args.start_date_str_input:
                 start_date = end_date - timedelta(days=default_start_days)
             else:
-                start_date = datetime.strptime(start_date_str_input, "%Y-%m-%d")
+                start_date = datetime.strptime(options.args.start_date_str_input, "%Y-%m-%d")
 
             if start_date > end_date:
                 logging.error("Start date cannot be after end date. Please try again.")

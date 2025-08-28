@@ -38,13 +38,13 @@ class Options(ra.Options):
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Crop SNODAS repair mask and apply to multiple base masks.")
-    parser.add_argument("full_tif", default=options.swe_model, required=True,
+    parser.add_argument("full_tif", default=options.swe_model,
                         help="Path to full SNODAS zero repair mask (GeoTIFF) to be combined with base mask to generate repaired mask for 2014 oct to 2019 oct")
-    parser.add_argument("template_tif",default=options.default_template_tif, required=True,
+    parser.add_argument("template_tif",default=options.default_template_tif,
                         help="Template GeoTIFF for cropping (defines region)")
     parser.add_argument("cropped_tif", default=options.swe_model,
                         help="Path to save cropped CONUS repair mask as GeoTIFF")
-    parser.add_argument("base_masks", default=options.default_base_masks_files, nargs='+', required=True,
+    parser.add_argument("base_masks", default=options.default_base_masks_files, nargs='+',
                         help="List of base mask CSV files to repair")
     parser.add_argument("output_dir", default=options.default_repaired_masks_dir,
                         help="Directory to save repaired CSV masks")
