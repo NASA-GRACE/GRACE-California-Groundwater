@@ -22,7 +22,7 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_grace_file: Path = self.grace_dir / "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
+        self.default_grace_file: str = "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
         self.default_grace_input_dir: Path = self.grace_dir
         self.default_start_date: str = "2004-01-01"
         self.default_end_date: str = "2012-12-31"
@@ -35,23 +35,23 @@ class Options(ra.Options):
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Process GRACE TWS data for a basin.")
-    parser.add_argument("--start_date", default=options.default_start_date, required=True,
+    parser.add_argument("--start_date", default=options.default_start_date,
                         help="Start date (YYYY-MM-DD)")
-    parser.add_argument("--end_date", default=options.default_end_date, required=True,
+    parser.add_argument("--end_date", default=options.default_end_date,
                         help="End date (YYYY-MM-DD)")
     parser.add_argument("--scaling_factor", type=int, choices=[0, 1], default=1,
                         help="Apply scaling factor (1=yes, 0=no)")
-    parser.add_argument("--file_access_type", default="local", required=True,
+    parser.add_argument("--file_access_type", default="local",
                         help="Where to read GRACE data from. currently takes only local dir, cloud option can be added later")
     parser.add_argument("--grace_input_dir",default=options.default_grace_input_dir,
                         help="Path to GRACE data when read locally")
-    parser.add_argument("--grace_filename", default=options.default_grace_file, required=True,
+    parser.add_argument("--grace_filename", default=options.default_grace_file,
                         help="GRACE-FO Mascons NetCDF filename containing all the months")
     parser.add_argument("--shortname_mass", default="TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.1_V3",
                         help="Short name for PODAAC dataset when assessing data from cloud s3 bucket")
-    parser.add_argument("--mask_basin", required=True, default=default_mask_file,
+    parser.add_argument("--mask_basin", default=default_mask_file,
                         help="Mask file (CSV)")
-    parser.add_argument("--output_csv", required=True, default=default_output_path,
+    parser.add_argument("--output_csv", default=default_output_path,
                         help="Full path and filename to save the output CSV")
     parser.add_argument("--units", default="km3", choices=["km3", "cm"],
                         help="Units for output")
