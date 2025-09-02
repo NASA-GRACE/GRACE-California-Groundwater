@@ -1,3 +1,0 @@
-2025-08-12 19:47:18,248 - ERROR - The cached venv directory /Users/killett/mypy/myenv-versionless-20250709-234707-astropy-backports.statistics-cartopy-dask-earthaccess-and-12-more failed check_packages_in_venv.
-2025-08-12 19:47:18,249 - ERROR - The latest venv in the cache is invalid. Giving up on the cache and starting from scratch.
-2025-08-12 19:47:36,877 - CRITICAL - Failed to create a virtual environment.

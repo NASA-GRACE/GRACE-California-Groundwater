@@ -17,16 +17,6 @@ import run_all as ra
 import numpy as np
 import matplotlib.dates as mdates
 
-# —————————————————————————————————————————————————————————————————————————
-# Prevent Matplotlib from writing into HOME on AWS Lambda (or any read-only env)
-os.environ['HOME'] = '/tmp'
-os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
-os.makedirs(os.environ['MPLCONFIGDIR'], exist_ok=True)
-# Optional HDF5 tweaks
-os.environ['HDF5_USE_FILE_LOCKING']      = 'FALSE'
-os.environ['HDF5_DISABLE_VERSION_CHECK'] = '2'
-# —————————————————————————————————————————————————————————————————————————
-
 
 class Options(ra.PlotOptions):
     """Options for plotting time series data."""
@@ -36,6 +26,7 @@ class Options(ra.PlotOptions):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:                  Path = Path(__file__).stem  # The name of this script without the .py extension
         self.default_csv_files:  list[Path] = [self.timeseries_dir / 'LATEST.csv']  # default to latest CSV in self.timeseries_dir
+        self.timeseries_dir.mkdir(parents=True, exist_ok=True)  # Ensure the timeseries directory exists
 
         # Dates at which to break the plotted lines (list of datetime.datetime)
         # self.discontinuities: list[dt.datetime] = []  # Uncomment this line to have no discontinuities
@@ -56,7 +47,6 @@ def parse_arguments(options: Options) -> None:
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
         options.log_mode = logging.DEBUG
-    options.default_csv_files = [options.timeseries_dir / 'LATEST.csv']  # update default_csv_files in case timeseries_dir was overridden
 
 
 def main() -> None:

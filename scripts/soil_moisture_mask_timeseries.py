@@ -38,6 +38,7 @@ class Options(ra.Options):
         self.default_nc:       Path = self.default_out_dir  / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.nc"
         self.default_mask:      str = f"{self.soil_moisture_model}_{self.default_basin}_mask.nc"
         self.unit_factors:     dict = {"mm H2O": 1000, "kg/m2": 1000, "kg/m^2": 1000, "cm": 100, "dm": 10, "m": 1, "km": 0.001}  # Conversions from meters to other units.
+        self.masks_dir.mkdir(       parents=True, exist_ok=True)
 
 
 def parse_arguments(options: Options) -> None:
@@ -61,6 +62,10 @@ def parse_arguments(options: Options) -> None:
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
         options.log_mode = logging.DEBUG
+    options.args.out_dir.mkdir(          parents=True, exist_ok=True)
+    options.args.mask_nc.parent.mkdir(   parents=True, exist_ok=True)
+    options.args.output_nc.parent.mkdir( parents=True, exist_ok=True)
+    options.args.output_csv.parent.mkdir(parents=True, exist_ok=True)
 
 
 def main() -> None:

@@ -28,6 +28,9 @@ class Options(ra.Options):
         self.shape_dir:        Path = self.project_root / "input_data" / "shapefiles"
         self.masks_dir:        Path = self.project_root / "input_data" / "masks"
         self.gridded_data_dir: Path = self.project_root / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_concatenated"
+        self.shape_dir.mkdir(       parents=True, exist_ok=True)
+        self.masks_dir.mkdir(       parents=True, exist_ok=True)
+        self.gridded_data_dir.mkdir(parents=True, exist_ok=True)
 
 
 def parse_arguments(options: Options) -> None:

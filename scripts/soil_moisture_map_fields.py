@@ -55,6 +55,8 @@ def parse_arguments(options: Options) -> None:
     if getattr(options.args, 'debug', False):
         options.log_mode = logging.DEBUG
     options.args.nc_filename_string = options.args.nc_file  # Rename for clarity, this is NOT a Path.
+    options.args.masked_dir.mkdir(parents=True, exist_ok=True)
+    options.args.out_dir.mkdir(   parents=True, exist_ok=True)
 
 
 def main() -> None:

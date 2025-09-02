@@ -43,6 +43,13 @@ class Options:
         self.timeseries_dir:    Path = self.project_root / "input_data" / "masked_timeseries"
         self.output_dir:        Path = self.project_root / "output"
         self.graphics_dir:      Path = self.project_root / "graphics"
+        self.swe_dir.mkdir(          parents=True, exist_ok=True)
+        self.soil_moisture_dir.mkdir(parents=True, exist_ok=True)
+        self.reservoirs_dir.mkdir(   parents=True, exist_ok=True)
+        self.grace_dir.mkdir(        parents=True, exist_ok=True)
+        self.timeseries_dir.mkdir(   parents=True, exist_ok=True)
+        self.output_dir.mkdir(       parents=True, exist_ok=True)
+        self.graphics_dir.mkdir(     parents=True, exist_ok=True)
 
         self.log_mode:           int = logging.INFO  # Use the -debug command line argument to change to DEBUG.
         self.separator_line:     str = "-" * 60  # A line of dashes for logging separation
