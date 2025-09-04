@@ -26,7 +26,7 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:            Path = Path(__file__).stem  # The name of this script without the .py extension
         self.default_cdec_dir:   Path = self.project_root / "input_data" / "reservoirs" / "CDEC"
-        self.default_csv_files:  list[Path] = [self.default_cdec_dir / "monthly_sums" / "ca_monthly_km3.csv"]
+        self.default_csv_files:  list[Path] = [self.default_cdec_dir / "monthly_sums" / f"{self.default_basin}_monthly_km3.csv"]
         self.default_output_dir: Path = self.default_cdec_dir / "monthly_anomaly"
         self.default_baseline_start: str = "2005-01-01" #"2004-01-01"
         self.default_baseline_end: str = "2005-03-31" #"2009-12-31"
@@ -143,12 +143,7 @@ if __name__ == "__main__":
 
 '''
 Example usage
-python cdec_regional_anomaly_mean_err_vals.py `
-  --csv_files "C:\output\a_monthly_km3.csv" "C:\output\b_monthly_km3.csv" `
-  --output_dir "C:\output\anomalies" `
-  --start_date 2004-01-01 `
-  --end_date 2009-12-31 `
-  --err_val 0.05
+python cdec_regional_anomaly_mean_err_vals.py --csv_files "C:\output\a_monthly_km3.csv" "C:\output\b_monthly_km3.csv" --output_dir "C:\output\anomalies" --start_date 2004-01-01 --end_date 2009-12-31 --err_val 0.05
   
 will create in output dir
     anomaly_timeseries_cdec_a_mask.csv

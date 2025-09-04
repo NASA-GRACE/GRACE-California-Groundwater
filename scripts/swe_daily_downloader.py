@@ -6,9 +6,11 @@ import argparse
 import logging
 import tarfile
 from pathlib import Path
-
+import gzip
+import shutil
 import run_all as ra
-
+from osgeo import gdal
+gdal.UseExceptions()
 # Written by Munish Sikka and ChatGPT
 
 
@@ -20,20 +22,22 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
         self.default_swe_start_date: str = "2005-01-01"
-        self.default_swe_end_date:   str = "2005-06-31"
-        current_time = datetime.datetime.now()
-        self.default_log_file: Path = self.swe_dir /  "logs" / f"swe_download_{current_time.strftime('%Y-%m-%d_%H-%M-%S')}.log" 
+        self.default_swe_end_date:   str = "2005-03-31"
+        self.default_output_dir: Path = self.swe_dir / "daily_data"
+        current_time = datetime.now()
+        self.default_log_file: Path = self.swe_dir /  f"swe_download_{current_time.strftime('%Y-%m-%d_%H-%M-%S')}.log" 
+        #self.default_log_file: Path = self.swe_dir /  "logs" / f"swe_download_{current_time.strftime('%Y-%m-%d_%H-%M-%S')}.log" 
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("start_date", default=options.default_swe_start_date,
+    parser.add_argument("--start_date", default=options.default_swe_start_date,
                         help=f"Start date (YYYY-MM-DD) (default: {options.default_swe_start_date})")
-    parser.add_argument("end_date", default=options.default_swe_end_date,
+    parser.add_argument("--end_date", default=options.default_swe_end_date,
                         help=f"End date (YYYY-MM-DD) (default: {options.default_swe_end_date})")
-    parser.add_argument("output_dir", default=options.default_output_dir,
+    parser.add_argument("--output_dir", default=options.default_output_dir,
                         help="Directory to download, untar and save swe files from Snodas")
-    parser.add_argument("log_file", default=options.default_log_file,
+    parser.add_argument("--log_file", default=options.default_log_file,
                         help=f"Path to log file (e.g., {options.default_log_file})")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
@@ -113,6 +117,7 @@ def download_and_process(date: datetime, product_code: str = '1034', out_dir: st
     tar_file = os.path.join(out_dir, f'SNODAS_{date_str}.tar')
 
     try:
+        os.makedirs(out_dir, exist_ok=True)
         logging.info(f"Downloading {url}...")
         r = requests.get(url, stream=True, timeout=30)
         if r.status_code != 200:
@@ -126,7 +131,7 @@ def download_and_process(date: datetime, product_code: str = '1034', out_dir: st
         # Extract TAR
         try:
             with tarfile.open(tar_file) as tar:
-                tar.extractall(path=out_dir)
+                tar.extractall(path=out_dir, filter="data")
                 logging.info(f"Extracted: {tar_file}")
         except tarfile.TarError as e:
             logging.error(f"Failed to extract {tar_file}: {e}")
@@ -139,22 +144,35 @@ def download_and_process(date: datetime, product_code: str = '1034', out_dir: st
         # Gunzip and convert
         for file in os.listdir(out_dir):
             if f"{product_code}" in file and file.endswith(".gz"):
+                gz_path = os.path.join(out_dir, file)
+                unzipped_path = gz_path.replace(".gz", "")
                 try:
-                    subprocess.run(["gunzip", file], cwd=out_dir, check=True)
+                    with gzip.open(gz_path, 'rb') as f_in:
+                        with open(unzipped_path, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                    os.remove(gz_path)  # Remove .gz file after extraction
+                    #subprocess.run(["gunzip", file], cwd=out_dir, check=True)
                     logging.info(f"Unzipped: {file}")
                 except subprocess.CalledProcessError as e:
                     logging.error(f"Failed to unzip {file}: {e}")
-                
-
+        # Convert .txt to GeoTIFF using GDAL Python API        
         for file in os.listdir(out_dir):
             if f"{product_code}" in file and file.endswith(".txt"):
-                tif_file = file.replace(".txt", ".tif")
+                input_path = os.path.join(out_dir, file)
+                output_path = os.path.join(out_dir, file.replace(".txt", ".tif"))
+                #txt_file = os.path.join(out_dir, file)
+                #tif_file = os.path.join(out_dir, file.replace(".txt", ".tif"))
                 try:
-                    subprocess.run(["gdal_translate", "-of", "GTiff", file, tif_file], cwd=out_dir, check=True)
-                    logging.info(f"Converted to GeoTIFF: {tif_file}")
-                except subprocess.CalledProcessError as e:
-                    logging.error(f"Failed to run gdal translate {file}: {e}")
-
+                    ds = gdal.Open(input_path)
+                    if ds is None:
+                        logging.error(f"GDAL failed to open {input_path}")
+                        continue
+                    gdal.Translate(output_path, ds, format="GTiff")
+                    ds = None
+                    logging.info(f"Converted to GeoTIFF: {output_path}")
+                except Exception as e:
+                    logging.error(f"Failed to convert {file} to GeoTIFF: {e}")
+                    
         # Clean up extras
         for file in os.listdir(out_dir):
             if file.endswith(".txt") or file.endswith(".gz") or file.endswith(".dat") :

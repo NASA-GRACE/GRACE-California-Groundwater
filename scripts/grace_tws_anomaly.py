@@ -24,13 +24,10 @@ class Options(ra.Options):
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
         self.default_grace_file: str = "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
         self.default_grace_input_dir: Path = self.grace_dir
-        self.default_start_date: str = "2004-01-01"
-        self.default_end_date: str = "2012-12-31"
-        if self.default_basin == "California":
-            self.default_mask_file: Path = self.grace_dir / "masks" / "grace_ca_mask.csv"
-            self.default_output_path: Path = self.grace_dir / "monthly_grace_anomaly" / "anomaly_timeseries_GRACE_ca_mask.csv"
-        self.default_baseline_start: str = "2004-01-01"
-        self.default_baseline_end: str = "2009-12-31"
+        self.default_start_date: str = "2002-04-01"
+        self.default_end_date: str = "2025-03-31"
+        self.default_mask_file: Path = self.grace_dir / "masks" / f"grace_{self.default_basin}_mask.csv"
+        self.default_output_path: Path = self.grace_dir / "monthly_grace_anomaly" / f"anomaly_timeseries_GRACE_{self.default_basin}_mask.csv"
         
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
@@ -49,15 +46,15 @@ def parse_arguments(options: Options) -> None:
                         help="GRACE-FO Mascons NetCDF filename containing all the months")
     parser.add_argument("--shortname_mass", default="TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.1_V3",
                         help="Short name for PODAAC dataset when assessing data from cloud s3 bucket")
-    parser.add_argument("--mask_basin", default=default_mask_file,
+    parser.add_argument("--mask_basin", default=options.default_mask_file,
                         help="Mask file (CSV)")
-    parser.add_argument("--output_csv", default=default_output_path,
+    parser.add_argument("--output_csv", default=options.default_output_path,
                         help="Full path and filename to save the output CSV")
     parser.add_argument("--units", default="km3", choices=["km3", "cm"],
                         help="Units for output")
-    parser.add_argument("--baseline_start", default=default_baseline_start,
+    parser.add_argument("--baseline_start", default=None,
                         help="Optional anomaly baseline start date (YYYY-MM-DD)")
-    parser.add_argument("--baseline_end", default=default_baseline_end,
+    parser.add_argument("--baseline_end", default=None,
                         help="Optional anomaly baseline end date (YYYY-MM-DD)")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
@@ -82,7 +79,7 @@ def main() -> None:
 
     baseline = (options.args.baseline_start, options.args.baseline_end) if options.args.baseline_start and options.args.baseline_end else None
     save_results(options.args.output_csv, dates, tws, bsn_sig, ma, options.args.units, baseline)
-
+    
 
 def load_dataset(grace_input_dir: str, grace_filename: str, file_access_type: str, shortname_mass: str) -> xr.Dataset:
     """
@@ -101,8 +98,8 @@ def load_dataset(grace_input_dir: str, grace_filename: str, file_access_type: st
         ValueError: If file_access_type is invalid.
     """
     if file_access_type.lower() == "local":
-        print(f"Reading GRACE mascon dataset locally: {full_filename}")
         full_filename = os.path.join(grace_input_dir, grace_filename)
+        print(f"Reading GRACE mascon dataset locally: {full_filename}")
         return xr.open_dataset(full_filename)
     else:
         raise ValueError(f"Invalid file access type: {file_access_type}")
@@ -263,13 +260,14 @@ def save_results(output_csv: str, dates: np.ndarray, tws: np.ndarray, bsn_sig: n
         bsn_sig = (bsn_sig / 100000) * (np.sum(ma) / 1e6)
 
     df = pd.DataFrame({"date": pd.to_datetime(dates), "tws": tws, "tws_error": bsn_sig})
-
+    
     if baseline: #not used as grace fo mascon is already an anomaly of mean (2004-2009)
         start, end = baseline
         mask = (df["date"] >= pd.to_datetime(start)) & (df["date"] <= pd.to_datetime(end))
         baseline_mean = df.loc[mask, "tws"].mean()
-        df["tws_anomaly"] = df["tws"] - baseline_mean
-
+        df["tws"] = df["tws"] - baseline_mean
+    
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)  # create folder if it doesn't exist
     df.to_csv(output_csv, index=False)
     print(f"Saved results to {output_csv}")
 
@@ -278,26 +276,12 @@ if __name__ == "__main__":
     main()
 
 '''
-Example call
-python grace_tws_anomaly.py \
-  --start_date 2002-04-01 \
-  --end_date 2025-03-31 \
-  --scaling_factor 1 \
-  --file_access_type local \
-  --grace_input_dir "C:/grace" \
-  --grace_filename "GRA.nc" \
-  --mask_basin "C:/mask/mask_a.csv" \
-  --output_csv "C:/output/anomaly_timeseries_GRACE_ca.csv" \
-  --units km3 \
-  --baseline_start 2004-01-01 \
-  --baseline_end 2009-12-31
-
 This script will:
-Read GRACE data (local or cloud).
+Read GRACE data (local; Note: Option to read from cloud can be added later, some of its functions exists in the repository and implemented in Open Scince GRACE-FO Tutorials).
 Auto-detect mask type (CSV).
 Align and shift the mask to GRACE orientation.
 Compute regional TWS time series and uncertainty.
 Convert to km³ or keep in cm (default).
 Optionally subtract baseline mean to output anomalies.
-Save results with date, tws, tws_error, [tws_anomaly].
+Save results with date, tws, tws_error. 
 '''

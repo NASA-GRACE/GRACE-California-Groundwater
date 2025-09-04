@@ -1,6 +1,7 @@
 import numpy as np
 from osgeo import gdal, ogr, osr
 import os.path
+import json
 
 # Written by Munish Sikka and ChatGPT based on original function provided by Jack McNelis     
 def read_shapefile_multilayers(region_name,shapefile,gt,n_lon,n_lat,filter_sort=None,layer_name = None):
@@ -13,7 +14,7 @@ def read_shapefile_multilayers(region_name,shapefile,gt,n_lon,n_lat,filter_sort=
     ssrs = lyr.GetSpatialRef()
     wkt = ssrs.ExportToPrettyWkt()
     for i, feat in enumerate(lyr):
-        if region_name.casefold() in ("ca","California"):
+        if region_name.casefold() in ("ca","california"):
             if feat.GetField("SORT") == filter_sort:
                 break
         elif region_name.casefold() == "Colorado river basin":
@@ -28,7 +29,7 @@ def read_shapefile_multilayers(region_name,shapefile,gt,n_lon,n_lat,filter_sort=
     geom = feat.GetGeometryRef()
     geojson = geom.ExportToJson()
     list(json.loads(geojson).keys())
-    driver = ogr.GetDriverByName("MEMORY")
+    driver = ogr.GetDriverByName("MEM") #changed from MEMORY to MEM
     featds = driver.CreateDataSource("MemoryDataset")
     newlyr = featds.CreateLayer("temp layer", ssrs, geom_type=ogr.wkbPolygon)
     lyrid = ogr.FieldDefn("ID", ogr.OFTInteger)
@@ -40,7 +41,6 @@ def read_shapefile_multilayers(region_name,shapefile,gt,n_lon,n_lat,filter_sort=
     newfeat.SetField("ID", 1)
     newlyr.CreateFeature(newfeat)
     newfeat = None 
-      
     mask = gdal.GetDriverByName('MEM').Create(
     '',                       # No filename required for in-memory dataset.
     n_lon,n_lat,  # Dimensions of the output mask (x,y)

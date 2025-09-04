@@ -5,3 +5,6 @@ logs/
 scripts/logs/
 .DS_Store
 .venv/
+input_data/snow_water_equivalent/SNODAS/monthly_data
+input_data/snow_water_equivalent/SNODAS/daily_data
+
