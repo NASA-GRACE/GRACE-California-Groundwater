@@ -31,9 +31,8 @@ class Options(ra.Options):
         self.default_output_dir: Path = self.swe_dir / "monthly_anomaly"
         self.default_mask1_dir:  Path = self.swe_dir / "masks" / "basin_masks"
         self.default_mask2_dir:  Path = self.swe_dir / "masks" / "repaired_masks"
-        if self.default_basin == "California":
-            self.default_regions: list = ["ca"]
-            self.default_output_regions: list = ["california_mask"]
+        self.default_regions: list = [self.default_basin]
+        self.default_output_regions: list = [f"{self.default_basin}_mask"]
         self.default_start_date: str = "2005-01-01" #"2014-10-01"
         self.default_end_date:   str = "2005-03-31" #"2019-10-31"
         
@@ -68,6 +67,7 @@ def parse_arguments(options: Options) -> None:
 
 def main() -> None:
     """Main function to calculate monthly anomaly timeseries from snow water equivalent (SWE) data."""
+    gdal.UseExceptions()  # Enable GDAL exceptions for error handling
     options = Options()
     parse_arguments(options)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
@@ -108,10 +108,10 @@ def monthly_anomalies_for_SNODAS(options: Options) -> None:
     mask2_dir      = options.args.mask2_dir
     regions        = options.args.regions
     output_regions = options.args.output_regions
-
+    
     # Convert dates
-    start_alt = datetime.strptime(options.start_date, "%Y-%m-%d")
-    end_alt   = datetime.strptime(options.end_date,   "%Y-%m-%d")
+    start_alt = datetime.strptime(options.args.start_date, "%Y-%m-%d")
+    end_alt   = datetime.strptime(options.args.end_date,   "%Y-%m-%d")
 
     # Change directory if desired
     os.chdir(input_dir)
@@ -250,10 +250,10 @@ def compute_means_with_mask_switch(file_list: list, region_masks: dict,
         time_mask = (df['YearMonth'] >= start_period) & (df['YearMonth'] <= end_period)
         baseline_mean = swe_values[time_mask].mean()
         df['swe'] = swe_values - baseline_mean
-        df.drop(columns=['YearMonth']).to_csv(f"{output_dir}/anomaly_timeseries_snodas_{safe_name}.csv", index=False)
-    logging.info("CSV files saved:", [f"{output_dir}/{r.replace(' ','_')}.csv" for r in region_names])
-
-
+        csv_file = output_dir / f"anomaly_timeseries_snodas_{safe_name}.csv"
+        df.drop(columns=['YearMonth']).to_csv(csv_file, index=False)
+        #df.drop(columns=['YearMonth']).to_csv(f"{output_dir}/anomaly_timeseries_snodas_{safe_name}.csv", index=False)
+    
 def extract_date_from_filename(filename: str) -> datetime:
     """
     Extract date from filenames like snowds_yyyy_mm.tif
@@ -280,16 +280,4 @@ if __name__ == "__main__":
 '''
 This script reads Snodas swe monthly grid data from geotif and csv masks (reg and repaired repaired (for 2014-2019)) 
 and generates monthly timeseries for swe anomaly and error values as percentage of monthly mean before computing anomaly.
- 
-Example usage 
-python grace_toolkit\snodas_monthly_anomaly.py `
-  --input_dir "C:/data/snodas/monthly_data" `
-  --err_coeff 0.20 `
-  --output_dir "C:/data/snodas/monthly_anomaly" `
-  --mask1_dir "C:/data/snodas/masks/basin_masks/" `
-  --mask2_dir "C:/data/snodas/masks/repaired_masks/" `
-  --regions ca Sacramento San_Joaquin Tulare `
-  --output_regions california_mask sacramento_mask san_joaquin_mask tulare_buena_vista_lakes_mask `
-  --start_date 2014-10-01 `
-  --end_date 2019-10-31
 '''

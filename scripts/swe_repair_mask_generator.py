@@ -29,24 +29,25 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_full_tif: Path = self.swe_dir / "SNODAS_Zero_Repair_Mask.tif"
+        self.default_cropped_tif: Path = self.swe_dir / "SNODAS_Zero_Repair_Mask_Cropped.tif"
         self.default_repaired_masks_dir: Path = self.swe_dir / "masks" / "repaired_masks"
-        if self.default_basin == "California":
-            self.default_base_masks_files: list[Path] = [self.swe_dir / "masks" / "basin_masks" / "snodas_ca_mask.csv"]
+        self.default_base_masks_files: list[Path] = [self.swe_dir / "masks" / "basin_masks" / f"{self.swe_model}_{self.default_basin}_mask.csv"]
         self.default_template_tif: Path = self.swe_dir / "monthly_data" / "monthly_mean_200501.tif"
         
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Crop SNODAS repair mask and apply to multiple base masks.")
-    parser.add_argument("full_tif", default=options.swe_model,
+    parser.add_argument("--full_tif", default=options.default_full_tif,
                         help="Path to full SNODAS zero repair mask (GeoTIFF) to be combined with base mask to generate repaired mask for 2014 oct to 2019 oct")
-    parser.add_argument("template_tif",default=options.default_template_tif,
+    parser.add_argument("--template_tif",default=options.default_template_tif,
                         help="Template GeoTIFF for cropping (defines region)")
-    parser.add_argument("cropped_tif", default=options.swe_model,
+    parser.add_argument("--cropped_tif", default=options.default_cropped_tif,
                         help="Path to save cropped CONUS repair mask as GeoTIFF")
-    parser.add_argument("base_masks", default=options.default_base_masks_files, nargs='+',
+    parser.add_argument("--base_masks", default=options.default_base_masks_files, nargs='+',
                         help="List of base mask CSV files to repair")
-    parser.add_argument("output_dir", default=options.default_repaired_masks_dir,
+    parser.add_argument("--output_dir", default=options.default_repaired_masks_dir,
                         help="Directory to save repaired CSV masks")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
@@ -57,6 +58,7 @@ def parse_arguments(options: Options) -> None:
 
 def main() -> None:
     """Main function to parse arguments and run the repair mask generation for snow water equivalent (SWE) data."""
+    gdal.UseExceptions()  # Enable GDAL exceptions for error handling
     options = Options()
     parse_arguments(options)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
@@ -88,6 +90,9 @@ def repair_mask_generation_for_SNODAS(options: Options) -> None:
     """
 
     # Step 1: Crop the SNODAS repair mask
+    print(options.args.full_tif)
+    print(options.args.template_tif)
+    print(options.args.cropped_tif)
     cropped_arr, _ = crop_by_template(options.args.full_tif, options.args.template_tif, options.args.cropped_tif)
 
     # Step 2: Apply to each base mask
@@ -95,8 +100,8 @@ def repair_mask_generation_for_SNODAS(options: Options) -> None:
         base_name = os.path.basename(base_mask_path)
         logging.info(base_name)
         # Replace 'snodas' with 'repaired' in the filename
-        if base_name.startswith("snodas_"):
-            output_name = base_name.replace("snodas_", "repaired_", 1)
+        if base_name.startswith("SNODAS_"):
+            output_name = base_name.replace("SNODAS_", "repaired_", 1)
         else:
             output_name = f"repaired_{base_name}"
         logging.info(output_name)
@@ -130,9 +135,13 @@ def crop_by_template(full_tif: str, template_tif: str, output_tif: str) -> tuple
     y_res = gt[5]
     x_size = template_ds.RasterXSize
     y_size = template_ds.RasterYSize
-
-    x_max = x_min + x_res * x_size
-    y_min = y_max + y_res * y_size
+    
+    # Compute max coords with adjustment
+    x_max = x_min + x_res * x_size - x_res
+    y_min = y_max + y_res * y_size - y_res
+    
+    #x_max = x_min + x_res * x_size #worked with python 3.9 but gives extra row and col in python 3.12 gdal stricter settings.
+    #y_min = y_max + y_res * y_size
 
     # Crop and save
     gdal.Translate(
@@ -182,12 +191,5 @@ def repair_mask(base_mask_path: str, repair_mask_arr: np.ndarray, output_path: s
 if __name__ == "__main__":
     main()
     
-''' sample call 
-python C:\work\snowdas_repair_mask_generator.py `
-  C:\data\full_snodas_mask.tif `
-  C:\data\template_conus.tif `
-  C:\data\cropped_repair_mask.tif `
-  C:\data\masks\snodas_ca_mask.csv `
-  C:\data\masks\snodas_tx_mask.csv `
-  C:\data\masks\repaired\
-'''
+# sample call:
+# python C:\work\snowdas_repair_mask_generator.py C:\data\full_snodas_mask.tif C:\data\template_conus.tif C:\data\cropped_repair_mask.tif C:\data\masks\snodas_ca_mask.csv C:\data\masks\snodas_tx_mask.csv C:\data\masks\repaired\

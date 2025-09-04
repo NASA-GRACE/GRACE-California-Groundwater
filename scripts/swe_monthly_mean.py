@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import datetime
 import logging
 import argparse
-
+from osgeo import gdal
 # Import compute_mean_raster function
 from compute_mean_geotif import compute_mean_raster  
 
@@ -29,11 +29,11 @@ class Options(ra.Options):
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Compute monthly mean rasters from daily .tif files")
-    parser.add_argument("daily_dir", default=options.default_daily_dir
+    parser.add_argument("--daily_dir", default=options.default_daily_dir,
                         help="Directory with daily .tif files")
-    parser.add_argument("output_dir", default=options.default_output_dir,
+    parser.add_argument("--output_dir", default=options.default_output_dir,
                         help="Directory to save monthly mean rasters")
-    parser.add_argument("scale_factor", default=options.default_scale_factor,
+    parser.add_argument("--scale_factor", default=options.default_scale_factor,
                         type=float,
                         help="Scale factor to apply to raster values")
     parser.add_argument('-debug', action='store_true',
@@ -45,6 +45,7 @@ def parse_arguments(options: Options) -> None:
 
 def main() -> None:
     """Main function to process monthly means for snow water equivalent (SWE) data."""
+    gdal.UseExceptions()  # Enable GDAL exceptions for error handling
     options = Options()
     parse_arguments(options)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",

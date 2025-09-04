@@ -17,20 +17,18 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-        if self.default_basin == "California":
-            self.default_input_file: Path = self.grace_dir / "monthly_grace_anomaly" / "anomaly_timeseries_GRACE_ca_mask.csv"
-            self.default_output_filename: str = "anomaly_timeseries_GRACE_ca_mask.csv"
+        self.default_input_file: Path = self.grace_dir / "monthly_grace_anomaly" / f"anomaly_timeseries_GRACE_{self.default_basin}_mask.csv"
+        self.default_output_filename: str = f"anomaly_timeseries_GRACE_{self.default_basin}_mask.csv"
         self.default_output_path: Path = self.grace_dir / "monthly_interpolated_grace_anomaly" 
-        
-
+            
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Interpolate GRACE data on 15th-of-month")
-    parser.add_argument("input_file", default=options.default_input_file
+    parser.add_argument("--input_file", default=options.default_input_file,
                         help="Path to input CSV with date, tws, tws_error")
-    parser.add_argument("output_dir", default=options.default_output_path
+    parser.add_argument("--output_dir", default=options.default_output_path,
                         help="Output directory (will be created if it doesn't exist)")
-    parser.add_argument("output_file", default=options.default_output_filename
+    parser.add_argument("--output_file", default=options.default_output_filename,
                         help="Output filename (e.g., result.csv)")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
@@ -139,7 +137,6 @@ def interpolate_and_filter(df: pd.DataFrame, columns: list, max_gap_days: int = 
 if __name__ == "__main__":
     main()
 
-'''
-Example usage : python interpolate_grace.py <input anomaly data> <output dir> <output interpolated csv filename>
-python interpolate_grace.py C:\data\grace_mascon\monthly_grace_anomaly\anomaly_timeseries_GRACE_ca_mask.csv C:\data\grace_mascon\monthly_interpolated_grace_anomaly\ anomaly_timeseries_GRACE_ca_mask.csv
-'''
+
+#Example usage : python interpolate_grace.py <input anomaly data> <output dir> <output interpolated csv filename>
+

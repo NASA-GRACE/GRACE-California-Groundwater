@@ -95,7 +95,7 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked soil moisture data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Processing reservoirs storage data")
 
     logging.info(f"Downloading reservoirs data...")
@@ -106,7 +106,7 @@ def main() -> None:
 
     logging.info("Generating reservoirs anomaly and error value time series...")
     run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
-
+    
     section_header(options, "Processing GRACE TWS data")
 
     logging.info("Call raster mask generator for GRACE TWS data...")
@@ -117,24 +117,26 @@ def main() -> None:
 
     logging.info("Interpolating GRACE TWS data to daily time steps...")
     run_script(options, "interpolate_grace.py")
-
+        
     section_header(options, "Processing SNODAS snow water equivalent data")
 
     logging.info("Downloading snow water equivalent (SWE) data...")
     run_script(options, "swe_daily_downloader.py")
-
+    
+    logging.info("Processing snow water equivalent (SWE) data into monthly means...")
+    run_script(options, "swe_monthly_mean.py")
+    
     logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
-    run_script(options, "call_raster_mask_generator.py -target-dataset='swe'")
+    #run_script(options, "call_raster_mask_generator.py -target_dataset='swe'")
+    cmd = ["python", "call_raster_mask_generator.py", "--target_dataset", "swe"]
+    subprocess.run(cmd, check=True)
 
     logging.info("Processing snow water equivalent (SWE) data into monthly means and anomalies...")
     run_script(options, "swe_repair_mask_generator.py")
-
-    logging.info("Processing snow water equivalent (SWE) data into monthly means...")
-    run_script(options, "swe_monthly_mean.py")
-
+        
     logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
     run_script(options, "swe_monthly_anomaly.py")
-
+  
     section_header(options, "Computing groundwater anomaly and plotting results")
 
     logging.info("Computing groundwater anomaly time series...")
@@ -142,8 +144,8 @@ def main() -> None:
 
     logging.info("Generating comparison plots of all water storage components...")
     run_script(options, "plot_timeseries.py")
-
-
+    
+    
 def run_script(options: Options, the_script: str) -> None:
     """
     Run a script with the given options.

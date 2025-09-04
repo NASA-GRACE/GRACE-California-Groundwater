@@ -26,15 +26,18 @@ class Options(ra.Options):
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
         self.shape_dir: Path = self.project_root / "input_data" / "shapefiles"
         self.default_input_shapefile = self.shape_dir / "hybas_na_lev04_v1c.shp"
-        self.default_output_file: Path = self.project_root / "input_data" / "masks"
-        self.default_region_name: str = options.default_basin
-        if self.default_dataset == "swe":
-            self.default_dataset_name: str = "snodas"
-            self.default_target_dataset: Path = self.swe_dir / "monthly_data" / "monthly_mean_200501.tif
-        else:
-            self.default_dataset_name: str = "grace_mascon"
-            self.default_target_dataset: Path = self.grace_dir / "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
-            
+        #self.default_output_file: Path = self.project_root / "input_data" / "masks"
+        self.default_output_file: Path = self.grace_dir / "masks" / "grace_ca_mask.csv"
+        self.default_region_name: str = self.default_basin
+        #self.default_target_dataset: str = "grace_mascon"
+        self.default_swe_dataset_name: str = self.swe_model
+        self.default_swe_target_dataset: Path = self.swe_dir / "monthly_data" / "monthly_mean_200501.tif"
+        self.default_grace_dataset_name: str = "grace_mascon"
+        self.default_grace_target_dataset: Path = self.grace_dir / "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
+        self.default_dataset_name = self.default_grace_dataset_name
+        self.default_dataset = self.default_grace_target_dataset
+
+
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Generate mask array as csv using input shapefile")
@@ -46,15 +49,25 @@ def parse_arguments(options: Options) -> None:
                         help="mask file region")
     parser.add_argument("--dataset_name", default=options.default_dataset_name,
                         help="grace mascon or any other dataset")
-    parser.add_argument("--target_dataset", default=options.default_target_dataset,
+    #parser.add_argument("--target_dataset", default=options.default_target_dataset,
+    parser.add_argument("--target_dataset", default=options.default_dataset,
                         help="grid on which mask should be created")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
         options.log_mode = "DEBUG"
-
-
+    if options.args.target_dataset == "swe":
+        print("here in swe")
+        options.dataset_name = options.default_swe_dataset_name
+        options.target_dataset = options.default_swe_target_dataset #swe_target_dataset
+        options.output_file = options.swe_dir / "masks" / "basin_masks" / f"{options.swe_model}_{options.default_basin}_mask.csv"
+    else:
+        options.dataset_name = options.default_grace_dataset_name
+        options.target_dataset = options.default_grace_target_dataset
+        options.output_file = options.grace_dir / "masks" / f"grace_{options.default_basin}_mask.csv"
+                
+   
 def main(input_shapefile: str, output_file: str, region_name: str, dataset_name: str, target_dataset: str) -> None:
     """
     Main function to create a river basin mask.
@@ -74,7 +87,7 @@ def main(input_shapefile: str, output_file: str, region_name: str, dataset_name:
     """
     filter_sort = None
     layer_name  = None
-    if region_name.casefold() in ("ca","California"):
+    if region_name in ("ca","California"):
         filter_sort = 22 # only used for the California basin
     elif region_name.casefold() == "sacramento":
         pass
@@ -89,7 +102,12 @@ def main(input_shapefile: str, output_file: str, region_name: str, dataset_name:
     basin_title = region_name.replace(' ', '_').replace('-', '_').casefold()
     logging.info(basin_title)
     #tif dataset
-    if target_dataset.lower().endswith(".tif") and dataset_name.lower() == 'snodas':
+    print(target_dataset)
+    print(dataset_name)
+    print(output_file)
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)  # create folder if it doesn't exist
+
+    if str(target_dataset).lower().endswith(".tif") and dataset_name.upper() == 'SNODAS':
         ds = gdal.Open(target_dataset) #open sample geotif to get geotrasnform info. 
         if ds is None:
             raise RuntimeError(f"Could not open GeoTIFF: {target_dataset}")
@@ -105,7 +123,7 @@ def main(input_shapefile: str, output_file: str, region_name: str, dataset_name:
         df.to_csv(output_file, header=False, index=False)
         logging.info(bbox)
         # nc file datset
-    elif target_dataset.lower().endswith(".nc")and dataset_name.lower() == 'grace_mascon':
+    elif str(target_dataset).lower().endswith(".nc")and dataset_name.lower() == 'grace_mascon':
         dataset = xr.open_dataset((target_dataset))
         lat_var = None
         lon_var = None
@@ -139,29 +157,11 @@ def main(input_shapefile: str, output_file: str, region_name: str, dataset_name:
 
 
 if __name__ == "__main__":
-    #gdal.UseExceptions()  # Enable GDAL exceptions for error handling
+    gdal.UseExceptions()  # Enable GDAL exceptions for error handling
     options = Options()
     parse_arguments(options)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
                         datefmt='%Y-%m-%d %H:%M:%S')
 
-    main(options.args.input_shapefile, options.args.output_file, options.args.region_name, options.args.dataset_name, options.args.target_dataset)
-
-'''
-sample call geotif:
-python generate_mask.py `
-  --input_shapefile "C:/data/basins/ca_river_basin.shp" `
-  --output_file "C:/data/masks/ca_mask.csv" `
-  --region_name "California_Basin" `
-  --dataset_name "snowdas" `
-  --target_dataset "C:/data/grids/snodas_grid.tif"
-
-or netcdf
-
-python generate_mask.py `
-  --input_shapefile "C:/data/basins/ca_river_basin.shp" `
-  --output_file "C:/data/masks/ca_mask.csv" `
-  --region_name "California_Basin" `
-  --dataset_name "grace_mascon" `
-  --target_dataset "C:/data/grids/climate_grid.nc"
-'''
+    #main(options.args.input_shapefile, options.args.output_file, options.args.region_name, options.args.dataset_name, options.args.target_dataset)
+    main(options.args.input_shapefile, options.output_file, options.args.region_name, options.dataset_name, options.target_dataset)

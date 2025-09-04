@@ -2,7 +2,7 @@ import argparse
 import os
 import pandas as pd
 import unicodedata
-from osgeo import ogr
+from osgeo import ogr, gdal
 import re
 from pathlib import Path
 import logging
@@ -22,7 +22,7 @@ class Options(ra.Options):
         self.my_name:               Path = Path(__file__).stem  # The name of this script without the .py extension
         self.default_data_dir:      Path = self.reservoirs_dir / "reservoir_data"
         self.default_output_dir:    Path = self.reservoirs_dir / "monthly_sums"
-        self.default_region_name:    str = "ca"
+        self.default_region_name:    str = self.default_basin
         self.default_input_xlsx:    Path = self.reservoirs_dir / "cdec_data_webpage.xlsx"
         self.default_shapefile:     Path = self.project_root / "input_data" / "shapefiles" / "hybas_na_lev04_v1c.shp"
         self.default_start_date:     str = "2005-01-01"
@@ -85,8 +85,8 @@ def monthly_sums_CDEC(options: Options) -> None:
            - shapefile_name_field:   Field in shapefile for region names (ignored if region _name=ca).
            - input_xlsx:             Excel file with site info (Station ID, LATITUDE, LONGITUDE).
            - sheet_name:             Sheet index in Excel (default 0).
-           - allowed_names:          Region names (strings) or SORT codes (if region_name=ca).
-           - region_name:            Overall region name, e.g. 'ca' to use SORT field.
+           - allowed_names:          Region names (strings) or SORT codes (if region_name=California).
+           - region_name:            Overall region name, e.g. 'California' to use SORT field.
            - data_dir:               Directory containing site CSVs.
            - output_dir:             Directory to save per-region outputs.
     
@@ -109,7 +109,7 @@ def monthly_sums_CDEC(options: Options) -> None:
     units                = options.args.units
     
     os.makedirs(output_dir, exist_ok=True)
-
+    gdal.UseExceptions()  # Enable GDAL exceptions for error handling
     # Load site data from Excel
     site_df = pd.read_excel(input_xlsx, sheet_name=sheet_name)
     site_df['LONGITUDE'] = site_df['LONGITUDE'].apply(clean_unicode_whitespace).astype(float)
@@ -139,7 +139,7 @@ def monthly_sums_CDEC(options: Options) -> None:
     longitudes = site_df['longitude'].tolist()
 
     # Handle California SORT shapefile (numeric) case
-    use_sort_field = region_name.casefold() == "ca"
+    use_sort_field = region_name == "California"
     if use_sort_field:
         shapefile_name_field = "SORT"
         allowed_names = [int(x) for x in allowed_names]  # Ensure integers
@@ -174,7 +174,7 @@ def monthly_sums_CDEC(options: Options) -> None:
 
         # Save site-to-region mapping CSV
         if use_sort_field:
-            mapping_csv = os.path.join(output_dir, f"sites_{region_name.casefold()}.csv")
+            mapping_csv = os.path.join(output_dir, f"sites_{region_name}.csv")
         else:
             mapping_csv = os.path.join(output_dir, f"sites_{sanitized_region}.csv")
 
@@ -205,14 +205,14 @@ def monthly_sums_CDEC(options: Options) -> None:
                  raise ValueError(f"Unsupported units: {units}. Use 'm3' or 'km3'.")     
             
             if use_sort_field:
-                region_df = pd.DataFrame({'date': region_series.index, region_name.casefold(): region_series.values})
+                region_df = pd.DataFrame({'date': region_series.index, region_name: region_series.values})
             else:
                 region_df = pd.DataFrame({'date': region_series.index, sanitized_region: region_series.values})
  
             region_df = region_df.sort_values('date')
 
             if use_sort_field:
-                region_csv = os.path.join(output_dir, f"{region_name.casefold()}_monthly_km3.csv")
+                region_csv = os.path.join(output_dir, f"{region_name}_monthly_km3.csv")
             else:
                 region_csv = os.path.join(output_dir, f"{sanitized_region}_monthly_km3.csv")
             region_df.to_csv(region_csv, index=False)
@@ -262,21 +262,4 @@ Reads all corresponding *_monthly_m3_*.csv files for those sites.
 Combines and sums them to produce a regional time series CSV:<region>_monthly_km3.csv
 (values in km³).
 
-Example usage 
-For string-based shapefile names:
-python script.py --shapefile "C:/regions.shp" `
-                 --shapefile_name_field "name" `
-                 --input_xlsx "C:/sites.xlsx" `
-                 --allowed_names "Sacramento" "San Joaquin" `
-                 --region_name "california_basins" `
-                 --data_dir "C:/cdec_data" `
-                 --output_dir "C:/outputs"
-
-python script.py --shapefile "C:/california_basins.shp" `
-                 --allowed_names [22] `
-                 --region_name "ca" `
-                 --input_xlsx "C:/sites.xlsx" `
-                 --data_dir "C:/cdec_data" `
-                 --output_dir "C:/outputs"
-                 
 '''
