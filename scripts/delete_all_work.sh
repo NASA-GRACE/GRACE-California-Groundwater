@@ -30,5 +30,11 @@ confirm_delete_contents "$PROJECT_ROOT/input_data/soil_moisture/NLDAS/data_conca
 confirm_delete_contents "$PROJECT_ROOT/input_data/masks"
 confirm_delete_contents "$PROJECT_ROOT/input_data/masked_timeseries"
 confirm_delete_contents "$PROJECT_ROOT/input_data/reservoirs/CDEC/reservoir_data"
+confirm_delete_contents "$PROJECT_ROOT/input_data/reservoirs/CDEC/monthly_sums"
+confirm_delete_contents "$PROJECT_ROOT/input_data/reservoirs/CDEC/monthly_anomaly"
+confirm_delete_contents "$PROJECT_ROOT/input_data/snow_water_equivalent/SNODAS/daily_data"
+confirm_delete_contents "$PROJECT_ROOT/input_data/grace_tws/masks"
+confirm_delete_contents "$PROJECT_ROOT/input_data/grace_tws/monthly_grace_anomaly"
+confirm_delete_contents "$PROJECT_ROOT/input_data/grace_tws/monthly_interpolated_grace_anomaly"
 confirm_delete_contents "$PROJECT_ROOT/output"
 # confirm_delete_contents "$PROJECT_ROOT/graphics"  # DO YOU *REALLY* WANT TO DELETE FILES IN THIS DIRECTORY?

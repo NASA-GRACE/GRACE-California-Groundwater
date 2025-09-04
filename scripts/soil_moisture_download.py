@@ -10,6 +10,7 @@ from pathlib import Path
 import datetime as dt
 import argparse
 import logging
+import time
 
 import earthaccess
 
@@ -68,6 +69,50 @@ def main() -> None:
         raise ValueError(f"Unsupported soil moisture model: {options.soil_moisture_model}")
 
 
+def _search_data_with_retries(doi: str, temporal: tuple[str, str],
+                              bounding_box: tuple[float, float, float, float],
+                              num_retries: int = 5,
+                              initial_delay: float = 1.0,
+                              backoff: float = 2.0) -> list[earthaccess.results.DataGranule]:
+    """
+    Retries earthaccess.search_data when CMR intermittently returns 5xx / Internal Error.
+
+    Args:
+        doi:          DOI to use for the search_data call.
+        temporal:     Tuple of two strings representing start and end dates/datetimes.
+        bounding_box: Tuple of four floats representing west, south, east, north bounding box.
+
+    Returns:
+        The result of the earthaccess.search_data call.
+
+    Raises:
+        RuntimeError: If the search_data call fails after all retries.
+    """
+    delay = initial_delay
+    last_exc = None
+    for attempt in range(1, num_retries + 1):
+        try:
+            logging.info(f"Searching for data (attempt {attempt}/{num_retries})...")
+            return earthaccess.search_data(doi=doi,
+                                           temporal=temporal,
+                                           bounding_box=bounding_box)
+        except RuntimeError as e:
+            # earthaccess wraps HTTPError as RuntimeError with the response text
+            msg = str(e)
+            transient = ("Internal Error" in msg) or (" 500 " in msg) or (" 502 " in msg) or (" 503 " in msg) or (" 504 " in msg)
+            if not transient:
+                raise  # not a transient CMR error; bubble up immediately
+            logging.warning(f"Transient CMR error on attempt {attempt}: {msg.strip()}")
+            last_exc = e
+            if attempt < num_retries:
+                time.sleep(delay)
+                delay *= backoff
+            else:
+                break
+    # Exhausted retries
+    raise last_exc
+
+
 def download_NLDAS_data(options: Options) -> None:
     """
     Search for and download NLDAS soil moisture data using Earthaccess.
@@ -90,12 +135,13 @@ def download_NLDAS_data(options: Options) -> None:
     logging.info("Logging in...")
     auth = earthaccess.login()  # (requires that Earthdata credentials/files already exist)
 
-    logging.info("Searching for data...")
-    results = earthaccess.search_data(
+    results = _search_data_with_retries(
         doi=options.args.doi,
         temporal=(start_dt, end_dt),
-        bounding_box=options.args.region
+        bounding_box=options.args.region,
+        num_retries=5  # total attempts
     )
+
     logging.debug(f"{results = }")
 
     logging.info("Downloading data...")
