@@ -32,11 +32,11 @@ class Options(ra.Options):
         self.newvar:            str = "SMTa"  # New variable name for soil moisture
         self.masks_dir:        Path = self.project_root     / "input_data" / "masks"
         self.gridded_data_dir: Path = self.project_root     / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_concatenated"
-        self.default_input_nc: Path = self.gridded_data_dir / f"LATEST IN {self.gridded_data_dir}"
+        self.default_input_nc: Path = self.gridded_data_dir / "LATEST.nc"
         self.default_out_dir:  Path = self.project_root     / "input_data" / "masked_timeseries"
         self.default_csv:      Path = self.default_out_dir  / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.csv"
         self.default_nc:       Path = self.default_out_dir  / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.nc"
-        self.default_mask:      str = f"{self.soil_moisture_model}_{self.default_basin}_mask.nc"
+        self.default_mask:     Path = self.masks_dir        / f"{self.soil_moisture_model}_{self.default_basin_safename}_mask.nc"
         self.unit_factors:     dict = {"mm H2O": 1000, "kg/m2": 1000, "kg/m^2": 1000, "cm": 100, "dm": 10, "m": 1, "km": 0.001}  # Conversions from meters to other units.
         self.masks_dir.mkdir(       parents=True, exist_ok=True)
 
@@ -48,15 +48,15 @@ def parse_arguments(options: Options) -> None:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument("-input_nc", type=Path, default=options.default_input_nc,
-                        help=f"Input concatenated data netCDF file (default: {options.default_input_nc})")
+                        help=f"Input concatenated data netCDF file (default: {os.fspath(options.default_input_nc)})")
     parser.add_argument("-out_dir", type=Path, default=options.default_out_dir,
-                        help=f"Output directory for CSV and NetCDF files (default: {options.default_out_dir})")
+                        help=f"Output directory for CSV and NetCDF files (default: {os.fspath(options.default_out_dir)})")
     parser.add_argument("-output_csv", type=Path, default=options.default_csv,
-                        help=f"Output CSV file for the region mean anomaly time series (default: {options.default_csv})")
+                        help=f"Output CSV file for the region mean anomaly time series (default: {os.fspath(options.default_csv)})")
     parser.add_argument("-output_nc", type=Path, default=options.default_nc,
-                        help=f"Output netCDF file for gridded and masked data anomalies (default: {options.default_nc})")
+                        help=f"Output netCDF file for gridded and masked data anomalies (default: {os.fspath(options.default_nc)})")
     parser.add_argument("-mask_nc", type=Path, default=options.default_mask,
-                        help=f"Input netCDF mask file in {options.masks_dir} (0/1 values, rows=lat, cols=lon) (default: {options.default_mask})")
+                        help=f"Input netCDF mask file in {os.fspath(options.masks_dir)} (0/1 values, rows=lat, cols=lon) (default: {os.fspath(options.default_mask)})")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -107,46 +107,39 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
 
     if options.args.input_nc == options.default_input_nc:
         # Look for the latest concatenated netCDF file
-        input_nc_files = [f for f in os.listdir(options.gridded_data_dir) if f.endswith('.nc')]
+        input_nc_files = list(options.gridded_data_dir.glob("*.nc"))
         if not input_nc_files:
-            logging.error(f"No concatenated netCDF files found in {options.gridded_data_dir}")
+            logging.error(f"No concatenated netCDF files found in {os.fspath(options.gridded_data_dir)}")
             sys.exit(22)
-        input_nc_files.sort(key=lambda x: os.path.getmtime(os.path.join(options.gridded_data_dir, x)), reverse=True)
-        options.args.input_nc = os.path.join(options.gridded_data_dir, input_nc_files[0])
-    logging.info(f"Input netCDF file: {options.args.input_nc}")
+        input_nc_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+        options.args.input_nc = options.gridded_data_dir / input_nc_files[0]
+    logging.info(f"Input netCDF file: {os.fspath(options.args.input_nc)}")
 
-    # Make sure options.args.mask_nc exists inside the masks directory
-    options.args.mask_nc = os.path.join(options.masks_dir, options.args.mask_nc)
-    if not os.path.exists(options.args.mask_nc):
-        logging.error(f"Mask file '{options.args.mask_nc}' does not exist.")
-        sys.exit(22)
-    # Make sure it's a file and that it has nonzero size:
-    if not os.path.isfile(options.args.mask_nc) or os.path.getsize(options.args.mask_nc) == 0:
-        logging.error(f"Mask file '{options.args.mask_nc}' is invalid or empty.")
-        sys.exit(22)
+    # Make sure options.args.mask_nc is a file inside the masks directory with nonzero size.
+    options.args.mask_nc = ra.ensure_path_is_a_file(options.args.mask_nc, raise_on_empty=True)
 
     # Remove extension from mask file name
-    mask_file_base = os.path.splitext(os.path.basename(options.args.mask_nc))[0]
+    mask_file_base = options.args.mask_nc.stem
 
     if options.args.output_csv == options.default_csv:
         # Create a unique output CSV file name
         options.args.output_csv = options.args.out_dir / f"anomaly_timeseries_{mask_file_base}_{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    os.makedirs(os.path.dirname(options.args.output_csv), exist_ok=True)
-    logging.info(f"Output CSV file: {options.args.output_csv}")
+    options.args.output_csv.parent.mkdir(parents=True, exist_ok=True)
+    logging.info(f"Output CSV file: {os.fspath(options.args.output_csv)}")
 
     if options.args.output_nc == options.default_nc:
         # Create a unique output NetCDF file name
         options.args.output_nc = options.args.out_dir / f"anomaly_timeseries_{mask_file_base}_{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}.nc"
-    os.makedirs(os.path.dirname(options.args.output_nc), exist_ok=True)
-    logging.info(f"Output NetCDF file: {options.args.output_nc}")
+    options.args.output_nc.parent.mkdir(parents=True, exist_ok=True)
+    logging.info(f"Output NetCDF file: {os.fspath(options.args.output_nc)}")
 
     # Open the netCDF file with xarray
-    ds = xr.open_dataset(options.args.input_nc)
-    num_lon = ds.lon.shape[0]
-    num_lat = ds.lat.shape[0]
+    ds         = xr.open_dataset(options.args.input_nc)
+    num_lon    = ds.lon.shape[0]
+    num_lat    = ds.lat.shape[0]
     time_steps = ds.time.shape[0]
-    lons = ds.lon.data
-    lats = ds.lat.data
+    lons       = ds.lon.data
+    lats       = ds.lat.data
 
     # Determine grid resolution
     lon_step = abs(float(lons[1]) - float(lons[0]))
@@ -164,8 +157,8 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
 
     # Read pre-computed mask (1 = in-region, 0 = out)
     # Read pre-computed mask from NetCDF (1 = in‐region, 0 = out)
-    mask_ds = xr.open_dataset(options.args.mask_nc)
-    mask_var = mask_ds['mask'].data      # should be a 2D array with dims (lat, lon)
+    mask_ds   = xr.open_dataset(options.args.mask_nc)
+    mask_var  = mask_ds['mask'].data  # should be a 2D array with dims (lat, lon)
     mask_lats = mask_ds[y_var].data
     mask_lons = mask_ds[x_var].data
 
@@ -246,7 +239,7 @@ def calculate_long_term_avg(var: np.ndarray, total: int, interest_lon: list[tupl
         for t in range(time_steps):
             cell_sum += var[t, lat_index, lon_index]
         avg[cell] = cell_sum / time_steps
-    logging.debug(f"Long-term averages: {avg}")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Long-term averages: {avg}")
     return avg
 
 
@@ -297,7 +290,7 @@ def calculate_surface_area(total: int, lon_step: float, lat_step: float,
             areas[i] = area
 
     total_km2 = sum(areas) / 1e6
-    logging.debug(f"Ellipsoidal surface areas: {areas}")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Ellipsoidal surface areas: {areas}")
     logging.info(f"Calculated total surface area of {total_km2:.2f} km² for {total} grid cells.")
     return areas
 
@@ -410,8 +403,8 @@ def compute_anomaly_timeseries(var: np.ndarray, var_factor: float, avg: list[flo
         error_km3 = (0.1 * storage_sum) / 1e9
         errors.append(error_km3)
 
-    logging.debug(f"Anomaly timeseries: {anomalies}")
-    logging.debug(f"Error bars (10%% of storage): {errors}")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Anomaly timeseries: {anomalies}")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Error bars (10%% of storage): {errors}")
     return anomalies, errors
 
 
@@ -440,7 +433,7 @@ def output_csv(output_file: str | os.PathLike[str], fieldnames: list[str],
             for var in fieldnames[1:]:
                 row[var] = anomalies_dict[var][i]
             writer.writerow(row)
-    logging.info(f"Created CSV file: {output_file}")
+    logging.info(f"Created CSV file: {os.fspath(output_file)}")
 
 
 def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, interest_lon: list[tuple[int, float]],
@@ -526,7 +519,7 @@ def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, i
     nc_out.history = f"Created on {dt.datetime.now(dt.timezone.utc).isoformat()}+00:00"
     nc_out.featureType = "timeSeries"
     nc_out.close()
-    logging.info(f"Created NetCDF file: {output_file}")
+    logging.info(f"Created NetCDF file: {os.fspath(output_file)}")
 
 
 if __name__ == "__main__":

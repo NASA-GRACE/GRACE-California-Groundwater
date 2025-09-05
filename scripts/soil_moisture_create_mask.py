@@ -13,7 +13,6 @@ import pandas as pd
 import logging
 import argparse
 from pathlib import Path
-import glob
 
 import run_all as ra
 
@@ -38,11 +37,12 @@ def parse_arguments(options: Options) -> None:
     parser = argparse.ArgumentParser(
         description=("Create a river basin mask from a shapefile and save it as a netCDF file.\n"
                      "This script uses GDAL/OGR to rasterize a specified basin from a shapefile onto the lat/lon grid of a provided netCDF file.\n"),
-        epilog=("Usage example:\n mypy create_mask_01.py -basin Sacramento\n"
-                f"This will create a mask for the Sacramento basin and save it as '{options.soil_moisture_model}_sacramento_mask.nc'.\n"),
+        epilog=(f"Usage example:\n python3 {Path(__file__).name} --basin {options.default_basin}\n"
+                f"This will create a mask for the {options.default_basin} basin and save it as '{options.soil_moisture_model}_{options.default_basin_safename}_mask.nc'.\n"),
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument("-b", "--basin", type=str, help=f"Basin identifier ({', '.join(options.valid_basins)}).", default=options.default_basin)
+    parser.add_argument("-b", "--basin", type=str, default=options.default_basin,
+                        help=f"Basin identifier (default: {options.default_basin}, valid basins: {', '.join(options.valid_basins)}).")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -84,24 +84,24 @@ def create_mask_for_NLDAS(options: Options) -> None:
     gdal.UseExceptions()  # Enable GDAL exceptions for error handling
     logging.info(f"Creating mask for basin: {options.args.basin}")
 
-    if options.args.basin.casefold() == "california":
+    if   options.args.basin == "California":
         shapefile = options.shape_dir / "hybas_na_lev04_v1c.shp"
         filter_sort = 22  # only used for the California basin
-    elif options.args.basin.casefold() == "sacramento":
+    elif options.args.basin == "Sacramento":
         shapefile = options.shape_dir / "HUC2" / "WBDHU4.shp"
-    elif options.args.basin.casefold() == "san joaquin":
+    elif options.args.basin == "San Joaquin":
         shapefile = options.shape_dir / "HUC2" / "WBDHU4.shp"
-    elif options.args.basin.casefold() == "tulare-buena vista lakes":
+    elif options.args.basin == "Tulare-Buena Vista Lakes":
         shapefile = options.shape_dir / "HUC2" / "WBDHU4.shp"
     else:
         raise ValueError(f"Unknown basin '{options.args.basin}'. Supported basins are: {', '.join(ra.valid_basins)}")
-    basin_title = options.args.basin.replace(' ', '_').replace('-', '_').casefold()
+    basin_title = ra.safestring(options.args.basin)
     output_mask_filename = f"NLDAS_{basin_title}_mask.nc"
     output_mask_filepath = options.masks_dir / output_mask_filename
 
     # Open the netCDF (so that we know the exact lat/lon grid)
-    nc_path = max(glob.glob(str(options.gridded_data_dir / "*.nc")), key=os.path.getctime)
-    logging.info(f"Opening netCDF file: {nc_path}")
+    nc_path = max(options.gridded_data_dir.glob("*.nc"), key=os.path.getctime)
+    logging.info(f"Opening netCDF file: {os.fspath(nc_path)}")
     ds_water = xr.open_dataset(nc_path)
     lons = ds_water.lon.values
     lats = ds_water.lat.values
@@ -132,21 +132,21 @@ def create_mask_for_NLDAS(options: Options) -> None:
     lyr = ds_shape.GetLayer()
     ssrs = lyr.GetSpatialRef()
     wkt = ssrs.ExportToPrettyWkt()
-    logging.debug(lyr)
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(lyr)
 
     for i, feat in enumerate(lyr):
         # log all fields in the feature
-        logging.debug(f"Feature {i} fields: {feat.items()}")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Feature {i} fields: {feat.items()}")
         for field in feat.items():
-            logging.debug(f"Field: {field}")
-        if options.args.basin.casefold() == "california":
+            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Field: {field}")
+        if options.args.basin == "California":
             if feat.GetField("SORT") == filter_sort:
                 break
         else:
             if feat.GetField("name").casefold() == options.args.basin.casefold():
                 break
     feat = lyr.GetFeature(i)
-    logging.debug(f"Chose feature #{i}: {feat}")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Feature #{i} was chosen: {feat}")
 
     geom = feat.GetGeometryRef()
     geojson = geom.ExportToJson()
@@ -183,7 +183,7 @@ def create_mask_for_NLDAS(options: Options) -> None:
 
     mask.SetGeoTransform(gt)      # Set the affine transform defined above as the mask's geotransform.
     mask.SetProjection(wkt)       # Set the wkt defn extracted from the shp as the target coordinate system.
-    logging.debug(mask)
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(mask)
     band = mask.GetRasterBand(1)  # Select the first and only band in raster mask.
     band.Fill(0)                  # Fill it with zeros.
     band.SetNoDataValue(0)        # Set its nodata value to zero.

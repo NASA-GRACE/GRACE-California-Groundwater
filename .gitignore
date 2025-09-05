@@ -3,6 +3,7 @@ __pycache__/
 .mypy*
 logs/
 scripts/logs/
+*.log
 .DS_Store
 .venv/
 input_data/snow_water_equivalent/SNODAS/monthly_data

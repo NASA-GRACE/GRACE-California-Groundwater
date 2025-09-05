@@ -72,7 +72,7 @@ def main() -> None:
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
     basin_title = options.args.basin
-    basin_title = basin_title.replace(' ', '_').replace('-', '_').casefold()
+    basin_title = ra.safestring(basin_title)
 
     if options.args.grace == options.default_grace_csv:  # If user-specified input GRACE file is the default placeholder
         options.args.grace = (options.timeseries_dir / f"anomaly_timeseries_GRACE_{basin_title}_mask.csv").resolve()
@@ -86,7 +86,7 @@ def main() -> None:
     if options.args.soilm == options.default_soil_moisture_csv:  # If user-specified input soil moisture file is the default placeholder
         # Find the latest soil moisture file in the directory
         glob_pattern = f"*{options.soil_moisture_model}_{basin_title}*.csv"
-        logging.debug(f"Looking for soil moisture files with pattern: {glob_pattern}")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Looking for soil moisture files with pattern: {glob_pattern}")
         soil_moisture_files = list(options.timeseries_dir.glob(glob_pattern))
         if soil_moisture_files:
             options.args.soilm = max(soil_moisture_files, key=os.path.getctime)
@@ -285,12 +285,12 @@ def compute_groundwater(grace:      pd.DataFrame,
         'err_reservoirs': reservoirs['error'],
     })
 
-    logging.debug(f"DataFrame overview before dropping dates with missing data:\n{df.describe()}")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"DataFrame overview before dropping dates with missing data:\n{df.describe()}")
 
     logging.info("Dropping any dates with missing data...")
     df = df.dropna()
 
-    logging.debug(f"DataFrame overview after dropping missing dates:\n{df.describe()}")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"DataFrame overview after dropping missing dates:\n{df.describe()}")
 
     logging.info("Removing long-term means from each series after dropping missing dates.")
     for col in ['grace', 'swe', 'soilm', 'reservoirs']:

@@ -159,7 +159,7 @@ def discover_files(options: Options) -> None:
             raise ValueError(f"File extension mismatch: {fpath} does not match {options.in_files[0]}")
     logging.info(f"Loading {len(options.in_files)} files.")
     for fpath in options.in_files:
-        logging.debug(f"  {Path(fpath).name}")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  {Path(fpath).name}")
 
 
 def infer_model(options: Options) -> None:

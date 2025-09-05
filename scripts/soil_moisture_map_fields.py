@@ -26,8 +26,7 @@ class Options(ra.Options):
         self.my_name:                 Path = Path(__file__).stem  # The name of this script without the .py extension
         self.thevar:                   str = 'SMTa'  # variable name in the netCDF file
         self.default_masked_dir:      Path = self.project_root / "input_data" / "masked_timeseries"
-        self.default_masked_filename:  str = f"LATEST_{self.thevar}.nc"
-        self.default_out_dir:         Path = self.project_root / "graphics"
+        self.default_masked_filepath: Path = self.default_masked_dir / f"LATEST_{self.thevar}.nc"
 
         self.default_cmap:             str = 'RdBu'
         self.default_map_border:     float =  -1.0  # degrees to pad around data; negative disables auto-zoom
@@ -39,10 +38,10 @@ def parse_arguments(options: Options) -> None:
     parser = argparse.ArgumentParser(description=f"Make maps of soil moisture anomaly ({options.thevar}) from netCDF")
     parser.add_argument("-masked_dir", type=Path, default=options.default_masked_dir,
                         help=f"Path to the input masked timeseries directory (default: {options.default_masked_dir})")
-    parser.add_argument("nc_file", type=str, default=options.default_masked_filename,
-                        help=f"Name of the input netCDF file", nargs="?")
-    parser.add_argument("-out_dir", type=Path, default=options.default_out_dir,
-                        help=f"Output directory for PNG files (default: {options.default_out_dir})")
+    parser.add_argument("-nc_path", type=Path, default=options.default_masked_filepath,
+                        help=f"Name of the input netCDF file")
+    parser.add_argument("-out_dir", type=Path, default=options.graphics_dir,
+                        help=f"Output directory for PNG files (default: {options.graphics_dir})")
     parser.add_argument('-cmap', type=str, default=options.default_cmap,
                         help=f"Matplotlib colormap (default: {options.default_cmap})")
     parser.add_argument('-map_border', type=float, default=options.default_map_border,
@@ -54,9 +53,9 @@ def parse_arguments(options: Options) -> None:
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
         options.log_mode = logging.DEBUG
-    options.args.nc_filename_string = options.args.nc_file  # Rename for clarity, this is NOT a Path.
-    options.args.masked_dir.mkdir(parents=True, exist_ok=True)
-    options.args.out_dir.mkdir(   parents=True, exist_ok=True)
+    options.args.masked_dir.mkdir(    parents=True, exist_ok=True)
+    options.args.out_dir.mkdir(       parents=True, exist_ok=True)
+    options.args.nc_path.parent.mkdir(parents=True, exist_ok=True)
 
 
 def main() -> None:
@@ -85,20 +84,19 @@ def map_fields_for_NLDAS(options: Options) -> None:
     Raises:
         None.
     """
-    logging.debug(f"cmap={options.args.cmap}, map_border={options.args.map_border}, central_lon={options.args.central_lon}")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"cmap={options.args.cmap}, map_border={options.args.map_border}, central_lon={options.args.central_lon}")
 
-    if Path(options.args.nc_filename_string).name == options.default_masked_filename:
+    if options.args.nc_path == options.default_masked_filepath:
         # Look for the latest netCDF file in the masked timeseries directory
-        pattern = options.args.masked_dir / "*.nc*"
-        matches = glob.glob(str(pattern))
+        matches = options.args.masked_dir.glob("*.nc*")
         if not matches:
             raise FileNotFoundError(f"No .nc files found in {options.args.masked_dir}")
-        options.args.nc_filename_string = max(matches, key=os.path.getctime)
-        logging.info(f"Using latest netCDF file: {options.args.nc_filename_string}")
+        options.args.nc_path = max(matches, key=os.path.getctime)
+        logging.info(f"Using latest netCDF file: {options.args.nc_path}")
 
     # Extract the part of the filename between "soil moisture model_" (e.g. "NLDAS_") and the date:
-    themask = options.args.nc_filename_string.split(f'{options.soil_moisture_model}_')[1].split('_mask_')[0] \
-                  if f'{options.soil_moisture_model}_' in options.args.nc_filename_string \
+    themask = options.args.nc_path.name.split(f'{options.soil_moisture_model}_')[1].split('_mask_')[0] \
+                  if f'{options.soil_moisture_model}_' in options.args.nc_path.name \
                   else ''
 
     # Set up output path if it doesn't exist already.
@@ -120,13 +118,13 @@ def map_fields_for_NLDAS(options: Options) -> None:
     }
 
     # Plot mean of thevar (now supports an optional extent if you want to zoom)
-    plot_mean_nc_var(options, options.args.nc_filename_string, options.thevar, out_png, **plot_kwargs)
+    plot_mean_nc_var(options, options.args.nc_path, options.thevar, out_png, **plot_kwargs)
 
     # Plot thevar at a specific time (uncomment and adjust time_index if needed)
-    # plot_nc_var_at_time(options, options.args.nc_filename_string, thevar, out_png, time_index=0, **plot_kwargs)
+    # plot_nc_var_at_time(options, options.args.nc_path, thevar, out_png, time_index=0, **plot_kwargs)
 
     # Make a movie of all time slices of thevar
-    make_nc_var_movie(options, options.args.nc_filename_string, options.thevar, out_movie, frames_dir, fps=10, **plot_kwargs)
+    make_nc_var_movie(options, options.args.nc_path, options.thevar, out_movie, frames_dir, fps=10, **plot_kwargs)
 
     # If you want to remove frames afterward, uncomment:
     # for png in os.listdir(frames_dir):

@@ -19,3 +19,4 @@ h5netcdf
 matplotlib
 pyproj
 numpy
+unidecode

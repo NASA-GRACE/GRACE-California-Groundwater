@@ -55,12 +55,16 @@ class Options:
         self.separator_line:     str = "-" * 60  # A line of dashes for logging separation
 
         # Generate safe names for basins (no spaces or special characters) and dictionaries for mapping between them.
-        self.basin_safenames:           list[str] = [title.replace(' ', '_').replace('-', '_').casefold() for title in self.valid_basins]
+        self.basin_safenames:           list[str] = [safestring(title) for title in self.valid_basins]
+        # key = basin name,      value = safe basin name
         self.basin_safename_map:   dict[str, str] = dict(zip(self.valid_basins, self.basin_safenames))
+        # key = safe basin name, value = basin name
         self.reverse_safename_map: dict[str, str] = {v: k for k, v in self.basin_safename_map.items()}
 
         if self.default_basin not in self.valid_basins:
             raise ValueError(f"In run_all.py, default basin '{self.default_basin}' specified in Options.__init__() is not in the list of valid basins: {self.valid_basins}")
+
+        self.default_basin_safename = self.basin_safename_map[self.default_basin]
 
 
 def parse_arguments(options: Options) -> None:
@@ -81,74 +85,74 @@ def main() -> None:
     logging.basicConfig(level=options.log_mode, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     parse_arguments(options)
 
-    # section_header(options, "Processing soil moisture data")
+    section_header(options, "Processing soil moisture data")
 
-    # logging.info("Download soil moisture data files.")
-    # run_script(options, "soil_moisture_download.py")
+    logging.info("Download soil moisture data files.")
+    run_script(options, "soil_moisture_download.py")
 
-    # logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
-    # run_script(options, "soil_moisture_process.py")
+    logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
+    run_script(options, "soil_moisture_process.py")
 
-    # logging.info("Create and save a soil moisture mask for the basin of interest.")
-    # run_script(options, "soil_moisture_create_mask.py")
+    logging.info("Create and save a soil moisture mask for the basin of interest.")
+    run_script(options, "soil_moisture_create_mask.py")
 
-    # logging.info("Apply the mask to the processed soil moisture data, extract time series "
-    #              "for the basin, then save as CSV and NetCDF files.")
-    # run_script(options, "soil_moisture_mask_timeseries.py")
+    logging.info("Apply the mask to the processed soil moisture data, extract time series "
+                 "for the basin, then save as CSV and NetCDF files.")
+    run_script(options, "soil_moisture_mask_timeseries.py")
 
-    # logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "
-    #              "the masked NetCDF file)")
-    # run_script(options, "soil_moisture_map_fields.py")
+    logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "
+                 "the masked NetCDF file)")
+    run_script(options, "soil_moisture_map_fields.py")
 
-    # logging.info("Generate a time series plot of the masked soil moisture data.")
-    # run_script(options, "plot_timeseries.py")
+    logging.info("Generate a time series plot of the masked soil moisture data.")
+    run_script(options, "plot_timeseries.py")
 
-    # section_header(options, "Processing reservoirs storage data")
+    section_header(options, "Processing reservoirs storage data")
 
-    # logging.info(f"Downloading reservoirs data...")
-    # run_script(options, "reservoirs_download.py")
+    logging.info(f"Downloading reservoirs data...")
+    run_script(options, "reservoirs_download.py")
 
-    # logging.info("Processing reservoirs data into monthly sums...")
-    # run_script(options, "reservoirs_monthly_sums.py")
+    logging.info("Processing reservoirs data into monthly sums...")
+    run_script(options, "reservoirs_monthly_sums.py")
 
-    # logging.info("Generating reservoirs anomaly and error value time series...")
-    # run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
+    logging.info("Generating reservoirs anomaly and error value time series...")
+    run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
 
-    # section_header(options, "Processing GRACE TWS data")
+    section_header(options, "Processing GRACE TWS data")
 
-    # logging.info("Call raster mask generator for GRACE TWS data...")
-    # run_script(options, "call_raster_mask_generator.py")
+    logging.info("Call raster mask generator for GRACE TWS data...")
+    run_script(options, "call_raster_mask_generator.py")
 
-    # logging.info("Generating GRACE TWS anomaly time series...")
-    # run_script(options, "grace_tws_anomaly.py")
+    logging.info("Generating GRACE TWS anomaly time series...")
+    run_script(options, "grace_tws_anomaly.py")
 
-    # logging.info("Interpolating GRACE TWS data to daily time steps...")
-    # run_script(options, "interpolate_grace.py")
+    logging.info("Interpolating GRACE TWS data to daily time steps...")
+    run_script(options, "interpolate_grace.py")
 
-    # section_header(options, "Processing SNODAS snow water equivalent data")
+    section_header(options, "Processing SNODAS snow water equivalent data")
 
-    # logging.info("Downloading snow water equivalent (SWE) data...")
-    # run_script(options, "swe_daily_downloader.py")
+    logging.info("Downloading snow water equivalent (SWE) data...")
+    run_script(options, "swe_daily_downloader.py")
 
-    # logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
-    # run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
+    logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
+    run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
 
-    # logging.info("Processing snow water equivalent (SWE) data into monthly means and anomalies...")
-    # run_script(options, "swe_repair_mask_generator.py")
+    logging.info("Processing snow water equivalent (SWE) data into monthly means and anomalies...")
+    run_script(options, "swe_repair_mask_generator.py")
 
-    # logging.info("Processing snow water equivalent (SWE) data into monthly means...")
-    # run_script(options, "swe_monthly_mean.py")
+    logging.info("Processing snow water equivalent (SWE) data into monthly means...")
+    run_script(options, "swe_monthly_mean.py")
 
-    # logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
-    # run_script(options, "swe_monthly_anomaly.py")
+    logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
+    run_script(options, "swe_monthly_anomaly.py")
 
-    # section_header(options, "Computing groundwater anomaly and plotting results")
+    section_header(options, "Computing groundwater anomaly and plotting results")
 
     logging.info("Computing groundwater anomaly time series...")
     run_script(options, "compute_groundwater.py")
 
-    # logging.info("Generating comparison plots of all water storage components...")
-    # run_script(options, "plot_timeseries.py")
+    logging.info("Generating comparison plots of all water storage components...")
+    run_script(options, "plot_timeseries.py")
 
 
 def run_script(options: Options, the_script: str, flags: list[str] | None = None) -> None:
@@ -175,10 +179,10 @@ def run_script(options: Options, the_script: str, flags: list[str] | None = None
     # If venv is not available, use sys.executable
     venv_python = options.project_root / "scripts" / ".venv" / "bin" / "python"
     if venv_python.is_file():
-        logging.debug(f"Using virtual environment python at {venv_python}")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Using virtual environment python at {venv_python}")
         chosen_python = str(venv_python)
     else:
-        logging.debug(f"Virtual environment python not found at {venv_python}, using system python at {sys.executable}")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Virtual environment python not found at {venv_python}, using system python at {sys.executable}")
         chosen_python = sys.executable
     the_command = [chosen_python, script_path] + flags
     command_str = ' '.join(shlex.quote(arg) for arg in the_command)
@@ -197,10 +201,32 @@ def section_header(options: Options, title: str) -> None:
     logging.info(options.separator_line)
 
 
-if __name__ == "__main__":
-    main()
-
 # The following are utility functions and classes that can be imported into other scripts.
+
+
+def ensure_path_is_a_file(path: str | os.PathLike[str], raise_on_empty: bool = False) -> Path:
+    """
+    Ensure that the given path is an existing file and return it as a Path object.
+    
+    Args:
+        path:           The path to check.
+        raise_on_empty: If True, raise an exception if the file is empty.
+
+    Returns:
+        A Path object representing the file.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+    """
+    p = Path(path).resolve(strict=True)
+    if not p.is_file():
+        raise IsADirectoryError(f"Expected a file, got directory: {p}")
+    if p.stat().st_size == 0:
+        if raise_on_empty:
+            raise ValueError(f"File is empty: {p}")
+        else:
+            logging.warning("File is empty: %s", p)
+    return p
 
 
 class PlotOptions(Options):
@@ -244,6 +270,100 @@ def fallback_logging_config(log_level: int | str = 'INFO', rawlog: bool = False)
                                 datefmt="%Y-%m-%d %H:%M:%S")
         else:  # rawlog is True, so use a simple format without timestamps or levels.
             logging.basicConfig(level=log_level, format="%(message)s")
+
+
+def filename_format(text: str, sep: str = "_", max_length: int = None) -> str:
+    """
+    Turn arbitrary text into an ASCII-only, filesystem‐safe base filename.
+    WARNING: Do not include an extension in the text, because this function
+    might remove the dot which separates the filename from the extension.
+    It attempts to recognize and remove extensions listed in all_known_extensions
+    but this list is not exhaustive.
+
+    Steps:
+      1. Unicode → ASCII
+      2. Recognize & remove common extensions (e.g. .txt, .fits, .tar.gz)
+      3. Treat dots, underscores & whitespace as word separators
+      4. Remove any character that isn't A-z, a–z, 0–9, dashes, or the separator
+      5. Collapse runs of separators into a single one
+      6. Trim separators from ends
+      7. Optionally truncate to max_length (preserving word boundaries)
+      8. If an extension was removed, append it back as the last step.
+
+    Args:
+        text:       Original filename or title
+        sep:        Single-character separator (default: "_")
+        max_length: If set, strongest‐effort truncate to this many chars
+
+    Returns:
+        A clean, filename-safe string.
+    
+    Raises:
+        None: If the input text is None, it will return an empty string.
+    """
+    fallback_logging_config()  # Ensure logging is configured
+    if not text:
+        return ""
+    # Normalize to ASCII
+    try:
+        import unidecode
+        text = unidecode.unidecode(text)
+    except ImportError:
+        logging.warning("unidecode package not found, falling back to ASCII encoding.")
+        # Fallback: encode to ASCII, ignore errors
+        text = text.encode('ascii', 'ignore').decode('ascii')
+
+    # List of common extensions to recognize and (temporarily) remove
+    removed_ext = ""
+    for ext in all_known_extensions:
+        if text.casefold().endswith(ext):
+            text = text[:-len(ext)]
+            removed_ext = ext
+            break
+
+    # Replace common "word boundaries" with sep
+    #    (dots, underscores, whitespace) but keep dashes
+    #    e.g. "hello.world--foo_bar" → "hello world--foo bar"
+    text = re.sub(r"[._\s]+", sep, text)
+
+    # Remove anything but dashes, A-Z, a–z, 0–9, or our sep
+    allowed = f"-A-Za-z0-9{re.escape(sep)}"
+    text = re.sub(fr"[^{allowed}]+", "", text)
+
+    # Collapse runs of sep (e.g. "__" → "_")
+    text = re.sub(fr"{re.escape(sep)}{{2,}}", sep, text)
+
+    # Strip leading/trailing seps
+    text = text.strip(sep)
+
+    # Optionally truncate (try not to cut in middle of a word)
+    if max_length is not None and len(text) > max_length:
+        # cut at max_length, then drop a partial trailing token if any
+        truncated = text[:max_length]
+        # if the next char in original isn't sep and our chop landed mid-token, trim back to last sep
+        if (len(text) > max_length and not truncated.endswith(sep) and sep in truncated):
+            truncated = truncated.rsplit(sep, 1)[0]
+        text = truncated
+
+    # If an extension was removed, append it back
+    text += removed_ext
+
+    return text
+
+
+def safestring(s: str) -> str:
+    """
+    Convert a string to a "safe" version by converting to lowercase,
+    replacing spaces and special characters with underscores.
+    
+    Args:
+        s: The input string.
+
+    Returns:
+        A "safe" lowercase version of the string with only alphanumeric 
+        characters and underscores.
+    """
+    return filename_format(s.casefold())
 
 
 def ensure_even_dimensions(image_path: str | os.PathLike[str]) -> None:
@@ -541,30 +661,30 @@ def _should_convert(given_date: AnyDateTimeType, format_str: str | None = None) 
 
     # 1) Numbers, JD/MJD, decimal years, special keywords
     if isinstance(given_date, (int, float)) and not isinstance(given_date, bool):
-        logging.debug(f"Given date is a number: {given_date}, so it will be converted by shifting the clock")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date is a number: {given_date}, so it will be converted by shifting the clock")
         return True
     if isinstance(given_date, str):
         u = given_date.strip().upper()
         if u in ('J2000', 'UNIX', 'NOW'):
-            logging.debug(f"Given date is a special keyword: {u}, so it will be converted by shifting the clock")
+            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date is a special keyword: {u}, so it will be converted by shifting the clock")
             return True
         if format_str and format_str.upper() in ('JD', 'MJD'):
-            logging.debug(f"Given date has a format_str: {format_str}, so it will be converted by shifting the clock")
+            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date has a format_str: {format_str}, so it will be converted by shifting the clock")
             return True
         if _JD_MJD_SIMPLE_RE.fullmatch(given_date):
-            logging.debug(f"Given date is a JD/MJD: {given_date}, so it will be converted by shifting the clock")
+            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date is a JD/MJD: {given_date}, so it will be converted by shifting the clock")
             return True
         # explicit offset or Z
         if _OFFSET_IN_STR_RE.search(given_date):
-            logging.debug(f"Given date has an explicit offset or Z: {given_date}, so it will be converted by shifting the clock")
+            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date has an explicit offset or Z: {given_date}, so it will be converted by shifting the clock")
             return True
     # 2) Any datetime/timestamp already aware
     if isinstance(given_date, dt.datetime) and given_date.tzinfo is not None:
-        logging.debug(f"Given date is an aware datetime: {given_date}, so it will be converted by shifting the clock")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date is an aware datetime: {given_date}, so it will be converted by shifting the clock")
         return True
 
     # Otherwise treat it as local‐time → attach only
-    logging.debug(f"Given date is not a number, JD/MJD, or aware datetime: {given_date}, so the timezone will be attached without shifting the clock")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date is not a number, JD/MJD, or aware datetime: {given_date}, so the timezone will be attached without shifting the clock")
     return False
 
 
@@ -573,14 +693,14 @@ def _finalize_datetime(parsed_dt: dt.datetime, original_input: AnyDateTimeType,
                        should_convert: bool | None = None) -> dt.datetime:
     """Finalize the datetime object by either converting it to the target timezone or just attaching the timezone without shifting the clock. The boolean argument 'should_convert' can override the default behavior, which is determined by the function _should_convert()."""
     if isinstance(tz_arg, str) and tz_arg.strip().upper() == 'NAIVE':
-        logging.debug(f"Naive timezone requested, returning datetime {parsed_dt} without any timezone info")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Naive timezone requested, returning datetime {parsed_dt} without any timezone info")
         return parsed_dt.replace(tzinfo=None)
     target_tz = parse_timezone(tz_arg)
     if should_convert is not False and (_should_convert(original_input, format_str) or should_convert is True):
-        logging.debug(f"Converting datetime {parsed_dt} to timezone {target_tz} by shifting the clock")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Converting datetime {parsed_dt} to timezone {target_tz} by shifting the clock")
         return parsed_dt.astimezone(target_tz)
     else:
-        logging.debug(f"Attaching timezone {target_tz} to datetime {parsed_dt} without shifting the clock")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Attaching timezone {target_tz} to datetime {parsed_dt} without shifting the clock")
         return parsed_dt.replace(tzinfo=target_tz)
 
 
@@ -713,7 +833,7 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
             # Make sure the format string is a valid example of "units (optionally: since/after epoch)"
             # Try to split by since or after, whichever works:
             format_parts = re.split(r'\s+(since|after)\s+', format_str, maxsplit=1)
-            logging.debug(f"Parsing date with format string: '{format_str}' split into parts: {format_parts}")
+            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Parsing date with format string: '{format_str}' split into parts: {format_parts}")
             if len(format_parts) > 3:
                 raise ValueError(f"Invalid format string: '{format_str}'. Expected at most three parts: 'units', 'since/after', and 'epoch'.")
             # The first part should be acceptable by seconds_in_unit():
@@ -865,3 +985,111 @@ def filename_format(text: str, sep: str = "_", max_length: int = None) -> str:
         text = truncated
 
     return text
+
+# A comprehensive list of python extensions.
+python_extensions: list[str] = ['.py', '.pyw']
+python_extensions = [e.casefold() for e in python_extensions]  # Just in... case.
+
+# A comprehensive list of text file extensions.
+text_extensions: list[str] = [
+    '.txt',  '.html',     '.htm',      '.csv',        '.json', '.xml'
+    '.adoc', '.asciidoc', '.bib',      '.cfg',        '.conf', '.ini',
+    '.log',  '.md',       '.markdown', '.properties', '.rtf',  '.rst',
+    '.sgm',  '.sgml',     '.tex',      '.toml',       '.tsv',  '.xhtml',
+    '.yaml', '.yml',
+]
+text_extensions = [e.casefold() for e in text_extensions]  # Just in... case.
+
+# A comprehensive list of video file extensions.
+video_extensions: list[str] = [
+    '.mp4',   '.mkv',   '.mov',   '.avi',  '.mpg',  '.mpeg',
+    '.wmv',   '.m4v',   '.flv',   '.divx', '.vob',  '.iso',
+    '.3gp',   '.webm',  '.mts',   '.m2ts', '.ts',   '.ogv',
+    '.rm',    '.rmvb',  '.asf',   '.f4v',  '.mxf',  '.dv',
+    '.swf',   '.m2v',   '.svi',   '.mpe',  '.ogm',  '.bik',
+    '.xvid',  '.yuv',   '.qt',    '.gvi',  '.viv',  '.fli',
+    '.mjpg',  '.mjpeg', '.amv',   '.drc',  '.flc',  '.wve',
+    '.avchd', '.vp6',   '.ivf',   '.mps',  '.vro',  '.ssf',
+    '.hevc',  '.h265',  '.264',   '.str',  '.evo',  '.3g2',
+    '.h264',  '.av1',   '.ogx',   '.mlv',  '.ps',   '.tsx',
+    '.mp2v',  '.dvs',   '.gxf',   '.m4p',  '.webp', '.vp8',
+    '.trp',   '.f4p',   '.f4b',   '.f4m',  '.mk3d', '.3mm',
+    '.3gpp',  '.mod',   '.tod',   '.cine', '.arf',  '.wrf',
+    '.braw',  '.jmf',   '.r3d',   '.dpx',  '.mpv',  '.tsv',
+    '.rmx',   '.smk',   '.mkd',   '.mj2',  '.scm',  '.ivr',
+    '.xesc',  '.wtv',   '.dcr',   '.mpl',  '.pds',  '.ismv',
+    '.vc1',   '.vcd',   '.mpcpl', '.bin',  '.sfd',  '.qtz',
+    '.vdat',  '.vft',
+]
+video_extensions = [e.casefold() for e in video_extensions]  # Just in... case.
+
+# A comprehensive list of audio file extensions.
+audio_extensions: list[str] = [
+    '.mp3',   '.wav',   '.flac',  '.aac',   '.ogg',   '.wma',
+    '.m4a',   '.alac',  '.aiff',  '.opus',  '.amr',   '.pcm',
+    '.au',    '.raw',   '.dts',   '.ac3',   '.mka',   '.mpc',
+    '.vqf',   '.ape',   '.shn',   '.ra',    '.rm',    '.oga',
+    '.spx',   '.caf',   '.snd',   '.mid',   '.midi',  '.kar',
+    '.rmi',   '.m3u',   '.pls',   '.xspf',  '.asf',   '.wv',
+    '.aa',    '.aax',   '.dsf',   '.dff',   '.sf2',   '.g721',
+    '.voc',   '.swa',   '.bwf',   '.ivs',   '.smp',   '.htk',
+    '.sds',   '.brstm', '.adx',   '.hca',   '.ast',   '.psf',
+    '.psf2',  '.qsf',   '.ssf',   '.usf',   '.gsf',   '.flp',
+    '.dsm',   '.dmf',   '.mod',   '.s3m',   '.it',    '.xm',
+    '.mt2',   '.mo3',   '.umx',   '.tt',    '.tak',   '.trk',
+    '.669',   '.abc',   '.ts',    '.ym',    '.hsq',   '.mpa',
+]
+audio_extensions = [e.casefold() for e in audio_extensions]  # Just in... case.
+
+# A comprehensive list of subtitle file extensions.
+subtitle_extensions: list[str] = [
+    '.srt',   '.sub',    '.idx',   '.ass',   '.ssa',   '.vtt',
+    '.ttml',  '.dfxp',   '.smi',   '.smil',  '.usf',   '.psb',
+    '.mks',   '.lrc',    '.stl',   '.pjs',   '.rt',    '.aqt',
+    '.gsub',  '.jss',    '.dks',   '.mpl2',  '.tmp',   '.vsf',
+    '.zeg',   '.webvtt', '.scc',   '.cap',   '.asc',   '.qt.txt',  # match .qt.txt before .txt
+    '.sbv',   '.ebu',    '.sami',  '.xml',   '.itt',   '.txt',
+]
+subtitle_extensions = [e.casefold() for e in subtitle_extensions]  # Just in... case.
+
+# A comprehensive list of image file extensions.
+image_extensions: list[str] = [
+    '.bmp',   '.dib',   '.gif',   '.jpeg',  '.jpg',   '.jpe',
+    '.jfif',  '.pjpeg', '.pjp',   '.png',   '.pbm',   '.pgm',
+    '.ppm',   '.pnm',   '.pam',   '.tif',   '.tiff',  '.sgi',
+    '.rgb',   '.tga',   '.hdr',   '.exr',   '.webp',  '.apng',
+    '.heic',  '.heif',  '.avif',  '.jp2',   '.j2k',   '.j2c',
+    '.jxr',   '.svg',   '.svgz',  '.eps',   '.ai',    '.pdf',
+    '.cdr',   '.emf',   '.wmf',   '.dxf',   '.dwg',   '.mng',
+    '.raw',   '.arw',   '.cr2',   '.cr3',   '.dng',   '.erf',
+    '.raf',   '.orf',   '.pef',   '.rw2',   '.rwl',   '.sr2',
+    '.srw',   '.3fr',   '.kdc',   '.mrw',   '.mos',   '.nrw',
+    '.pcx',   '.pcd',   '.pic',   '.pct',   '.xcf',   '.psd',
+    '.psb',   '.kra',   '.fit',   '.fits',  '.fpx',   '.djvu',
+    '.djv',   '.lbm',   '.iff',
+]
+image_extensions = [e.casefold() for e in image_extensions]  # Just in... case.
+
+# A comprehensive list of archive file extensions.
+archive_extensions: list[str] = [
+    '.zip',     '.rar',    '.7z',    '.tar.gz', '.tar.bz2', '.tar.xz',  # match .tar.(gz,bz2,xz) before (.gz,.bz2,.xz)
+    '.tar.zst', '.tar',    '.gz',    '.tgz',    '.bz2',     '.xz',
+    '.tbz2',    '.tz2',    '.lzma',  '.lz',     '.xpi',     '.crx',
+    '.zst',     '.cab',    '.arj',   '.ace',    '.uue',     '.zoo',
+    '.jar',     '.war',    '.ear',   '.iso',    '.img',     '.dmg',
+    '.lzh',     '.lha',    '.cpio',  '.deb',    '.rpm',     '.apk',
+    '.pak',     '.arc',    '.a',     '.mar',    '.b1',      '.wim',
+    '.shar',    '.run',    '.shk',   '.sit',    '.sitx',    '.zpaq',
+    '.br', 
+]
+archive_extensions = [e.casefold() for e in archive_extensions]  # Just in... case.
+
+# Put subtitle_ext before text_ext so .qt.txt matches before .txt
+all_known_extensions: list[str] = python_extensions + subtitle_extensions + \
+                                  text_extensions   + video_extensions    + \
+                                  audio_extensions  + image_extensions    + \
+                                  archive_extensions
+
+
+if __name__ == "__main__":
+    main()

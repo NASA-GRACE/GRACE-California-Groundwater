@@ -142,7 +142,7 @@ def download_NLDAS_data(options: Options) -> None:
         num_retries=5  # total attempts
     )
 
-    logging.debug(f"{results = }")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"{results = }")
 
     logging.info("Downloading data...")
     downloaded_files = earthaccess.download(results, local_path=options.args.local_dir)
