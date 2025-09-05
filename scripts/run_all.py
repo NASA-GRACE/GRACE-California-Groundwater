@@ -12,7 +12,7 @@ from typing import TypeAlias
 import re  # Used to precompile regexes for performance
 
 # This is the version of python which should be used in scripts that import this module.
-PY_VERSION = 3.11
+PY_VERSION = 3.12
 
 
 class Options:
@@ -134,14 +134,14 @@ def main() -> None:
     logging.info("Downloading snow water equivalent (SWE) data...")
     run_script(options, "swe_daily_downloader.py")
 
+    logging.info("Processing snow water equivalent (SWE) data into monthly means...")
+    run_script(options, "swe_monthly_mean.py")
+
     logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
     run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
 
     logging.info("Processing snow water equivalent (SWE) data into monthly means and anomalies...")
     run_script(options, "swe_repair_mask_generator.py")
-
-    logging.info("Processing snow water equivalent (SWE) data into monthly means...")
-    run_script(options, "swe_monthly_mean.py")
 
     logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
     run_script(options, "swe_monthly_anomaly.py")
