@@ -25,7 +25,7 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
         self.default_doi: str = "10.5067/NL7JTZYO2RVK"  # NLDAS VIC LSM L4 Monthly 0.125 degree v2.0
-        self.default_timespan: tuple[str, str] = ("1980-01-01", "1980-01-01")
+        self.default_timespan: tuple[str, str] = ("2005-01-01", "2005-03-31T23:59:59")
         self.default_region: tuple[float, float, float, float] = (-180, -90, 180, 90)  # defaults to global region
         self.default_local_dir: Path = self.soil_moisture_dir / "data_monthly"
 

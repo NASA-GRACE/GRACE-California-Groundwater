@@ -36,14 +36,14 @@ def parse_arguments(options: Options) -> None:
     parser.add_argument("--end_date", default=options.default_swe_end_date,
                         help=f"End date (YYYY-MM-DD) (default: {options.default_swe_end_date})")
     parser.add_argument("--output_dir", default=options.default_output_dir,
-                        help="Directory to download, untar and save swe files from Snodas")
+                        help="Directory to download, untar and save swe files from SNODAS")
     parser.add_argument("--log_file", default=options.default_log_file,
                         help=f"Path to log file (e.g., {options.default_log_file})")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def main() -> None:
@@ -177,7 +177,7 @@ def download_and_process(date: datetime, product_code: str = '1034', out_dir: st
         for file in os.listdir(out_dir):
             if file.endswith(".txt") or file.endswith(".gz") or file.endswith(".dat") :
                 os.remove(os.path.join(out_dir, file))
-                logging.info(f"Removed: {file}")
+                logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Removed: {file}")
 
     except Exception as e:
         logging.error(f"Error on {date_str}: {e}")
@@ -187,4 +187,4 @@ if __name__ == "__main__":
    main()
 
 #ex usage
-#python snodas_downloader.py 2004-01-01 2004-03-31 /home/snodas/output /home/snodas_download.log
+#python SNODAS_downloader.py 2004-01-01 2004-03-31 /home/SNODAS/output /home/SNODAS_download.log

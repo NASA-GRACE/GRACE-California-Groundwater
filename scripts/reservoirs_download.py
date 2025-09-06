@@ -28,11 +28,11 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_csv_file: Path = self.reservoirs_dir / "cdec_data_webpage.csv"  # default reservoir list file
-        self.default_out_dir: Path = self.reservoirs_dir / "reservoir_data"
-        self.default_start_date: str = "2005-01-01"
-        self.default_end_date: str = "2005-12-31"
+        self.my_name:                Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_csv_file:       Path = self.reservoirs_dir / f"{self.reservoirs_model.lower()}_data_webpage.csv"  # default reservoir list file
+        self.default_out_dir:        Path = self.reservoirs_dir / "reservoir_data"
+        self.default_start_date:      str = "2005-01-01"
+        self.default_end_date:        str = "2005-12-31"
         self.default_data_type_input: str = "M"
 
 def parse_arguments(options: Options) -> None:
@@ -53,7 +53,7 @@ def parse_arguments(options: Options) -> None:
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def main() -> None:
@@ -315,7 +315,7 @@ def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
         "Start": start_date_str,
         "End": end_date_str,
     }
-    logging.debug(f"  Requesting URL: {CDEC_BASE_URL} with params: {params}")
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  Requesting URL: {CDEC_BASE_URL} with params: {params}")
 
     try:
         response = requests.get(CDEC_BASE_URL, params=params, timeout=45)
@@ -328,7 +328,7 @@ def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
             logging.warning(f"Received HTML error page for {station_id} (Sensor: {sensor_num}, Duration: {duration_code}).")
             return None
         if not response.text.strip() or "NO DATA FOUND" in response_text_upper or "NO DATA AVAILABLE" in response_text_upper :
-            logging.debug(f"  Info: No data found for {station_id} with sensor {sensor_num} for the given period and duration.")
+            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  Info: No data found for {station_id} with sensor {sensor_num} for the given period and duration.")
             return None
 
         lines = response.text.splitlines()
@@ -348,17 +348,17 @@ def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
         
         if header_row_index == -1:
             if len(lines) < 5 and ("NO DATA" in response.text.upper() or "ERROR" in response.text.upper()):
-                logging.debug(f"  Info: No data or error message for {station_id} (Sensor: {sensor_num}, Duration: {duration_code}). Response: {response.text[:100]}")
+                logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  Info: No data or error message for {station_id} (Sensor: {sensor_num}, Duration: {duration_code}). Response: {response.text[:100]}")
                 return None
             logging.warning(f"Could not reliably determine header row for {station_id} (Sensor {sensor_num}).")
-            logging.debug(f"  Problematic response text snippet for header detection: {' '.join(lines[:5])}")
+            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  Problematic response text snippet for header detection: {' '.join(lines[:5])}")
             return None
 
         csv_data_io = StringIO("\n".join(lines[header_row_index:]))
         df = pd.read_csv(csv_data_io)
 
         if df.empty:
-            logging.debug(f"  Info: Dataframe is empty for {station_id} after parsing.")
+            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  Info: Dataframe is empty for {station_id} after parsing.")
             return None
 
         df.columns = [str(col).strip().upper().replace(" ", "_") for col in df.columns]
@@ -410,7 +410,7 @@ def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
             ]
             if len(potential_value_cols) == 1:
                 df.rename(columns={potential_value_cols[0]: 'VALUE'}, inplace=True)
-                logging.debug(f"  Inferred 'VALUE' column from '{potential_value_cols[0]}'.")
+                logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  Inferred 'VALUE' column from '{potential_value_cols[0]}'.")
             # Silently proceed if cannot infer, will be caught by next 'VALUE' in df.columns check
 
         if 'VALUE' in df.columns:
@@ -427,7 +427,7 @@ def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
                 perform_conversion = True
 
             if perform_conversion:
-                logging.debug(f"  Converting 'VALUE' from Acre-Feet to Cubic Meters for {station_id}.")
+                logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  Converting 'VALUE' from Acre-Feet to Cubic Meters for {station_id}.")
                 df['VALUE_M3'] = df['VALUE'] * ACRE_FEET_TO_CUBIC_METERS
                 df['UNITS'] = 'M3'
                 # Keep original value column for reference if desired, or drop it
@@ -472,7 +472,7 @@ def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
         logging.error(f"Request failed for {station_id} (Sensor {sensor_num}): {e}")
         return None
     except pd.errors.EmptyDataError:
-        logging.debug(f"No data returned in CSV for {station_id} (Sensor: {sensor_num}, Duration: {duration_code}).")
+        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"No data returned in CSV for {station_id} (Sensor: {sensor_num}, Duration: {duration_code}).")
         return None
     except Exception as e:
         logging.error(f"An unexpected error occurred while processing {station_id} (Sensor {sensor_num}): {e}")

@@ -33,9 +33,8 @@ class Options(ra.Options):
         self.masks_dir:        Path = self.project_root     / "input_data" / "masks"
         self.gridded_data_dir: Path = self.project_root     / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_concatenated"
         self.default_input_nc: Path = self.gridded_data_dir / "LATEST.nc"
-        self.default_out_dir:  Path = self.project_root     / "input_data" / "masked_timeseries"
-        self.default_csv:      Path = self.default_out_dir  / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.csv"
-        self.default_nc:       Path = self.default_out_dir  / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.nc"
+        self.default_csv:      Path = self.timeseries_dir   / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.csv"
+        self.default_nc:       Path = self.timeseries_dir   / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.nc"
         self.default_mask:     Path = self.masks_dir        / f"{self.soil_moisture_model}_{self.default_basin_safename}_mask.nc"
         self.unit_factors:     dict = {"mm H2O": 1000, "kg/m2": 1000, "kg/m^2": 1000, "cm": 100, "dm": 10, "m": 1, "km": 0.001}  # Conversions from meters to other units.
         self.masks_dir.mkdir(       parents=True, exist_ok=True)
@@ -49,8 +48,8 @@ def parse_arguments(options: Options) -> None:
     )
     parser.add_argument("-input_nc", type=Path, default=options.default_input_nc,
                         help=f"Input concatenated data netCDF file (default: {os.fspath(options.default_input_nc)})")
-    parser.add_argument("-out_dir", type=Path, default=options.default_out_dir,
-                        help=f"Output directory for CSV and NetCDF files (default: {os.fspath(options.default_out_dir)})")
+    parser.add_argument("-out_dir", type=Path, default=options.timeseries_dir,
+                        help=f"Output directory for CSV and NetCDF files (default: {os.fspath(options.timeseries_dir)})")
     parser.add_argument("-output_csv", type=Path, default=options.default_csv,
                         help=f"Output CSV file for the region mean anomaly time series (default: {os.fspath(options.default_csv)})")
     parser.add_argument("-output_nc", type=Path, default=options.default_nc,

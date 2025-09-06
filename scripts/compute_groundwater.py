@@ -39,7 +39,7 @@ class Options(ra.Options):
         self.default_reservoirs_csv:    str = f"LATEST_{self.reservoirs_model}_FOR_BASIN.csv"
         self.default_swe_csv:           str = f"LATEST_{self.swe_model}_FOR_BASIN.csv"
         self.default_grace_csv:         str = "LATEST_GRACE_FOR_BASIN.csv"
-        self.default_output_csv:        str = f'anomaly_timeseries_groundwater_{self.default_basin}_CURRENT_DATETIME.csv'
+        self.default_output_csv:        str = f'anomaly_timeseries_groundwater_{self.default_basin_safename}_CURRENT_DATETIME.csv'
         self.timeseries_dir.mkdir(parents=True, exist_ok=True)  # Ensure the timeseries directory exists
 
 

@@ -41,7 +41,7 @@ def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description='Plot time series from CSV file(s)')
     parser.add_argument('--csv_files', type=list[Path], default=options.default_csv_files,
-                        help=f'Path(s) to your CSV file(s); if none given, uses the latest .csv file in {options.timeseries_dir})')
+                        help=f'Path(s) to your CSV file(s); if none given, uses the latest .csv file in {os.fspath(options.timeseries_dir)})')
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -63,7 +63,7 @@ def main() -> None:
 
     # Extract datatype for each file, ensure they all match
     dlist = []
-    print(f"CSV files to plot: {csv_files}")
+    print(f"CSV files to plot: {list(map(os.fspath, csv_files))}")
     print(f"Available datatypes: {options.datatypes}")
     for f in csv_files:
         found = [dt for dt in options.datatypes if dt.casefold() in f.name.casefold()]
@@ -79,7 +79,7 @@ def main() -> None:
     for f in csv_files:
         matches = [m for m in options.basin_safenames if m in f.name.casefold()]
         if len(matches) != 1:
-            raise ValueError(f'CSV file must contain exactly one basin mask; got {f}')
+            raise ValueError(f'CSV file must contain exactly one basin mask; got {os.fspath(f)}')
         basin_titles.append(options.reverse_safename_map[matches[0]])
 
     make_plot(options, csv_files, datatype, basin_titles)
@@ -165,7 +165,7 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
     for idx, (path, basin) in enumerate(zip(csv_paths, basin_titles)):
         df = pd.read_csv(path, parse_dates=[0])
         if df.shape[1] != 3:
-            raise ValueError(f'Expected CSV with three columns, got {list(df.columns)} in {path}')
+            raise ValueError(f'Expected CSV with three columns, got {list(df.columns)} in {os.fspath(path)}')
         # Eliminate any rows with NaN values
         df = df.dropna()
         date_col, val_col, err_col = df.columns

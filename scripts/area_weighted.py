@@ -32,7 +32,7 @@ def parse_arguments(options: Options) -> None:
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def area_weighted_stats(data: np.ndarray, weights: np.ndarray, mask: np.ndarray) -> tuple[float, float, float]:

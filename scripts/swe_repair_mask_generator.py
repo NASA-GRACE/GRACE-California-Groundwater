@@ -12,8 +12,8 @@ import logging
 Generate a grid of repair mask for CONUS as original mask is in uncropped extent including parts of canada
 Repaired mask will contain 1's for our desired shape region however any pixels from that shape file mask present in zero repair mask will be set to 0
 Script takes 5 arguments:
-    1) zero repair mask from Snodas for swe 
-    2) masked CONUS tif from Snodas
+    1) zero repair mask from SNODAS for swe 
+    2) masked CONUS tif from SNODAS
     3) output CONUS zero repair mask to be saved for future use 
     4) List of base mask csv to generate their repaired mask
     5) Repaired mask output dir.
@@ -28,21 +28,21 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_full_tif: Path = self.swe_dir / "SNODAS_Zero_Repair_Mask.tif"
-        self.default_cropped_tif: Path = self.swe_dir / "SNODAS_Zero_Repair_Mask_Cropped.tif"
-        self.default_repaired_masks_dir: Path = self.swe_dir / "masks" / "repaired_masks"
-        self.default_base_masks_files: list[Path] = [self.swe_dir / "masks" / "basin_masks" / f"{self.swe_model}_{self.default_basin}_mask.csv"]
-        self.default_template_tif: Path = self.swe_dir / "monthly_data" / "monthly_mean_200501.tif"
-        
+        self.my_name:                        Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_full_tif:               Path =  self.swe_dir / f"{self.swe_model}_Zero_Repair_Mask.tif"
+        self.default_cropped_tif:            Path =  self.swe_dir / f"{self.swe_model}_Zero_Repair_Mask_Cropped.tif"
+        self.default_repaired_masks_dir:     Path =  self.swe_dir / "masks" / "repaired_masks"
+        self.default_base_masks_files: list[Path] = [self.swe_dir / "masks" / "basin_masks" / f"{self.swe_model}_{self.default_basin_safename}_mask.csv"]
+        self.default_template_tif:           Path =  self.swe_dir / "monthly_data" / "monthly_mean_200501.tif"
+
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
-    parser = argparse.ArgumentParser(description="Crop SNODAS repair mask and apply to multiple base masks.")
+    parser = argparse.ArgumentParser(description=f"Crop {options.swe_model} repair mask and apply to multiple base masks.")
     parser.add_argument("--full_tif", default=options.default_full_tif,
-                        help="Path to full SNODAS zero repair mask (GeoTIFF) to be combined with base mask to generate repaired mask for 2014 oct to 2019 oct")
+                        help=f"Path to full {options.swe_model} zero repair mask (GeoTIFF) to be combined with base mask to generate repaired mask for 2014 oct to 2019 oct")
     parser.add_argument("--template_tif",default=options.default_template_tif,
-                        help="Template GeoTIFF for cropping (defines region)")
+                        help=f"Template GeoTIFF for cropping (defines region) for {options.swe_model}")
     parser.add_argument("--cropped_tif", default=options.default_cropped_tif,
                         help="Path to save cropped CONUS repair mask as GeoTIFF")
     parser.add_argument("--base_masks", default=options.default_base_masks_files, nargs='+',
@@ -53,7 +53,7 @@ def parse_arguments(options: Options) -> None:
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def main() -> None:
@@ -99,7 +99,7 @@ def repair_mask_generation_for_SNODAS(options: Options) -> None:
     for base_mask_path in options.args.base_masks:
         base_name = os.path.basename(base_mask_path)
         logging.info(base_name)
-        # Replace 'snodas' with 'repaired' in the filename
+        # Replace 'SNODAS' with 'repaired' in the filename
         if base_name.startswith("SNODAS_"):
             output_name = base_name.replace("SNODAS_", "repaired_", 1)
         else:
@@ -111,8 +111,8 @@ def repair_mask_generation_for_SNODAS(options: Options) -> None:
 
 def crop_by_template(full_tif: str, template_tif: str, output_tif: str) -> tuple[np.ndarray, tuple]:
     """
-    This function takes the Snodas zero repair mask and crops the CONUS region using a masked swe file
-    This is step 1 of generating a repaired mask for the period 2014 oct to 2019 oct for Snodas swe data.
+    This function takes the SNODAS zero repair mask and crops the CONUS region using a masked swe file
+    This is step 1 of generating a repaired mask for the period 2014 oct to 2019 oct for SNODAS swe data.
 
     Args:
         full_tif:     Path to full SNODAS zero repair mask (GeoTIFF).
@@ -192,4 +192,4 @@ if __name__ == "__main__":
     main()
     
 # sample call:
-# python C:\work\snowdas_repair_mask_generator.py C:\data\full_snodas_mask.tif C:\data\template_conus.tif C:\data\cropped_repair_mask.tif C:\data\masks\snodas_ca_mask.csv C:\data\masks\snodas_tx_mask.csv C:\data\masks\repaired\
+# python C:\work\snowdas_repair_mask_generator.py C:\data\full_SNODAS_mask.tif C:\data\template_conus.tif C:\data\cropped_repair_mask.tif C:\data\masks\SNODAS_ca_mask.csv C:\data\masks\SNODAS_tx_mask.csv C:\data\masks\repaired\

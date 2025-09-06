@@ -21,13 +21,13 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_grace_file: str = "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
+        self.my_name:                 Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_grace_file:       str = "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
         self.default_grace_input_dir: Path = self.grace_dir
-        self.default_start_date: str = "2002-04-01"
-        self.default_end_date: str = "2025-03-31"
-        self.default_mask_file: Path = self.grace_dir / "masks" / f"grace_{self.default_basin}_mask.csv"
-        self.default_output_path: Path = self.grace_dir / "monthly_grace_anomaly" / f"anomaly_timeseries_GRACE_{self.default_basin}_mask.csv"
+        self.default_start_date:       str = "2002-04-01"
+        self.default_end_date:         str = "2025-03-31"
+        self.default_mask_file:       Path = self.grace_dir / "masks"                 / f"grace_{self.default_basin_safename}_mask.csv"
+        self.default_output_path:     Path = self.grace_dir / "monthly_grace_anomaly" / f"anomaly_timeseries_GRACE_{self.default_basin_safename}_mask.csv"
         
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
@@ -60,7 +60,7 @@ def parse_arguments(options: Options) -> None:
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 # ===== Main function =====

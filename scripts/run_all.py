@@ -166,9 +166,9 @@ def run_script(options: Options, the_script: str, flags: list[str] | None = None
 
     Returns:
         None. The specified script is executed as a subprocess.
-    
+
     Raises:
-        None.
+        RuntimeError: If the subprocess returns a non-zero exit code.
     """
     logging.info(options.separator_line)
     if flags is None:
@@ -191,7 +191,9 @@ def run_script(options: Options, the_script: str, flags: list[str] | None = None
         return
     else:
         logging.info(f"Running: {command_str}")
-        subprocess.run(the_command, check=True)
+        result = subprocess.run(the_command, check=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"Command {command_str} failed with return code {result.returncode}: {result.stderr}")
 
 
 def section_header(options: Options, title: str) -> None:

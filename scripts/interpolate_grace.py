@@ -16,25 +16,25 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_input_file: Path = self.grace_dir / "monthly_grace_anomaly" / f"anomaly_timeseries_GRACE_{self.default_basin}_mask.csv"
-        self.default_output_filename: str = f"anomaly_timeseries_GRACE_{self.default_basin}_mask.csv"
-        self.default_output_path: Path = self.grace_dir / "monthly_interpolated_grace_anomaly" 
-            
+        self.my_name:                Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_input_file:     Path = self.grace_dir / "monthly_grace_anomaly" / f"anomaly_timeseries_GRACE_{self.default_basin_safename}_mask.csv"
+        self.default_output_filename: str = f"anomaly_timeseries_GRACE_{self.default_basin_safename}_mask.csv"
+
+
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Interpolate GRACE data on 15th-of-month")
     parser.add_argument("--input_file", default=options.default_input_file,
-                        help="Path to input CSV with date, tws, tws_error")
-    parser.add_argument("--output_dir", default=options.default_output_path,
-                        help="Output directory (will be created if it doesn't exist)")
+                        help=f"Path to input CSV with date, tws, tws_error (default: {os.fspath(options.default_input_file)})")
+    parser.add_argument("--output_dir", default=options.timeseries_dir,
+                        help=f"Output directory (default: {os.fspath(options.timeseries_dir)})")
     parser.add_argument("--output_file", default=options.default_output_filename,
-                        help="Output filename (e.g., result.csv)")
+                        help=f"Output filename (default: {options.default_output_filename})")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def main() -> None:

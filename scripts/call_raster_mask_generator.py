@@ -23,19 +23,19 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name: Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.shape_dir: Path = self.project_root / "input_data" / "shapefiles"
-        self.default_input_shapefile = self.shape_dir / "hybas_na_lev04_v1c.shp"
-        #self.default_output_file: Path = self.project_root / "input_data" / "masks"
-        self.default_output_file: Path = self.grace_dir / "masks" / "grace_ca_mask.csv"
-        self.default_region_name: str = self.default_basin
-        #self.default_target_dataset: str = "grace_mascon"
-        self.default_swe_dataset_name: str = self.swe_model
-        self.default_swe_target_dataset: Path = self.swe_dir / "monthly_data" / "monthly_mean_200501.tif"
-        self.default_grace_dataset_name: str = "grace_mascon"
-        self.default_grace_target_dataset: Path = self.grace_dir / "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
-        self.default_dataset_name = self.default_grace_dataset_name
-        self.default_dataset = self.default_grace_target_dataset
+        self.my_name:                      Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.shape_dir:                    Path = self.project_root / "input_data" / "shapefiles"
+        self.default_input_shapefile:      Path = self.shape_dir    / "hybas_na_lev04_v1c.shp"
+        # self.default_output_file:        Path = self.project_root / "input_data" / "masks"
+        self.default_output_file:          Path = self.grace_dir    / "masks" / "grace_ca_mask.csv"
+        self.default_region_name:           str = self.default_basin
+        # self.default_target_dataset:      str = "grace_mascon"
+        self.default_swe_dataset_name:      str = self.swe_model
+        self.default_swe_target_dataset:   Path = self.swe_dir      / "monthly_data" / "monthly_mean_200501.tif"
+        self.default_grace_dataset_name:    str = "grace_mascon"
+        self.default_grace_target_dataset: Path = self.grace_dir    / "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
+        self.default_dataset_name:          str = self.default_grace_dataset_name
+        self.default_dataset:              Path = self.default_grace_target_dataset
 
 
 def parse_arguments(options: Options) -> None:
@@ -56,16 +56,16 @@ def parse_arguments(options: Options) -> None:
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
     if options.args.target_dataset == "swe":
         print("here in swe")
         options.dataset_name = options.default_swe_dataset_name
         options.target_dataset = options.default_swe_target_dataset #swe_target_dataset
-        options.output_file = options.swe_dir / "masks" / "basin_masks" / f"{options.swe_model}_{options.default_basin}_mask.csv"
+        options.output_file = options.swe_dir / "masks" / "basin_masks" / f"{options.swe_model}_{options.default_basin_safename}_mask.csv"
     else:
         options.dataset_name = options.default_grace_dataset_name
         options.target_dataset = options.default_grace_target_dataset
-        options.output_file = options.grace_dir / "masks" / f"grace_{options.default_basin}_mask.csv"
+        options.output_file = options.grace_dir / "masks" / f"grace_{options.default_basin_safename}_mask.csv"
                 
    
 def main(input_shapefile: str, output_file: str, region_name: str, dataset_name: str, target_dataset: str) -> None:
@@ -76,7 +76,7 @@ def main(input_shapefile: str, output_file: str, region_name: str, dataset_name:
         input_shapefile: Path to the input shapefile.
         output_file:     Path to save the output CSV file.
         region_name:     Name of the region/basin to mask.
-        dataset_name:    Name of the dataset (e.g., 'snodas', 'grace_mascon').
+        dataset_name:    Name of the dataset (e.g., 'SNODAS', 'grace_mascon').
         target_dataset:  Path to the target dataset (GeoTIFF or NetCDF).
     
     Returns:

@@ -5,7 +5,7 @@ import numpy as np
 import os
 import glob
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 import re
 from pyproj import Geod
 import numpy as np
@@ -25,44 +25,43 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name:            Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_err_coeff: float = 0.20  # Default error coefficient (20%)
-        self.default_input_dir:  Path = self.swe_dir / "monthly_data"
-        self.default_output_dir: Path = self.swe_dir / "monthly_anomaly"
-        self.default_mask1_dir:  Path = self.swe_dir / "masks" / "basin_masks"
-        self.default_mask2_dir:  Path = self.swe_dir / "masks" / "repaired_masks"
-        self.default_regions: list = [self.default_basin]
-        self.default_output_regions: list = [f"{self.default_basin}_mask"]
-        self.default_start_date: str = "2005-01-01" #"2014-10-01"
-        self.default_end_date:   str = "2005-03-31" #"2019-10-31"
+        self.my_name:                Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_err_coeff:     float = 0.20  # Default error coefficient (20%)
+        self.default_input_dir:      Path = self.swe_dir / "monthly_data"
+        self.default_mask1_dir:      Path = self.swe_dir / "masks" / "basin_masks"
+        self.default_mask2_dir:      Path = self.swe_dir / "masks" / "repaired_masks"
+        self.default_regions:        list = [self.default_basin]
+        self.default_output_regions: list = [f"{self.default_basin_safename}_mask"]
+        self.default_start_date:      str = "2005-01-01" #"2014-10-01"
+        self.default_end_date:        str = "2005-03-31" #"2019-10-31"
         
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
-    parser = argparse.ArgumentParser(description="Process SNODAS SWE data by region and date thresholds.")
+    parser = argparse.ArgumentParser(description=f"Process {options.swe_model} SWE data by region and date thresholds.")
 
     parser.add_argument("--input_dir", default=options.default_input_dir,
                         help="Directory containing monthly SWE .tif files")
     parser.add_argument("--err_coeff", type=float, default=options.default_err_coeff,
                         help=f"Fraction of weighted sum used as error (e.g., {options.default_err_coeff} for {options.default_err_coeff * 100}%)")
-    parser.add_argument("--output_dir", default=options.default_output_dir,
-                        help="Directory for output results")
+    parser.add_argument("--output_dir", default=options.timeseries_dir,
+                        help=f"Directory for output results (default: {os.fspath(options.timeseries_dir)})")
     parser.add_argument("--mask1_dir", default=options.default_mask1_dir,
-                        help="Directory for base mask generated using our scripts")
+                        help=f"Directory for base mask generated using our scripts (default: {os.fspath(options.default_mask1_dir)})")
     parser.add_argument("--mask2_dir", default=options.default_mask2_dir,
-                        help="Directory for mask generated using base mask and repaired mask file for 2014 Oct to 2019 Oct")
+                        help=f"Directory for mask generated using base mask and repaired mask file for 2014 Oct to 2019 Oct (default: {os.fspath(options.default_mask2_dir)})")
     parser.add_argument("--regions", default=options.default_regions, nargs="+",
-                        help="List of region codes (e.g., a b v d)")
+                        help=f"List of region codes (default: {options.default_regions})")
     parser.add_argument("--output_regions", default=options.default_output_regions, nargs="+",
-                        help="List of output mask names")
+                        help=f"List of output mask names (default: {options.default_output_regions})")
     parser.add_argument("--start_date", default=options.default_start_date,
-                        help="Start date for alternate period (YYYY-MM-DD)")
+                        help=f"Start date for alternate period (YYYY-MM-DD, default: {options.default_start_date})")
     parser.add_argument("--end_date", default=options.default_end_date,
-                        help="End date for alternate period (YYYY-MM-DD)")
+                        help=f"End date for alternate period (YYYY-MM-DD, default: {options.default_end_date})")
     parser.add_argument('-debug', action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def main() -> None:
@@ -130,7 +129,7 @@ def monthly_anomalies_for_SNODAS(options: Options) -> None:
     logging.info(f"Date range for alt processing: {start_alt.date()} to {end_alt.date()}")
 
     # processing
-    region_masks = load_region_masks_from_subdirs(regions, mask1_dir, mask2_dir)
+    region_masks = load_region_masks_from_subdirs(options, regions, mask1_dir, mask2_dir)
     sample_filename = swe_files[0]
     # Compute latitude array using any sample file
     ds_sample = gdal.Open(sample_filename)
@@ -151,20 +150,31 @@ def monthly_anomalies_for_SNODAS(options: Options) -> None:
     area_grid = np.tile(area_per_row[:, np.newaxis], (1, ncols))  # shape: (3351, 6935)
 
     # Compute means
-    compute_means_with_mask_switch(swe_files, region_masks,regions, output_regions,output_dir,err_coeff,area_grid)
+    compute_means_with_mask_switch(options, swe_files, region_masks,regions, output_regions,output_dir,err_coeff,area_grid)
 
 
-def load_region_masks_from_subdirs(regions: list, mask1_dir: str, mask2_dir: str,
-                                   template1: str = 'snodas_{region}_mask.csv',
+def load_region_masks_from_subdirs(options: Options, regions: list, mask1_dir: str, mask2_dir: str,
+                                   template1: str = '{swe_model}_{region}_mask.csv',
                                    template2: str = 'repaired_{region}_mask.csv') -> dict:
     """
     Load region masks from separate directories for mask1 and mask2.
-    
+
+    Args:
+        options:   Options instance containing 'swe_model' for use in the templates.
+        regions:   List of region names (e.g., ['region1', 'region2'])
+        mask1_dir: Directory where mask1 CSVs are stored
+        mask2_dir: Directory where mask2 CSVs are stored
+        template1: File name template for mask1 (default: '{swe_model}_{region}_mask.csv')
+        template2: File name template for mask2 (default: 'repaired_{region}_mask.csv')
+
+    Returns:
+        Dictionary with keys like (region_index, 'mask1') -> numpy array
+
     Args:
         regions:   List of region names (e.g., ['region1', 'region2'])
         mask1_dir: Directory where mask1 CSVs are stored
         mask2_dir: Directory where mask2 CSVs are stored
-        template1: File name template for mask1 (default: 'snodas_{region}_mask.csv')
+        template1: File name template for mask1 (default: '{swe_model}_{region}_mask.csv')
         template2: File name template for mask2 (default: 'repaired_{region}_mask.csv')
 
     Returns:
@@ -176,15 +186,15 @@ def load_region_masks_from_subdirs(regions: list, mask1_dir: str, mask2_dir: str
     masks = {}
     for i, region in enumerate(regions):
         # Paths for mask1 and mask2
-        mask1_path = os.path.join(mask1_dir, template1.format(region=region))
-        mask2_path = os.path.join(mask2_dir, template2.format(region=region))
+        mask1_path = os.path.join(mask1_dir, template1.format(swe_model=options.swe_model, region=region))
+        mask2_path = os.path.join(mask2_dir, template2.format(swe_model=options.swe_model, region=region))
         # Read and convert to boolean arrays
-        masks[(i, 'basin_mask')] = pd.read_csv(mask1_path, header=None).values.astype(bool)
+        masks[(i, 'basin_mask')]    = pd.read_csv(mask1_path, header=None).values.astype(bool)
         masks[(i, 'repaired_mask')] = pd.read_csv(mask2_path, header=None).values.astype(bool)
     return masks
 
 
-def compute_means_with_mask_switch(file_list: list, region_masks: dict,
+def compute_means_with_mask_switch(options: Options, file_list: list, region_masks: dict,
                                    region_names: list, output_regions: list,
                                    output_dir: str, err_coeff: float,
                                    area_weights: np.ndarray) -> None:
@@ -192,6 +202,7 @@ def compute_means_with_mask_switch(file_list: list, region_masks: dict,
     Compute area-weighted means for each region, switching masks based on date range.
 
     Args:
+        options:        Options instance containing command line arguments.
         file_list:      List of SWE .tif file paths.
         region_masks:   Dictionary of region masks loaded from CSVs.
         region_names:   List of region names.
@@ -250,9 +261,9 @@ def compute_means_with_mask_switch(file_list: list, region_masks: dict,
         time_mask = (df['YearMonth'] >= start_period) & (df['YearMonth'] <= end_period)
         baseline_mean = swe_values[time_mask].mean()
         df['swe'] = swe_values - baseline_mean
-        csv_file = output_dir / f"anomaly_timeseries_snodas_{safe_name}.csv"
+        csv_file = output_dir / f"anomaly_timeseries_{options.swe_model}_{safe_name}.csv"
         df.drop(columns=['YearMonth']).to_csv(csv_file, index=False)
-        #df.drop(columns=['YearMonth']).to_csv(f"{output_dir}/anomaly_timeseries_snodas_{safe_name}.csv", index=False)
+        #df.drop(columns=['YearMonth']).to_csv(f"{output_dir}/anomaly_timeseries_{options.swe_model}_{safe_name}.csv", index=False)
     
 def extract_date_from_filename(filename: str) -> datetime:
     """
@@ -278,6 +289,6 @@ if __name__ == "__main__":
     main()
 
 '''
-This script reads Snodas swe monthly grid data from geotif and csv masks (reg and repaired repaired (for 2014-2019)) 
+This script reads SWE monthly grid data from geotif and csv masks (reg and repaired repaired (for 2014-2019)) 
 and generates monthly timeseries for swe anomaly and error values as percentage of monthly mean before computing anomaly.
 '''

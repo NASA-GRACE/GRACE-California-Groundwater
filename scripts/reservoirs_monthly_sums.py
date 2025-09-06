@@ -23,7 +23,7 @@ class Options(ra.Options):
         self.default_data_dir:      Path = self.reservoirs_dir / "reservoir_data"
         self.default_output_dir:    Path = self.reservoirs_dir / "monthly_sums"
         self.default_region_name:    str = self.default_basin
-        self.default_input_xlsx:    Path = self.reservoirs_dir / "cdec_data_webpage.xlsx"
+        self.default_input_xlsx:    Path = self.reservoirs_dir / f"{self.reservoirs_model.lower()}_data_webpage.xlsx"
         self.default_shapefile:     Path = self.project_root / "input_data" / "shapefiles" / "hybas_na_lev04_v1c.shp"
         self.default_start_date:     str = "2005-01-01"
         self.default_end_date:       str = "2005-12-31"
@@ -59,7 +59,7 @@ def parse_arguments(options: Options) -> None:
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
-        options.log_mode = "DEBUG"
+        options.log_mode = logging.DEBUG
 
 
 def main() -> None:
@@ -253,7 +253,7 @@ def read_monthly_csv(file_path: str) -> pd.DataFrame:
 if __name__ == "__main__":
     main()
 
-'''
+r'''
 This script matches sites from the Excel file to the shapefile region for each shapefile region name (or SORT code)
 
 Saves a mapping CSV:sites_<region>.csv
