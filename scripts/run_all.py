@@ -118,6 +118,9 @@ def main() -> None:
     logging.info("Generating reservoirs anomaly and error value time series...")
     run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
 
+    logging.info("Generate a time series plot of the masked reservoirs data.")
+    run_script(options, "plot_timeseries.py")
+
     section_header(options, "Processing GRACE TWS data")
 
     logging.info("Call raster mask generator for GRACE TWS data...")
@@ -128,6 +131,9 @@ def main() -> None:
 
     logging.info("Interpolating GRACE TWS data to daily time steps...")
     run_script(options, "interpolate_grace.py")
+
+    logging.info("Generate a time series plot of the masked GRACE data.")
+    run_script(options, "plot_timeseries.py")
 
     section_header(options, "Processing SNODAS snow water equivalent data")
 
@@ -145,6 +151,9 @@ def main() -> None:
 
     logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
     run_script(options, "swe_monthly_anomaly.py")
+
+    logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
+    run_script(options, "plot_timeseries.py")
 
     section_header(options, "Computing groundwater anomaly and plotting results")
 
@@ -264,8 +273,8 @@ class PlotOptions(Options):
             self.background_color = '#000000'
             self.text_color       = '#FFFFFF'
             # recompute “view” palettes from the bases
-            self.colors      = [ ('darkgrey' if c == 'black' else c) for c in self._base_colors ]
-            self.lightcolors = [ ('lightgrey' if c == 'grey' else c) for c in self._base_lightcolors ]
+            self.colors      = [ ('darkgrey' if  c == 'black' else c) for c in self._base_colors ]
+            self.lightcolors = [ ('lightgrey' if c == 'grey'  else c) for c in self._base_lightcolors ]
         else:
             self.background_color = '#FFFFFF'
             self.text_color       = '#000000'
