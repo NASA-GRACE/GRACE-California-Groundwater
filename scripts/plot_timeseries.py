@@ -3,7 +3,6 @@
 
 import os
 from pathlib import Path
-import glob
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -24,9 +23,12 @@ class Options(ra.PlotOptions):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.PlotOptions and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name:                  Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_csv_files:  list[Path] = [self.timeseries_dir / 'LATEST.csv']  # default to latest CSV in self.timeseries_dir
+        self.my_name:                         Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_csv_files:         list[Path] = [self.timeseries_dir /  "LATEST.csv"]  # default to intermediate files (not the final groundwater files) by loading the latest CSV in self.timeseries_dir
+        self.default_groundwater_files: list[Path] = [self.output_dir     / f"LATEST_groundwater_{self.default_basin_safename}*unsmoothed*.csv"]
+
         self.timeseries_dir.mkdir(parents=True, exist_ok=True)  # Ensure the timeseries directory exists
+        self.output_dir.mkdir(    parents=True, exist_ok=True)  # Ensure the output directory exists
 
         # Dates at which to break the plotted lines (list of datetime.datetime)
         # self.discontinuities: list[dt.datetime] = []  # Uncomment this line to have no discontinuities
@@ -34,19 +36,24 @@ class Options(ra.PlotOptions):
         self.estimate_trends = 1  # 1 = estimate trends, 0 = do not estimate
         self.units = 'km³'
 
-        self.dark_mode   = 0  # 1 = dark mode, 0 = light mode
+        self.dark_mode   = 1  # 1 = dark mode, 0 = light mode
 
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description='Plot time series from CSV file(s)')
-    parser.add_argument('--csv_files', type=list[Path], default=options.default_csv_files,
+    parser.add_argument("--csv_files", type=list[Path], default=options.default_csv_files,
                         help=f'Path(s) to your CSV file(s); if none given, uses the latest .csv file in {os.fspath(options.timeseries_dir)})')
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("--groundwater", action='store_true',
+                        help=f"If set, plot groundwater time series by loading {list(map(os.fspath, options.default_groundwater_files))} (overrides --csv_files if given)")
+    parser.add_argument("--debug", action='store_true',
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
         options.log_mode = logging.DEBUG
+    if getattr(options.args, 'groundwater', False):
+        options.args.csv_files = options.default_groundwater_files
+        logging.info(f'--groundwater argument set: using groundwater CSV files {list(map(os.fspath, options.args.csv_files))}')
 
 
 def main() -> None:
@@ -56,10 +63,21 @@ def main() -> None:
                         datefmt='%Y-%m-%d %H:%M:%S')
     parse_arguments(options)
 
-    # Resolve "no args" → take the LATEST.csv default behavior
+    # Any file with "LATEST"
     csv_files = options.args.csv_files
-    if csv_files == options.default_csv_files:
-        csv_files = [Path(max(glob.glob(str(options.timeseries_dir / '*.csv')), key=os.path.getctime)).expanduser().resolve()]
+    for i, csv_file in enumerate(csv_files):
+        resolved = csv_file
+        if "LATEST" in csv_file.name:
+            pattern = csv_file.name.replace("LATEST", "*")
+            matches = list(csv_file.parent.glob(pattern))
+            if not matches:
+                raise FileNotFoundError(
+                    f"No files matching pattern {pattern} found in {os.fspath(csv_file.parent)}"
+                )
+            resolved = max(matches, key=lambda p: p.stat().st_ctime)
+        # normalize
+        csv_files[i] = resolved.expanduser().resolve()
+    logging.info(f'Resolved CSV files: {list(map(os.fspath, csv_files))}')
 
     # Extract datatype for each file, ensure they all match
     dlist = []

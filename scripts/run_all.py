@@ -152,7 +152,7 @@ def main() -> None:
     run_script(options, "compute_groundwater.py")
 
     logging.info("Generating comparison plots of all water storage components...")
-    run_script(options, "plot_timeseries.py")
+    run_script(options, "plot_timeseries.py", flags=["--groundwater"])
 
 
 def run_script(options: Options, the_script: str, flags: list[str] | None = None) -> None:
@@ -168,7 +168,7 @@ def run_script(options: Options, the_script: str, flags: list[str] | None = None
         None. The specified script is executed as a subprocess.
 
     Raises:
-        RuntimeError: If the subprocess returns a non-zero exit code.
+        subprocess.CalledProcessError: If the called script returns a non-zero exit status.
     """
     logging.info(options.separator_line)
     if flags is None:
@@ -191,9 +191,7 @@ def run_script(options: Options, the_script: str, flags: list[str] | None = None
         return
     else:
         logging.info(f"Running: {command_str}")
-        result = subprocess.run(the_command, check=True)
-        if result.returncode != 0:
-            raise RuntimeError(f"Command {command_str} failed with return code {result.returncode}: {result.stderr}")
+        subprocess.run(the_command, check=True)
 
 
 def section_header(options: Options, title: str) -> None:
@@ -236,24 +234,43 @@ class PlotOptions(Options):
 
     def __init__(self) -> None:
         """Initialize PlotOptions class with values from the Options class, and default plotting values."""
-        super().__init__()  # Defines script_dir, project_root, etc. from the parent Options class.
-        # Ideas for improving this parent class: https://chatgpt.com/share/6876a7e2-da84-8006-9c8f-100d243b73e4
+        super().__init__()
         self.myfigsize   = (16, 9)
         self.fsize       = 24
         self.dpi_choice  = 300
-        self.markers     = ['o',     's',      '^',         'v',          '<',           '>']
-        self.colors      = ['black', 'red',    'blue',      'green',      'purple']      # Used for lines in light mode or for shaded areas in dark mode
-        self.lightcolors = ['grey',  'pink',   'lightblue', 'lightgreen', 'lightpurple']  # Used for shaded areas in light mode or for lines in dark mode
-        self.linestyles  = ['solid', 'dashed', 'dashdot',   'dotted']
-        self.dark_mode   = 0  # 1 = dark mode, 0 = light mode
-        if self.dark_mode:
+        # keep immutable “base” palettes so we can recompute safely
+        self._base_colors      = ['black', 'red',    'blue',      'green',      'purple']
+        self._base_lightcolors = ['grey',  'pink',   'lightblue', 'lightgreen', 'lightpurple']
+        self.markers           = ['o',     's',      '^',         'v',          '<',          '>']
+        self.linestyles        = ['solid', 'dashed', 'dashdot',   'dotted']
+
+        self._dark_mode = False   # backing store
+        self._apply_theme()       # derive palettes/background/text from _dark_mode
+
+    @property
+    def dark_mode(self) -> bool:
+        """This is a property, so setting it will also update the theme."""
+        return self._dark_mode
+
+    @dark_mode.setter
+    def dark_mode(self, value: int | bool) -> None:
+        """This is a property with a setter, so any child class that changes self.dark_mode will also update the theme."""
+        self._dark_mode = bool(value)
+        self._apply_theme()
+
+    def _apply_theme(self) -> None:
+        """Apply the current theme (light or dark) to the plot options."""
+        if self._dark_mode:
             self.background_color = '#000000'
             self.text_color       = '#FFFFFF'
-            self.colors      = [c.replace('black', 'darkgrey') for c in self.colors]
-            self.lightcolors = [c.replace('grey', 'lightgrey') for c in self.lightcolors]
+            # recompute “view” palettes from the bases
+            self.colors      = [ ('darkgrey' if c == 'black' else c) for c in self._base_colors ]
+            self.lightcolors = [ ('lightgrey' if c == 'grey' else c) for c in self._base_lightcolors ]
         else:
             self.background_color = '#FFFFFF'
             self.text_color       = '#000000'
+            self.colors      = list(self._base_colors)
+            self.lightcolors = list(self._base_lightcolors)
 
 
 def fallback_logging_config(log_level: int | str = 'INFO', rawlog: bool = False) -> None:
