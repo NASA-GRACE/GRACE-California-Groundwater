@@ -304,19 +304,15 @@ def filename_format(text: str, sep: str = "_", max_length: int = None) -> str:
     """
     Turn arbitrary text into an ASCII-only, filesystem‐safe base filename.
     WARNING: Do not include an extension in the text, because this function
-    might remove the dot which separates the filename from the extension.
-    It attempts to recognize and remove extensions listed in all_known_extensions
-    but this list is not exhaustive.
+    will remove the dot which separates the filename from the extension.
 
     Steps:
       1. Unicode → ASCII
-      2. Recognize & remove common extensions (e.g. .txt, .fits, .tar.gz)
-      3. Treat dots, underscores & whitespace as word separators
-      4. Remove any character that isn't A-z, a–z, 0–9, dashes, or the separator
-      5. Collapse runs of separators into a single one
-      6. Trim separators from ends
-      7. Optionally truncate to max_length (preserving word boundaries)
-      8. If an extension was removed, append it back as the last step.
+      2. Treat dots, underscores & whitespace as word separators
+      3. Remove any character that isn't A-z, a–z, 0–9, dashes, or the separator
+      4. Collapse runs of separators into a single one
+      5. Trim separators from ends
+      6. Optionally truncate to max_length (preserving word boundaries)
 
     Args:
         text:       Original filename or title
@@ -341,14 +337,6 @@ def filename_format(text: str, sep: str = "_", max_length: int = None) -> str:
         # Fallback: encode to ASCII, ignore errors
         text = text.encode('ascii', 'ignore').decode('ascii')
 
-    # List of common extensions to recognize and (temporarily) remove
-    removed_ext = ""
-    for ext in ALL_KNOWN_EXTENSIONS:
-        if text.casefold().endswith(ext):
-            text = text[:-len(ext)]
-            removed_ext = ext
-            break
-
     # Replace common "word boundaries" with sep
     #    (dots, underscores, whitespace) but keep dashes
     #    e.g. "hello.world--foo_bar" → "hello world--foo bar"
@@ -372,9 +360,6 @@ def filename_format(text: str, sep: str = "_", max_length: int = None) -> str:
         if (len(text) > max_length and not truncated.endswith(sep) and sep in truncated):
             truncated = truncated.rsplit(sep, 1)[0]
         text = truncated
-
-    # If an extension was removed, append it back
-    text += removed_ext
 
     return text
 
