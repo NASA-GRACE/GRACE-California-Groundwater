@@ -12,6 +12,7 @@ import argparse
 import xarray as xr
 import logging
 import pandas as pd 
+import re
 from mask_from_shapefile import read_shapefile_multilayers
 
 import run_all as ra
@@ -25,18 +26,34 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:                      Path = Path(__file__).stem  # The name of this script without the .py extension
         self.shape_dir:                    Path = self.project_root / "input_data" / "shapefiles"
-        self.default_input_shapefile:      Path = self.shape_dir    / "hybas_na_lev04_v1c.shp"
-        # self.default_output_file:        Path = self.project_root / "input_data" / "masks"
-        self.default_output_file:          Path = self.grace_dir    / "masks" / "grace_ca_mask.csv"
-        self.default_region_name:           str = self.default_basin
+         # self.default_output_file:        Path = self.project_root / "input_data" / "masks"
+        self.default_region_name:           str = self.default_basin_safename
+        self.default_output_file:          Path = self.grace_dir    / "masks" / f"grace_{self.default_basin_safename}_mask.csv"
         # self.default_target_dataset:      str = "grace_mascon"
         self.default_swe_dataset_name:      str = self.swe_model
+        self.default_swe_target_dataset:   Path = self.swe_dir      / "monthly_data"
+        tif_files = sorted(self.default_swe_target_dataset.glob("*.tif"))  # sort for consistency
+        if not tif_files:
+            raise FileNotFoundError(f"No .tif files found in {self.default_swe_target_dataset}")
+        self.default_swe_target_dataset:   Path = self.default_swe_target_dataset / tif_files[0]
         self.default_swe_target_dataset:   Path = self.swe_dir      / "monthly_data" / "monthly_mean_200501.tif"
         self.default_grace_dataset_name:    str = "grace_mascon"
-        self.default_grace_target_dataset: Path = self.grace_dir    / "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
+        # grace mascon: read latest file from input dir. 
+        self.default_grace_target_dataset: Path = self.grace_dir
+        grace_nc_files = sorted(self.default_grace_target_dataset.glob("*MSCNv04CRI*.nc")) 
+        if not grace_nc_files:
+            raise FileNotFoundError(f"No grace mascon files found in {self.default_grace_target_dataset}")
+        def extract_end_date(filename):
+            match = re.search(r'_(\d{6})\.', filename)  # match last date like _202503.
+            return int(match.group(1)) if match else 0
+        latest_nc_file = max(grace_nc_files, key=lambda f: extract_end_date(f.name))
+        self.default_grace_target_dataset: Path = self.default_grace_target_dataset / latest_nc_file
         self.default_dataset_name:          str = self.default_grace_dataset_name
         self.default_dataset:              Path = self.default_grace_target_dataset
-
+        if self.default_region_name == "california":
+            self.default_input_shapefile:  Path = self.shape_dir / "hybas_na_lev04_v1c.shp"
+        else:
+            self.default_input_shapefile:  Path = self.shape_dir / "HUC2" / "WBDHU4.shp"
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
@@ -87,19 +104,17 @@ def main(input_shapefile: str, output_file: str, region_name: str, dataset_name:
     """
     filter_sort = None
     layer_name  = None
-    if region_name in ("ca","California"):
+    if region_name in ("ca","california"):
         filter_sort = 22 # only used for the California basin
     elif region_name.casefold() == "sacramento":
         pass
-    elif region_name.casefold() == "san joaquin":
+    elif region_name.casefold() == "san_joaquin":
         pass
-    elif region_name.casefold() == "tulare-buena vista lakes":
+    elif region_name.casefold() == "tulare-buena_vista_lakes":
         pass
-    elif region_name.casefold() ==  'Colorado river basin':
-        layer_name = 'COLORADO (also COLORADO RIVER)'
     else:
         raise ValueError(f"Unknown basin '{region_name}'")
-    basin_title = region_name.replace(' ', '_').replace('-', '_').casefold()
+    basin_title = region_name.replace(' ', '_').casefold()
     logging.info(basin_title)
     #tif dataset
     print(target_dataset)
