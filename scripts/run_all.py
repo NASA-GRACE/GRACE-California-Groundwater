@@ -32,7 +32,7 @@ class Options:
                                               "Groundwater"]
 
         self.valid_basins:                  list[str] = ["California", "Sacramento", "San Joaquin", "Tulare-Buena Vista Lakes"]
-        self.default_basin:                       str = self.valid_basins[1]
+        self.default_basin:                       str = self.valid_basins[0]
 
         self.keep_these_soil_moisture_vars: list[str] = ['SoilM_0_100cm']  # leave [] to keep everything
 
@@ -84,7 +84,7 @@ def main() -> None:
     options = Options()
     logging.basicConfig(level=options.log_mode, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     parse_arguments(options)
-
+    
     section_header(options, "Processing soil moisture data")
 
     logging.info("Download soil moisture data files.")
@@ -106,21 +106,21 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked soil moisture data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Processing reservoirs storage data")
 
     logging.info(f"Downloading reservoirs data...")
     run_script(options, "reservoirs_download.py")
-
+    
     logging.info("Processing reservoirs data into monthly sums...")
     run_script(options, "reservoirs_monthly_sums.py")
-
+    
     logging.info("Generating reservoirs anomaly and error value time series...")
     run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
-
+    
     logging.info("Generate a time series plot of the masked reservoirs data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Processing GRACE TWS data")
 
     logging.info("Call raster mask generator for GRACE TWS data...")
@@ -128,33 +128,33 @@ def main() -> None:
 
     logging.info("Generating GRACE TWS anomaly time series...")
     run_script(options, "grace_tws_anomaly.py")
-
+    
     logging.info("Interpolating GRACE TWS data to daily time steps...")
     run_script(options, "interpolate_grace.py")
-
+    
     logging.info("Generate a time series plot of the masked GRACE data.")
     run_script(options, "plot_timeseries.py")
-
+     
     section_header(options, "Processing SNODAS snow water equivalent data")
 
     logging.info("Downloading snow water equivalent (SWE) data...")
     run_script(options, "swe_daily_downloader.py")
-
+     
     logging.info("Processing snow water equivalent (SWE) data into monthly means...")
     run_script(options, "swe_monthly_mean.py")
 
     logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
     run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
-
+    
     logging.info("Processing snow water equivalent (SWE) data into monthly means and anomalies...")
     run_script(options, "swe_repair_mask_generator.py")
-
+    
     logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
     run_script(options, "swe_monthly_anomaly.py")
 
     logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Computing groundwater anomaly and plotting results")
 
     logging.info("Computing groundwater anomaly time series...")
@@ -162,8 +162,7 @@ def main() -> None:
 
     logging.info("Generating comparison plots of all water storage components...")
     run_script(options, "plot_timeseries.py", flags=["--groundwater"])
-
-
+    
 def run_script(options: Options, the_script: str, flags: list[str] | None = None) -> None:
     """
     Run a script with the given options.

@@ -30,7 +30,7 @@ class Options(ra.Options):
         self.default_input_dir:      Path = self.swe_dir / "monthly_data"
         self.default_mask1_dir:      Path = self.swe_dir / "masks" / "basin_masks"
         self.default_mask2_dir:      Path = self.swe_dir / "masks" / "repaired_masks"
-        self.default_regions:        list = [self.default_basin]
+        self.default_regions:        list = [self.default_basin_safename]
         self.default_output_regions: list = [f"{self.default_basin_safename}_mask"]
         self.default_start_date:      str = "2005-01-01" #"2014-10-01"
         self.default_end_date:        str = "2005-03-31" #"2019-10-31"

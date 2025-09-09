@@ -9,7 +9,7 @@ from ellipsoidal_area import area
 from read_grace_s3_bucket import read_grace_dataset
 from pathlib import Path
 import logging
-
+import re
 import run_all as ra
 
 #Written by Munish Sikka, Felix Landerer and ChatGPT
@@ -22,12 +22,20 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:                 Path = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_grace_file:       str = "GRCTellus.JPL.200204_202503.GLO.RL06.3M.MSCNv04CRI.nc"
         self.default_grace_input_dir: Path = self.grace_dir
         self.default_start_date:       str = "2002-04-01"
         self.default_end_date:         str = "2025-03-31"
         self.default_mask_file:       Path = self.grace_dir / "masks"                 / f"grace_{self.default_basin_safename}_mask.csv"
         self.default_output_path:     Path = self.grace_dir / "monthly_grace_anomaly" / f"anomaly_timeseries_GRACE_{self.default_basin_safename}_mask.csv"
+        # grace mascon: read latest file from input dir. 
+        grace_nc_files = sorted(self.grace_dir.glob("*MSCNv04CRI*.nc")) 
+        if not grace_nc_files:
+            raise FileNotFoundError(f"No grace mascon files found in {self.grace_dir}")
+        def extract_end_date(filename):
+            match = re.search(r'_(\d{6})\.', filename)  # match last date like _202503.
+            return int(match.group(1)) if match else 0
+        latest_nc_file = max(grace_nc_files, key=lambda f: extract_end_date(f.name))
+        self.default_grace_file: str = latest_nc_file  
         
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""

@@ -105,7 +105,7 @@ def process_csv(options: Options, file_path: str, output_dir: str, start_date: s
         ValueError: If the input CSV does not have the expected format.
     """
     region_name = os.path.splitext(os.path.basename(file_path))[0].replace('_monthly_km3', '')
-
+    
     # Load the CSV
     df = pd.read_csv(file_path)
     if 'date' not in df.columns:

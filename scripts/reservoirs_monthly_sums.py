@@ -22,12 +22,17 @@ class Options(ra.Options):
         self.my_name:               Path = Path(__file__).stem  # The name of this script without the .py extension
         self.default_data_dir:      Path = self.reservoirs_dir / "reservoir_data"
         self.default_output_dir:    Path = self.reservoirs_dir / "monthly_sums"
-        self.default_region_name:    str = self.default_basin
+        self.default_region_name:    str = self.default_basin_safename #default_basin
         self.default_input_xlsx:    Path = self.reservoirs_dir / f"{self.reservoirs_model.lower()}_data_webpage.xlsx"
-        self.default_shapefile:     Path = self.project_root / "input_data" / "shapefiles" / "hybas_na_lev04_v1c.shp"
+        
         self.default_start_date:     str = "2005-01-01"
         self.default_end_date:       str = "2005-12-31"
-        self.default_allowed_names: list = [22]
+        if self.default_region_name == "california":
+            self.default_shapefile:     Path = self.project_root / "input_data" / "shapefiles" / "hybas_na_lev04_v1c.shp"
+            self.default_allowed_names: list = ["22"]
+        else:
+            self.default_shapefile:     Path = self.project_root / "input_data" / "shapefiles" / "HUC2" / "WBDHU4.shp"
+            self.default_allowed_names: list = self.valid_basins
 
 
 def parse_arguments(options: Options) -> None:
@@ -85,7 +90,7 @@ def monthly_sums_CDEC(options: Options) -> None:
            - shapefile_name_field:   Field in shapefile for region names (ignored if region _name=ca).
            - input_xlsx:             Excel file with site info (Station ID, LATITUDE, LONGITUDE).
            - sheet_name:             Sheet index in Excel (default 0).
-           - allowed_names:          Region names (strings) or SORT codes (if region_name=California).
+           - allowed_names:          Region names (strings) or SORT codes (if region_name=california).
            - region_name:            Overall region name, e.g. 'California' to use SORT field.
            - data_dir:               Directory containing site CSVs.
            - output_dir:             Directory to save per-region outputs.
@@ -139,10 +144,14 @@ def monthly_sums_CDEC(options: Options) -> None:
     longitudes = site_df['longitude'].tolist()
 
     # Handle California SORT shapefile (numeric) case
-    use_sort_field = region_name == "California"
+    use_sort_field = region_name == "california"
     if use_sort_field:
         shapefile_name_field = "SORT"
         allowed_names = [int(x) for x in allowed_names]  # Ensure integers
+    else:
+        shapefile_name_field = "name"
+        # keep as string list, normalize names
+        allowed_names = [x.strip() for x in allowed_names]
 
     # Load shapefile
     shapefile_ds = ogr.Open(shapefile)
@@ -171,7 +180,7 @@ def monthly_sums_CDEC(options: Options) -> None:
     # For each region: save mapping CSV and compute monthly totals
     for region_key, sites in shape_to_sites.items():
         sanitized_region = sanitize_name(region_key)
-
+        print(sanitized_region)
         # Save site-to-region mapping CSV
         if use_sort_field:
             mapping_csv = os.path.join(output_dir, f"sites_{region_name}.csv")
@@ -227,8 +236,8 @@ def clean_unicode_whitespace(val: str) -> str:
 
 
 def sanitize_name(name: str) -> str:
-    """Lowercase and replace spaces/hyphens with underscores for filenames."""
-    return re.sub(r'[-\s]+', '_', str(name).lower())
+    """Lowercase and replace spaces with underscores for filenames."""
+    return re.sub(r'[\s]+', '_', str(name).lower())
 
 
 def read_monthly_csv(file_path: str) -> pd.DataFrame:
