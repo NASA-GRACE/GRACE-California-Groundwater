@@ -15,3 +15,6 @@ Important scripts:
 
 If using NLDAS or another model that requires earthdata authentication, the user needs to set up
 that authentication first. Details in scripts/soil_moisture_download.py
+
+If ffmpeg is installed, the workflow will attempt to generate animations of the data after
+masking to the region of interest. If ffmpeg can't be found, this step will be skipped.
