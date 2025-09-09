@@ -26,29 +26,11 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:                      Path = Path(__file__).stem  # The name of this script without the .py extension
         self.shape_dir:                    Path = self.project_root / "input_data" / "shapefiles"
-         # self.default_output_file:        Path = self.project_root / "input_data" / "masks"
         self.default_region_name:           str = self.default_basin_safename
         self.default_output_file:          Path = self.grace_dir    / "masks" / f"grace_{self.default_basin_safename}_mask.csv"
-        # self.default_target_dataset:      str = "grace_mascon"
-        self.default_swe_dataset_name:      str = self.swe_model
-        self.default_swe_target_dataset:   Path = self.swe_dir      / "monthly_data"
-        tif_files = sorted(self.default_swe_target_dataset.glob("*.tif"))  # sort for consistency
-        if not tif_files:
-            raise FileNotFoundError(f"No .tif files found in {self.default_swe_target_dataset}")
-        self.default_swe_target_dataset:   Path = self.default_swe_target_dataset / tif_files[0]
-        self.default_swe_target_dataset:   Path = self.swe_dir      / "monthly_data" / "monthly_mean_200501.tif"
-        self.default_grace_dataset_name:    str = "grace_mascon"
-        # grace mascon: read latest file from input dir. 
         self.default_grace_target_dataset: Path = self.grace_dir
-        grace_nc_files = sorted(self.default_grace_target_dataset.glob("*MSCNv04CRI*.nc")) 
-        if not grace_nc_files:
-            raise FileNotFoundError(f"No grace mascon files found in {self.default_grace_target_dataset}")
-        def extract_end_date(filename):
-            match = re.search(r'_(\d{6})\.', filename)  # match last date like _202503.
-            return int(match.group(1)) if match else 0
-        latest_nc_file = max(grace_nc_files, key=lambda f: extract_end_date(f.name))
-        self.default_grace_target_dataset: Path = self.default_grace_target_dataset / latest_nc_file
-        self.default_dataset_name:          str = self.default_grace_dataset_name
+        self.default_swe_target_dataset:   Path = self.swe_dir / "monthly_data"
+        self.default_dataset_name:          str = "grace_mascon"
         self.default_dataset:              Path = self.default_grace_target_dataset
         if self.default_region_name == "california":
             self.default_input_shapefile:  Path = self.shape_dir / "hybas_na_lev04_v1c.shp"
@@ -66,7 +48,6 @@ def parse_arguments(options: Options) -> None:
                         help="mask file region")
     parser.add_argument("--dataset_name", default=options.default_dataset_name,
                         help="grace mascon or any other dataset")
-    #parser.add_argument("--target_dataset", default=options.default_target_dataset,
     parser.add_argument("--target_dataset", default=options.default_dataset,
                         help="grid on which mask should be created")
     parser.add_argument('-debug', action='store_true',
@@ -75,12 +56,23 @@ def parse_arguments(options: Options) -> None:
     if getattr(options.args, 'debug', False):
         options.log_mode = logging.DEBUG
     if options.args.target_dataset == "swe":
-        print("here in swe")
-        options.dataset_name = options.default_swe_dataset_name
+        options.dataset_name = options.swe_model
+        tif_files = sorted(options.default_swe_target_dataset.glob("*.tif"))  # sort for consistency
+        if not tif_files:
+            raise FileNotFoundError(f"No .tif files found in {options.default_swe_target_dataset}")
+        options.default_swe_target_dataset = options.default_swe_target_dataset / tif_files[0]
         options.target_dataset = options.default_swe_target_dataset #swe_target_dataset
         options.output_file = options.swe_dir / "masks" / "basin_masks" / f"{options.swe_model}_{options.default_basin_safename}_mask.csv"
     else:
-        options.dataset_name = options.default_grace_dataset_name
+        options.dataset_name = options.default_dataset_name
+        grace_nc_files = sorted(options.default_grace_target_dataset.glob("*MSCNv04CRI*.nc"))
+        if not grace_nc_files:
+            raise FileNotFoundError(f"No grace mascon files found in {options.default_grace_target_dataset}")
+        def extract_end_date(filename):
+            match = re.search(r'_(\d{6})\.', filename)  # match last date like _202503.
+            return int(match.group(1)) if match else 0
+        latest_nc_file = max(grace_nc_files, key=lambda f: extract_end_date(f.name))
+        options.default_grace_target_dataset = latest_nc_file  # This is a complete Path.
         options.target_dataset = options.default_grace_target_dataset
         options.output_file = options.grace_dir / "masks" / f"grace_{options.default_basin_safename}_mask.csv"
                 
@@ -178,5 +170,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
                         datefmt='%Y-%m-%d %H:%M:%S')
 
-    #main(options.args.input_shapefile, options.args.output_file, options.args.region_name, options.args.dataset_name, options.args.target_dataset)
+    logging.info(f"Running on dataset:      {options.dataset_name}:")
+    logging.info(f"Using target dataset:    {options.target_dataset}")
+    logging.info(f"Using shapefile:         {options.args.input_shapefile}")
+    logging.info(f"Output will be saved to: {options.output_file}")
+
     main(options.args.input_shapefile, options.output_file, options.args.region_name, options.dataset_name, options.target_dataset)
