@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 # Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
 
+import os
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import subprocess
-import os
 from pathlib import Path
 import logging
 import datetime as dt
 import argparse
-import glob
 
 import run_all as ra
 
@@ -88,7 +87,7 @@ def map_fields_for_NLDAS(options: Options) -> None:
 
     if options.args.nc_path == options.default_masked_filepath:
         # Look for the latest netCDF file in the masked timeseries directory
-        matches = options.args.masked_dir.glob("*.nc*")
+        matches = list(options.args.masked_dir.glob("*.nc*"))
         if not matches:
             raise FileNotFoundError(f"No .nc files found in {options.args.masked_dir}")
         options.args.nc_path = max(matches, key=os.path.getctime)
@@ -318,16 +317,21 @@ def make_nc_var_movie(options: Options, nc_path: str | os.PathLike[str], thevar:
         plot_nc_var_at_time(options, nc_path, thevar, png, time_index=tidx, vmin=vmin_all, vmax=vmax_all, extent=extent)
         logging.info(f"Saved frame {tidx+1}/{nt} to {png}")
 
-    # Assemble movie
+    # Assemble movie (only if ffmpeg is available)
+    ffmpeg_path = ra.find_ffmpeg()
+    if not ffmpeg_path:
+        logging.warning("ffmpeg not found (PATH/env/common locations). Skipping movie creation. "
+                        f"Frames are in {frames_dir}")
+        return
     cmd = [
-        'ffmpeg',
+        ffmpeg_path,
         '-y',
         '-framerate', str(fps),
         '-start_number', '0',
         '-i', str(frames_dir / 'frame_%03d.png'),
         '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p',
-        movie_path
+        str(movie_path),
     ]
     subprocess.run(cmd, check=True)
     logging.info(f"Movie saved to {movie_path}")

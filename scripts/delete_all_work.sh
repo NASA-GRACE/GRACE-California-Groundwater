@@ -30,6 +30,7 @@ confirm_delete_contents "$PROJECT_ROOT/input_data/soil_moisture/NLDAS/data_conca
 confirm_delete_contents "$PROJECT_ROOT/input_data/masks"
 confirm_delete_contents "$PROJECT_ROOT/input_data/masked_timeseries"
 confirm_delete_contents "$PROJECT_ROOT/input_data/reservoirs/CDEC/monthly_sums"
+confirm_delete_contents "$PROJECT_ROOT/input_data/reservoirs/CDEC/reservoir_data"
 confirm_delete_contents "$PROJECT_ROOT/input_data/snow_water_equivalent/SNODAS/daily_data"
 confirm_delete_contents "$PROJECT_ROOT/input_data/snow_water_equivalent/SNODAS/masks/basin_masks"
 confirm_delete_contents "$PROJECT_ROOT/input_data/snow_water_equivalent/SNODAS/masks/repaired_masks"

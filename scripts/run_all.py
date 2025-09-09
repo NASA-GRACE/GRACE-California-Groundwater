@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # Written by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
 from __future__ import annotations  # For Python 3.7+ compatibility with type annotations
+
 import os
+import sys
 from pathlib import Path
 import argparse
-import sys
 import subprocess
 import shlex
 import logging
@@ -400,6 +401,67 @@ def ensure_even_dimensions(image_path: str | os.PathLike[str]) -> None:
                 raise ValueError(f"Could not resize image {image_path} to even dimensions: {e}") from e
         else:
             logging.info(f"Image already has even dimensions: width = {width}, height = {height}")
+
+
+def find_ffmpeg() -> str | None:
+    """
+    Return a full path to an ffmpeg executable if found, else None.
+    Tries: env vars, PATH, common Conda and Windows/Cygwin/MSYS installs,
+    and (optionally) imageio-ffmpeg if available.
+
+    Args:
+        None
+
+    Returns:
+        The path to the ffmpeg executable or None if not found.
+
+    Raises:
+        None
+    """
+    import shutil
+    # 1) Explicit env vars (user can set one of these)
+    for env_key in ("FFMPEG", "FFMPEG_PATH", "IMAGEIO_FFMPEG_EXE"):
+        p = os.environ.get(env_key)
+        if p and Path(p).exists():
+            return str(Path(p))
+
+    # 2) On PATH (handles .exe on Windows automatically)
+    for name in ("ffmpeg", "ffmpeg.exe"):
+        p = shutil.which(name)
+        if p:
+            return p
+
+    # 3) Typical Conda/Miniconda/Mambaforge locations
+    sp = Path(sys.prefix)  # current Python env prefix
+    candidates = [
+        sp / "bin" / "ffmpeg",                 # Unix-like
+        sp / "Library" / "bin" / "ffmpeg.exe", # Windows (Conda)
+        sp / "Scripts" / "ffmpeg.exe",         # Windows (alt)
+    ]
+
+    # 4) Common Windows installs (adjust or extend as you like)
+    candidates += [
+        Path(r"C:\Program Files\ffmpeg\bin\ffmpeg.exe"),
+        Path(r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe"),
+        Path(r"C:\ffmpeg\bin\ffmpeg.exe"),
+        Path(r"C:\cygwin64\bin\ffmpeg.exe"),
+        Path(r"C:\msys64\usr\bin\ffmpeg.exe"),
+    ]
+
+    # 5) Optional: imageio-ffmpeg packaged binary if user has it
+    try:
+        import imageio_ffmpeg  # type: ignore
+        p = imageio_ffmpeg.get_ffmpeg_exe()
+        if p and Path(p).exists():
+            return str(Path(p))
+    except Exception:
+        pass
+
+    for c in candidates:
+        if c.exists():
+            return str(c)
+
+    return None
 
 
 # Mapping of unit aliases (all in lowercase) to their equivalent in seconds
