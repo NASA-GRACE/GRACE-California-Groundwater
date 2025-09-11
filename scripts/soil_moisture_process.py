@@ -46,10 +46,10 @@ def parse_arguments(options: Options) -> None:
                         help="Directory containing input .nc/.nc4 files.")
     parser.add_argument("out_dir", type=Path, nargs="?", default=options.default_out_dir,
                         help="Directory where output (.nc or .nc4) files will be written.")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
-    if getattr(options.args, 'debug', False):
+    if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
     options.args.in_dir.mkdir( parents=True, exist_ok=True)
     options.args.out_dir.mkdir(parents=True, exist_ok=True)

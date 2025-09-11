@@ -47,7 +47,7 @@ def parse_arguments(options: Options) -> None:
                         help=f"Degrees to pad around data for auto-zoom; negative disables (default: {options.default_map_border})")
     parser.add_argument('-central_lon', type=float, default=options.default_central_lon,
                         help=f"Central longitude for PlateCarree projection (default: {options.default_central_lon})")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

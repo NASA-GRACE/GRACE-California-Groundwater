@@ -36,7 +36,7 @@ def parse_arguments(options: Options) -> None:
     parser.add_argument("--scale_factor", default=options.default_scale_factor,
                         type=float,
                         help="Scale factor to apply to raster values")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

@@ -57,7 +57,7 @@ def parse_arguments(options: Options) -> None:
                         help=f"Start date for alternate period (YYYY-MM-DD, default: {options.default_start_date})")
     parser.add_argument("--end_date", default=options.default_end_date,
                         help=f"End date for alternate period (YYYY-MM-DD, default: {options.default_end_date})")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

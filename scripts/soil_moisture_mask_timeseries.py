@@ -56,7 +56,7 @@ def parse_arguments(options: Options) -> None:
                         help=f"Output netCDF file for gridded and masked data anomalies (default: {os.fspath(options.default_nc)})")
     parser.add_argument("-mask_nc", type=Path, default=options.default_mask,
                         help=f"Input netCDF mask file in {os.fspath(options.masks_dir)} (0/1 values, rows=lat, cols=lon) (default: {os.fspath(options.default_mask)})")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

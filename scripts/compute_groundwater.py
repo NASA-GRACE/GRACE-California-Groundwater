@@ -58,7 +58,7 @@ def parse_arguments(options: Options) -> None:
                         help=f'Input  GRACE CSV file in {options.timeseries_dir} (default: {options.default_grace_csv})')
     parser.add_argument('--output', type=str, default=options.default_output_csv,
                         help=f'Output CSV path (default: {options.default_output_csv})')
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

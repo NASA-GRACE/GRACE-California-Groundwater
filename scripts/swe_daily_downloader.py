@@ -39,7 +39,7 @@ def parse_arguments(options: Options) -> None:
                         help="Directory to download, untar and save swe files from SNODAS")
     parser.add_argument("--log_file", default=options.default_log_file,
                         help=f"Path to log file (e.g., {options.default_log_file})")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

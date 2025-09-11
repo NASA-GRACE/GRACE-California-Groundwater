@@ -44,7 +44,7 @@ def parse_arguments(options: Options) -> None:
                         help=f"Baseline end date (default: {options.default_baseline_end})")
     parser.add_argument("--err_val", type=float, default=options.default_err_val,
                         help=f"Error coefficient (e.g., {options.default_err_val} for {options.default_err_val * 100}%)")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

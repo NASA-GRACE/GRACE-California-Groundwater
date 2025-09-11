@@ -64,7 +64,7 @@ def parse_arguments(options: Options) -> None:
                         help="Optional anomaly baseline start date (YYYY-MM-DD)")
     parser.add_argument("--baseline_end", default=None,
                         help="Optional anomaly baseline end date (YYYY-MM-DD)")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

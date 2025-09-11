@@ -43,7 +43,7 @@ def parse_arguments(options: Options) -> None:
     )
     parser.add_argument("-b", "--basin", type=str, default=options.default_basin,
                         help=f"Basin identifier (default: {options.default_basin}, valid basins: {', '.join(options.valid_basins)}).")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

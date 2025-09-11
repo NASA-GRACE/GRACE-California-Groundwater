@@ -28,7 +28,7 @@ def parse_arguments(options: Options) -> None:
                         help="CSV file with mask (1=include, 0=exclude).")
     parser.add_argument("-o", "--output",
                         help="Optional output CSV file for results.")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

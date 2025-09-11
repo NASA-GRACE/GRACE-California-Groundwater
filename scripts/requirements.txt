@@ -9,14 +9,12 @@ Pillow
 netCDF4
 unidecode
 tqdm
-GDAL==3.11.0
+GDAL==3.11.*
 astropy
 jdcal
 xarray
 dask
-netcdf4
 h5netcdf
 matplotlib
 pyproj
 numpy
-unidecode

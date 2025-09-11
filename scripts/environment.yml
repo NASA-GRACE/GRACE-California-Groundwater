@@ -2,10 +2,9 @@ name: groundwater
 channels:
   - conda-forge
 dependencies:
-  - python=3.12
+  - python=3.11
   - requests
   - cartopy
-  - earthaccess
   - python-dateutil
   - s3fs
   - pandas
@@ -14,7 +13,7 @@ dependencies:
   - netCDF4
   - unidecode
   - tqdm
-  - gdal=3.11.0
+  - gdal=3.11.*
   - astropy
   - jdcal
   - xarray
@@ -23,3 +22,4 @@ dependencies:
   - matplotlib
   - pyproj
   - numpy
+  - earthaccess

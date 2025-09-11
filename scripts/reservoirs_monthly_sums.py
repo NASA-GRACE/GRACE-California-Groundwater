@@ -60,7 +60,7 @@ def parse_arguments(options: Options) -> None:
                         help="end date yyyy-mm-dd format in reservoir filenames")
     parser.add_argument("--units", default="km3", choices=["km3", "m3"],
                         help="Units for output")
-    parser.add_argument('-debug', action='store_true',
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):

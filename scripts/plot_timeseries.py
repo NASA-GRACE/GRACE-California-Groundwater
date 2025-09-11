@@ -44,9 +44,9 @@ def parse_arguments(options: Options) -> None:
     parser = argparse.ArgumentParser(description='Plot time series from CSV file(s)')
     parser.add_argument("--csv_files", type=list[Path], default=options.default_csv_files,
                         help=f'Path(s) to your CSV file(s); if none given, uses the latest .csv file in {os.fspath(options.timeseries_dir)})')
-    parser.add_argument("--groundwater", action='store_true',
+    parser.add_argument("--groundwater", action="store_true",
                         help=f"If set, plot groundwater time series by loading {list(map(os.fspath, options.default_groundwater_files))} (overrides --csv_files if given)")
-    parser.add_argument("--debug", action='store_true',
+    parser.add_argument("--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, 'debug', False):
