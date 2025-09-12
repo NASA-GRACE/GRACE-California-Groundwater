@@ -126,7 +126,6 @@ def extract_blurb(path: str | os.PathLike[str]) -> str | None:
         return "water year"
     elif "calendar_year" in path:
         return "calendar year"
-    logging.error(f'Could not determine smoothing or year type from filename: {path}')
     return None
 
 
@@ -169,6 +168,10 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
 
     # Pull out every blurb
     blurbs = [extract_blurb(p) for p in csv_paths]
+    if options.args.groundwater:
+        for path, blurb in zip(csv_paths, blurbs):
+            if not blurb:
+                logging.warning(f"Could not determine smoothing or year type from filename: {path}")
     # keep only non‐None blurbs
     non_empty = [b for b in blurbs if b]
     # if there’s more than one line and exactly one unique blurb, treat it as “common”

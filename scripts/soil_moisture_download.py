@@ -37,12 +37,12 @@ def parse_arguments(options: Options) -> None:
     parser.add_argument("--doi", default=options.default_doi,
         help=(f"DOI to use for the search_data call (default: {options.default_doi})\n"
               "More choices:\n"
-              "10.5067/45T7K120BJ2S : NLDAS VIC    LSM L4 Hourly  0.125 degree v2.0\n"
-              "10.5067/NL7JTZYO2RVK : NLDAS VIC    LSM L4 Monthly 0.125 degree v2.0\n"
-              "10.5067/T4OW83T8EXDO : NLDAS Noah   LSM L4 Hourly  0.125 degree v2.0\n"
-              "10.5067/WB224IA3PVOJ : NLDAS Noah   LSM L4 Monthly 0.125 degree v2.0\n"
-              "10.5067/TS58ZCJZIWT5 : NLDAS Mosaic LSM L4 Hourly  0.125 degree v2.0\n"
-              "10.5067/YQ1P3OP48R8M : NLDAS Mosaic LSM L4 Monthly 0.125 degree v2.0\n\n"))
+              f"10.5067/45T7K120BJ2S : {options.soil_moisture_model} VIC    LSM L4 Hourly  0.125 degree v2.0\n"
+              f"10.5067/NL7JTZYO2RVK : {options.soil_moisture_model} VIC    LSM L4 Monthly 0.125 degree v2.0\n"
+              f"10.5067/T4OW83T8EXDO : {options.soil_moisture_model} Noah   LSM L4 Hourly  0.125 degree v2.0\n"
+              f"10.5067/WB224IA3PVOJ : {options.soil_moisture_model} Noah   LSM L4 Monthly 0.125 degree v2.0\n"
+              f"10.5067/TS58ZCJZIWT5 : {options.soil_moisture_model} Mosaic LSM L4 Hourly  0.125 degree v2.0\n"
+              f"10.5067/YQ1P3OP48R8M : {options.soil_moisture_model} Mosaic LSM L4 Monthly 0.125 degree v2.0\n\n"))
     parser.add_argument("--timespan", type=str, nargs=2, default=options.default_timespan,
                         help=f"Timespan as two dates or datetimes in YYYY, YYYY-MM, YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS format. A datetime of 'NOW' will return the current datetime. For example: '-timespan 1980-01-01 1981-01-01' or 'timespan 1980-01-01T00:00:00 1980-01-01T12:30:00' or 'timespan 2017-02 NOW' (default: {' '.join(options.default_timespan)})\n\n")
     parser.add_argument("--region", type=float, nargs=4, default=options.default_region,
@@ -92,7 +92,7 @@ def download_NLDAS_data(options: Options) -> None:
         RuntimeError: If no files are found for the specified search criteria.
     """
     start_dt, end_dt = validate_inputs(options)
-    logging.info("Downloading soil moisture data from NLDAS using Earthaccess...")
+    logging.info(f"Downloading soil moisture data from {options.soil_moisture_model} using Earthaccess...")
     logging.info("Logging in...")
     auth = earthaccess.login()  # (requires that Earthdata credentials/files already exist)
 
@@ -108,6 +108,8 @@ def download_NLDAS_data(options: Options) -> None:
     logging.info("Downloading data...")
     downloaded_files = earthaccess.download(results, local_path=options.args.local_dir)
     logging.info(f"Downloaded files: {downloaded_files}")
+    logging.info(f"Successfully downloaded soil moisture data from {options.soil_moisture_model} using Earthaccess...")
+
 
 
 def validate_inputs(options: Options) -> tuple[dt.datetime, dt.datetime]:
