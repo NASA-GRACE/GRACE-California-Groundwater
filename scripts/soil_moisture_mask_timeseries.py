@@ -28,7 +28,7 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name:          Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.my_name:           str = Path(__file__).stem  # The name of this script without the .py extension
         self.newvar:            str = "SMTa"  # New variable name for soil moisture
         self.masks_dir:        Path = self.project_root     / "input_data" / "masks"
         self.gridded_data_dir: Path = self.project_root     / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_concatenated"
@@ -59,7 +59,7 @@ def parse_arguments(options: Options) -> None:
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
-    if getattr(options.args, 'debug', False):
+    if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
     options.args.out_dir.mkdir(          parents=True, exist_ok=True)
     options.args.mask_nc.parent.mkdir(   parents=True, exist_ok=True)

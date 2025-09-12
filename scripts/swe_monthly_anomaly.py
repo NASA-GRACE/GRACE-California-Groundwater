@@ -25,7 +25,7 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name:                Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.my_name:                 str = Path(__file__).stem  # The name of this script without the .py extension
         self.default_err_coeff:     float = 0.20  # Default error coefficient (20%)
         self.default_input_dir:      Path = self.swe_dir / "monthly_data"
         self.default_mask1_dir:      Path = self.swe_dir / "masks" / "basin_masks"
@@ -60,7 +60,7 @@ def parse_arguments(options: Options) -> None:
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
-    if getattr(options.args, 'debug', False):
+    if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
 
 

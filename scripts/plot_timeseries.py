@@ -23,7 +23,7 @@ class Options(ra.PlotOptions):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.PlotOptions and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name:                         Path = Path(__file__).stem  # The name of this script without the .py extension
+        self.my_name:                          str = Path(__file__).stem  # The name of this script without the .py extension
         self.default_csv_files:         list[Path] = [self.timeseries_dir /  "LATEST.csv"]  # default to intermediate files (not the final groundwater files) by loading the latest CSV in self.timeseries_dir
         self.default_groundwater_files: list[Path] = [self.output_dir     / f"LATEST_groundwater_{self.default_basin_safename}*unsmoothed*.csv"]
 
@@ -34,33 +34,33 @@ class Options(ra.PlotOptions):
         # self.discontinuities: list[dt.datetime] = []  # Uncomment this line to have no discontinuities
         self.discontinuities: list[dt.datetime] = [ra.parse_datetime(d, timezone='naive') for d in ['2018-05-01']]
         self.estimate_trends = 1  # 1 = estimate trends, 0 = do not estimate
-        self.units = 'km³'
+        self.units = "km³"
 
         self.dark_mode   = 1  # 1 = dark mode, 0 = light mode
 
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
-    parser = argparse.ArgumentParser(description='Plot time series from CSV file(s)')
-    parser.add_argument("--csv_files", type=list[Path], default=options.default_csv_files,
-                        help=f'Path(s) to your CSV file(s); if none given, uses the latest .csv file in {os.fspath(options.timeseries_dir)})')
+    parser = argparse.ArgumentParser(description="Plot time series from CSV file(s)")
+    parser.add_argument("--csv_files",  nargs="+", type=Path, default=options.default_csv_files, metavar="CSV",
+                        help=f"Path(s) to your CSV file(s); if none given, uses the latest .csv file in {os.fspath(options.timeseries_dir)})")
     parser.add_argument("--groundwater", action="store_true",
                         help=f"If set, plot groundwater time series by loading {list(map(os.fspath, options.default_groundwater_files))} (overrides --csv_files if given)")
     parser.add_argument("--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
-    if getattr(options.args, 'debug', False):
+    if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
-    if getattr(options.args, 'groundwater', False):
+    if getattr(options.args, "groundwater", False):
         options.args.csv_files = options.default_groundwater_files
-        logging.info(f'--groundwater argument set: using groundwater CSV files {list(map(os.fspath, options.args.csv_files))}')
+        logging.info(f"--groundwater argument set: using groundwater CSV files {list(map(os.fspath, options.args.csv_files))}")
 
 
 def main() -> None:
     """Main function to parse arguments and make the plot."""
     options = Options()
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
-                        datefmt='%Y-%m-%d %H:%M:%S')
+                        datefmt="%Y-%m-%d %H:%M:%S")
     parse_arguments(options)
 
     # Any file with "LATEST"
@@ -74,22 +74,22 @@ def main() -> None:
                 raise FileNotFoundError(
                     f"No files matching pattern {pattern} found in {os.fspath(csv_file.parent)}"
                 )
-            resolved = max(matches, key=lambda p: p.stat().st_ctime)
+            resolved = max(matches, key=lambda p: p.stat().st_mtime)
         # normalize
         csv_files[i] = resolved.expanduser().resolve()
-    logging.info(f'Resolved CSV files: {list(map(os.fspath, csv_files))}')
+    logging.info(f"Resolved CSV files: {list(map(os.fspath, csv_files))}")
 
     # Extract datatype for each file, ensure they all match
     dlist = []
     print(f"CSV files to plot: {list(map(os.fspath, csv_files))}")
     print(f"Available datatypes: {options.datatypes}")
     for f in csv_files:
-        found = [dt for dt in options.datatypes if dt.casefold() in f.name.casefold()]
+        found = [datatype for datatype in options.datatypes if datatype.casefold() in f.name.casefold()]
         if not found:
-            raise ValueError(f'CSV file must contain one of {options.datatypes}: got {f}')
+            raise ValueError(f"CSV file must contain one of {options.datatypes}: got {f}")
         dlist.append(found[0])
     if len(set(dlist)) != 1:
-        logging.error(f'All CSV files must share the same datatype; got {set(dlist)}')
+        logging.warning(f"Expected all CSV files to share the same datatype, but they are: {set(dlist)}")
     datatype = dlist[0]
 
     # Extract basin title for each file
@@ -97,17 +97,20 @@ def main() -> None:
     for f in csv_files:
         matches = [m for m in options.basin_safenames if m in f.name.casefold()]
         if len(matches) != 1:
-            raise ValueError(f'CSV file must contain exactly one basin mask; got {os.fspath(f)}')
+            raise ValueError(f"CSV files must contain exactly one basin mask; got {os.fspath(f)}")
         basin_titles.append(options.reverse_safename_map[matches[0]])
 
     make_plot(options, csv_files, datatype, basin_titles)
 
 
-def extract_blurb(path: str | os.PathLike[str]) -> str | None:
+def extract_blurb(options: Options, path: str | os.PathLike[str]) -> str | None:
     """
-    Extract a blurb from the filename, e.g. 'GRACE_smoothed_3mo_water_year.csv' → 'smoothed (3mo)'.
-    
+    Extract a blurb from the filename, e.g. "groundwater_smoothed_3mo_water_year.csv" → "smoothed (3mo)".
+    Only applies if options.args.groundwater is True.
+
     Args:
+        options: Options instance with various settings. Contains:
+           - args.groundwater: boolean flag showing if blurbs are needed.
         path: Path to the CSV file.
 
     Returns:
@@ -116,16 +119,21 @@ def extract_blurb(path: str | os.PathLike[str]) -> str | None:
     Raises:
         None.
     """
-    path = str(path)
-    a_match = re.search(r"(_smoothed_\d+mo_)", path)
-    if a_match:
-        return a_match.group(1)[1:-1].replace('_', ' (')+')'  # remove leading and trailing underscores, then format the "3mo" part to " (3mo)"
-    if "unsmoothed" in path:
+    # Only activate for groundwater plots
+    if not getattr(options.args, "groundwater", False):
+        return None
+    path_str = os.fspath(path)
+    path_lower = path_str.casefold()
+    m = re.search(r"_smoothed_(\d+)mo_", path_lower)
+    if m:
+        return f"smoothed ({m.group(1)}mo)"
+    if "unsmoothed" in path_lower:
         return "unsmoothed"
-    elif "water_year" in path:
+    elif "water_year" in path_lower:
         return "water year"
-    elif "calendar_year" in path:
+    elif "calendar_year" in path_lower:
         return "calendar year"
+    logging.warning(f"Could not determine smoothing or year type from filename: {path_str}")
     return None
 
 
@@ -150,13 +158,13 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
         FileNotFoundError: If any of the CSV files do not exist (raised when pandas tries to read them).
     """
     if len(csv_paths) == 1:
-        title  = plot_title or f'{datatype} anomaly in {basin_titles[0]}'
-        ylabel = y_label    or f'{datatype} anomaly ({options.units})'
+        title  = plot_title or f"{datatype} anomaly in {basin_titles[0]}"
+        ylabel = y_label    or f"{datatype} anomaly ({options.units})"
     else:
-        title  = plot_title or f'{datatype} anomalies'
-        ylabel = y_label    or f'{datatype} anomaly ({options.units})'
+        title  = plot_title or f"{datatype} anomalies"
+        ylabel = y_label    or f"{datatype} anomaly ({options.units})"
 
-    plt.rcParams.update({'font.size': options.fsize, 'figure.facecolor': options.background_color})
+    plt.rcParams.update({"font.size": options.fsize, "figure.facecolor": options.background_color})
     fig, ax = plt.subplots(figsize=options.myfigsize, facecolor=options.background_color)
     ax.set_facecolor(options.background_color)
     ax.xaxis.label.set_color(options.text_color)
@@ -167,14 +175,10 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
         spine.set_color(options.text_color)
 
     # Pull out every blurb
-    blurbs = [extract_blurb(p) for p in csv_paths]
-    if options.args.groundwater:
-        for path, blurb in zip(csv_paths, blurbs):
-            if not blurb:
-                logging.warning(f"Could not determine smoothing or year type from filename: {path}")
+    blurbs = [extract_blurb(options, p) for p in csv_paths]
     # keep only non‐None blurbs
     non_empty = [b for b in blurbs if b]
-    # if there’s more than one line and exactly one unique blurb, treat it as “common”
+    # if there’s more than one line to plot and exactly one unique blurb, treat it as “common”
     common_blurb = None
     if len(csv_paths) > 1 and non_empty and len(set(non_empty)) == 1:
         common_blurb = non_empty[0]
@@ -186,7 +190,7 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
     for idx, (path, basin) in enumerate(zip(csv_paths, basin_titles)):
         df = pd.read_csv(path, parse_dates=[0])
         if df.shape[1] != 3:
-            raise ValueError(f'Expected CSV with three columns, got {list(df.columns)} in {os.fspath(path)}')
+            raise ValueError(f"Expected CSV with three columns, got {list(df.columns)} in {os.fspath(path)}")
         # Eliminate any rows with NaN values
         df = df.dropna()
         date_col, val_col, err_col = df.columns
@@ -199,20 +203,20 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
         else:
             c  = options.colors     [idx % len(options.colors)]
             fc = options.lightcolors[idx % len(options.lightcolors)]
-        if c == 'black':
-            edgecolor = 'white'
-        elif c == 'blue':
-            edgecolor = 'lightgrey'
+        if c == "black":
+            edgecolor = "white"
+        elif c == "blue":
+            edgecolor = "lightgrey"
         else:
-            edgecolor = 'black'
+            edgecolor = "black"
 
         the_label = f"{basin}"
-        this_blurb = extract_blurb(path)
+        this_blurb = extract_blurb(options, path)
         if include_blurb and this_blurb:
             the_label = f"{the_label}, {this_blurb}"
 
         # Trend estimation:
-        if options.estimate_trends:
+        if options.estimate_trends and len(df) >= 2: # don't try to fit to < 2 pts
             # Convert dates to matplotlib's internal date format
             x = mdates.date2num(df[date_col])
             # fit a line: slope is in “units per day”
@@ -257,20 +261,20 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
     ax.set_title(title, fontsize=options.fsize + 4, color=options.text_color)
     ax.set_ylabel(ylabel, fontsize=options.fsize, color=options.text_color)
 
-    date_fmt = mdates.DateFormatter('%Y')
+    date_fmt = mdates.DateFormatter("%Y")
     ax.xaxis.set_major_formatter(date_fmt)
-    plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
+    plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
 
     if len(csv_paths) > 1 or options.estimate_trends:
         ax.legend(fontsize=options.fsize - 4, facecolor=options.background_color,
                   edgecolor=options.text_color, labelcolor=options.text_color)
 
-    timestamp   = dt.datetime.now().strftime('%Y%m%d_%H%M%S')
-    darkstring = 'dark_mode' if options.dark_mode else 'light_mode'
+    timestamp   = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    darkstring = "dark_mode" if options.dark_mode else "light_mode"
     output_path = options.graphics_dir / (ra.filename_format(f"{datatype}_comparison_{darkstring}_{timestamp}") + ".png")
-    fig.savefig(output_path, dpi=options.dpi_choice, bbox_inches='tight', facecolor=fig.get_facecolor())
+    fig.savefig(output_path, dpi=options.dpi_choice, bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close(fig)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
