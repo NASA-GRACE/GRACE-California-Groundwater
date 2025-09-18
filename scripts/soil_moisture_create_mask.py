@@ -55,7 +55,7 @@ def main() -> None:
     options = Options()
     parse_arguments(options)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
-                        datefmt='%Y-%m-%d %H:%M:%S')
+                        datefmt="%Y-%m-%d %H:%M:%S")
 
     if options.soil_moisture_model == "NLDAS":
         create_mask_for_NLDAS(options)
@@ -69,7 +69,7 @@ def create_mask_for_NLDAS(options: Options) -> None:
     
     Args:
         options: An Options instance with parsed command line arguments in options.args. Contains:
-           - basin: Basin identifier (e.g., 'California', 'Sacramento', etc.).
+           - basin: Basin identifier (e.g., "California", "Sacramento", etc.).
            - shape_dir: Directory containing shapefiles.
            - masks_dir: Directory to save generated masks.
            - gridded_data_dir: Directory containing gridded soil moisture data (netCDF files).
@@ -174,8 +174,8 @@ def create_mask_for_NLDAS(options: Options) -> None:
         -1*(res_lat),  # 5  Y resolution
     )
 
-    mask = gdal.GetDriverByName('MEM').Create(
-        '',             # No filename required for in-memory dataset.
+    mask = gdal.GetDriverByName("MEM").Create(
+        "",             # No filename required for in-memory dataset.
         n_lon, n_lat,   # Dimensions of the output mask (x,y)
         1,              # Output mask should contain only one band.
         gdal.GDT_Byte,  # Output type should be byte [0,1].
@@ -220,7 +220,7 @@ def create_mask_for_NLDAS(options: Options) -> None:
         # If something is truly wrong (neither a direct match nor a swap), you'll see a clear error.
         raise RuntimeError(f"Could not align mask grid to water grid:\n{e}") from e
 
-    logging.info(f"{mask_ds_aligned.mask.dims = }")   # should say ('lat', 'lon')
+    logging.info(f"{mask_ds_aligned.mask.dims = }")   # should say ("lat", "lon")
     logging.info(f"{mask_ds_aligned.mask.shape = }")  # should say (n_lat, n_lon)
 
     # At this point, mask_ds_aligned.lat == ds_water.lat  (same shape & same values),

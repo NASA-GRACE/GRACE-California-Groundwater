@@ -23,11 +23,11 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:                  str = Path(__file__).stem  # The name of this script without the .py extension
-        self.thevar:                   str = 'SMTa'  # variable name in the netCDF file
+        self.thevar:                   str = "SMTa"  # variable name in the netCDF file
         self.default_masked_dir:      Path = self.project_root / "input_data" / "masked_timeseries"
         self.default_masked_filepath: Path = self.default_masked_dir / f"LATEST_{self.thevar}.nc"
 
-        self.default_cmap:             str = 'RdBu'
+        self.default_cmap:             str = "RdBu"
         self.default_map_border:     float =  -1.0  # degrees to pad around data; negative disables auto-zoom
         self.default_central_lon:    float = 180.0  # central longitude for PlateCarree projection
 
@@ -41,11 +41,11 @@ def parse_arguments(options: Options) -> None:
                         help=f"Name of the input netCDF file")
     parser.add_argument("-out_dir", type=Path, default=options.graphics_dir,
                         help=f"Output directory for PNG files (default: {options.graphics_dir})")
-    parser.add_argument('-cmap', type=str, default=options.default_cmap,
+    parser.add_argument("-cmap", type=str, default=options.default_cmap,
                         help=f"Matplotlib colormap (default: {options.default_cmap})")
-    parser.add_argument('-map_border', type=float, default=options.default_map_border,
+    parser.add_argument("-map_border", type=float, default=options.default_map_border,
                         help=f"Degrees to pad around data for auto-zoom; negative disables (default: {options.default_map_border})")
-    parser.add_argument('-central_lon', type=float, default=options.default_central_lon,
+    parser.add_argument("-central_lon", type=float, default=options.default_central_lon,
                         help=f"Central longitude for PlateCarree projection (default: {options.default_central_lon})")
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
@@ -62,7 +62,7 @@ def main() -> None:
     options = Options()
     parse_arguments(options)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
-                        datefmt='%Y-%m-%d %H:%M:%S')
+                        datefmt="%Y-%m-%d %H:%M:%S")
 
     if options.soil_moisture_model == "NLDAS":
         map_fields_for_NLDAS(options)
@@ -94,14 +94,14 @@ def map_fields_for_NLDAS(options: Options) -> None:
         logging.info(f"Using latest netCDF file: {options.args.nc_path}")
 
     # Extract the part of the filename between "soil moisture model_" (e.g. "NLDAS_") and the date:
-    themask = options.args.nc_path.name.split(f'{options.soil_moisture_model}_')[1].split('_mask_')[0] \
-                  if f'{options.soil_moisture_model}_' in options.args.nc_path.name \
-                  else ''
+    themask = options.args.nc_path.name.split(f"{options.soil_moisture_model}_")[1].split("_mask_")[0] \
+                  if f"{options.soil_moisture_model}_" in options.args.nc_path.name \
+                  else ""
 
     # Set up output path if it doesn't exist already.
     options.args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = dt.datetime.now().strftime('%Y%m%d_%H%M%S')
+    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     out_png   = options.args.out_dir / f"{options.thevar}_map_{timestamp}.png"
     suffix = f"_{themask}" if themask else ""
     out_movie = options.args.out_dir / f"{options.thevar}_movie{suffix}_{timestamp}.mp4"
@@ -111,9 +111,9 @@ def map_fields_for_NLDAS(options: Options) -> None:
     frames_dir.mkdir(parents=True, exist_ok=True)
 
     plot_kwargs = {
-        'vmin': None,
-        'vmax': None,
-        # you can also pass 'extent': [lon_min, lon_max, lat_min, lat_max]
+        "vmin": None,
+        "vmax": None,
+        # you can also pass "extent": [lon_min, lon_max, lat_min, lat_max]
     }
 
     # Plot mean of thevar (now supports an optional extent if you want to zoom)
@@ -165,24 +165,24 @@ def plot_nc_var(options: Options, data2d: np.ndarray, thevar: str, lons: np.ndar
     # Set up the figure + map
     fig, ax = plt.subplots(
         figsize=(12, 6),
-        subplot_kw={'projection': ccrs.PlateCarree(central_longitude=options.args.central_lon)}
+        subplot_kw={"projection": ccrs.PlateCarree(central_longitude=options.args.central_lon)}
     )
-    ax.coastlines('110m', linewidth=0.5)
-    ax.add_feature(cfeature.LAND,    facecolor='lightgray')
-    ax.add_feature(cfeature.OCEAN,   facecolor='white')
-    ax.add_feature(cfeature.BORDERS, linestyle=':', linewidth=0.5)
-    ax.add_feature(cfeature.STATES,  linestyle=':', linewidth=0.5)
+    ax.coastlines("110m", linewidth=0.5)
+    ax.add_feature(cfeature.LAND,    facecolor="lightgray")
+    ax.add_feature(cfeature.OCEAN,   facecolor="white")
+    ax.add_feature(cfeature.BORDERS, linestyle=":", linewidth=0.5)
+    ax.add_feature(cfeature.STATES,  linestyle=":", linewidth=0.5)
 
     if extent is not None:
         ax.set_extent(extent, crs=ccrs.PlateCarree())
 
     pcm = ax.pcolormesh(lons, lats, data2d, transform=ccrs.PlateCarree(),
                         cmap=options.args.cmap, vmin=vmin, vmax=vmax)
-    cbar = fig.colorbar(pcm, ax=ax, orientation='vertical', pad=0.02)
+    cbar = fig.colorbar(pcm, ax=ax, orientation="vertical", pad=0.02)
     cbar.set_label(f"{thevar} ({ds_units})")
 
     ax.set_title(title)
-    fig.savefig(out_png, dpi=200, bbox_inches='tight')
+    fig.savefig(out_png, dpi=200, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -206,7 +206,7 @@ def plot_mean_nc_var(options: Options, nc_path: str | os.PathLike[str], thevar: 
         None.
     """
     ds = xr.open_dataset(nc_path, decode_times=True)
-    mean_var = ds[thevar].mean(dim='time').values  # 2D array (lat, lon)
+    mean_var = ds[thevar].mean(dim="time").values  # 2D array (lat, lon)
     lons = ds['lon'].values
     lats = ds['lat'].values
     units = ds[thevar].attrs.get('units', '')
@@ -226,7 +226,7 @@ def plot_nc_var_at_time(options: Options, nc_path: str | os.PathLike[str], theva
         nc_path:                       Path to input netCDF file
         thevar:                        Variable name in the netCDF file
         out_png:                       Output PNG filename
-        time_index:                    Integer index along the 'time' dimension
+        time_index:                    Integer index along the "time" dimension
         vmin, vmax:                    Passed through to plot_nc_var()
         extent:                        Optional [lon_min, lon_max, lat_min, lat_max] to zoom in
     
@@ -245,7 +245,7 @@ def plot_nc_var_at_time(options: Options, nc_path: str | os.PathLike[str], theva
 
     # Derive date string for the title
     date_val = var_da['time'].values
-    date_str = np.datetime_as_string(date_val, unit='D')
+    date_str = np.datetime_as_string(date_val, unit="D")
     title    = f"Soil Moisture Anomaly on {date_str}"
 
     plot_nc_var(options, data2d=data2d, thevar=thevar, lons=lons, lats=lats, out_png=out_png,
@@ -325,12 +325,12 @@ def make_nc_var_movie(options: Options, nc_path: str | os.PathLike[str], thevar:
         return
     cmd = [
         ffmpeg_path,
-        '-y',
-        '-framerate', str(fps),
-        '-start_number', '0',
-        '-i', str(frames_dir / 'frame_%03d.png'),
-        '-c:v', 'libx264',
-        '-pix_fmt', 'yuv420p',
+        "-y",
+        "-framerate", str(fps),
+        "-start_number", "0",
+        "-i", str(frames_dir / "frame_%03d.png"),
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
         str(movie_path),
     ]
     subprocess.run(cmd, check=True)

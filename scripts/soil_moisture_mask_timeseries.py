@@ -71,7 +71,7 @@ def main() -> None:
     """Main function to compute a water storage anomalies using a river basin mask."""
     options = Options()
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
-                        datefmt='%Y-%m-%d %H:%M:%S')
+                        datefmt="%Y-%m-%d %H:%M:%S")
     parse_arguments(options)
 
     if options.soil_moisture_model == "NLDAS":
@@ -200,7 +200,7 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
         anomalies_dict[f"{var}_error"] = errors
 
     # Output the computed anomalies to CSV and NetCDF files
-    fieldnames = ['date']
+    fieldnames = ["date"]
     for var in var_list:
         fieldnames.append(var)
         fieldnames.append(f"{var}_error")
@@ -308,23 +308,23 @@ def sum_soil_moisture_by_depth(options: Options, ds: xr.Dataset) -> None:
         ValueError: If no soil moisture variable is found or if multiple are found.
     """
     # list all the candidate soil-moisture variables you might have
-    soil_moisture_names = ['SoilM_0_100cm']
+    soil_moisture_names = ["SoilM_0_100cm"]
 
     # find which of those are actually in ds
     found = [name for name in soil_moisture_names if name in ds.data_vars]
 
     if len(found) == 1:
         var = found[0]
-        if 'depth' in ds[var].dims:
+        if "depth" in ds[var].dims:
             # sum over the depth dimension and call it options.newvar
             ds[options.newvar] = ds[var].sum(dim='depth')
-            ds[options.newvar].attrs['units'] = 'mm H2O'
+            ds[options.newvar].attrs['units'] = "mm H2O"
             # drop the original var and any depth bounds
-            ds = ds.drop_vars([var, 'depth_bnds'], errors='ignore')
+            ds = ds.drop_vars([var, "depth_bnds"], errors="ignore")
             logging.info(f"Summed '{var}' by depth into '{options.newvar}'.")
         else:
             ds[options.newvar] = ds[var]
-            ds[options.newvar].attrs['units'] = 'mm H2O'
+            ds[options.newvar].attrs['units'] = "mm H2O"
             logging.info(f"'{var}' has no 'depth' dimension; skipping soil-moisture summation.")
     elif len(found) == 0:
         raise ValueError(f"No soil moisture variable found.\nTried: {soil_moisture_names!r};\nAvailable: {list(ds.data_vars)}")
@@ -424,8 +424,8 @@ def output_csv(output_file: str | os.PathLike[str], fieldnames: list[str],
     Raises:
         None.
     """
-    with open(output_file, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames, dialect='excel')
+    with open(output_file, "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames, dialect="excel")
         writer.writeheader()
         for i, date in enumerate(times):
             row = {fieldnames[0]: date}
@@ -461,7 +461,7 @@ def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, i
     Raises:
         None.
     """
-    nc_out = Dataset(output_file, 'w', format='NETCDF4')
+    nc_out = Dataset(output_file, "w", format="NETCDF4")
     nc_out.createDimension(t_var, None)
     nc_out.createDimension(y_var, len(ds.lat.data))
     nc_out.createDimension(x_var, len(ds.lon.data))
@@ -485,18 +485,18 @@ def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, i
         var_time = ds[t_var]
         time_var.standard_name = var_time.attrs.get('standard_name', t_var)
         time_var.long_name = t_var
-        time_var.units = var_time.attrs.get('units', "days since 2002-01-01 00:00:00 UTC")
-        time_var.calendar = var_time.attrs.get('calendar', "gregorian")
+        time_var.units = var_time.attrs.get('units', 'days since 2002-01-01 00:00:00 UTC')
+        time_var.calendar = var_time.attrs.get('calendar', 'gregorian')
     if y_var in ds.variables:
         var_lat = ds[y_var]
-        lat_var.standard_name = var_lat.attrs.get('standard_name', "latitude")
-        lat_var.long_name = var_lat.attrs.get('long_name', "latitude")
-        lat_var.units = var_lat.attrs.get('units', "degrees_north")
+        lat_var.standard_name = var_lat.attrs.get('standard_name', 'latitude')
+        lat_var.long_name = var_lat.attrs.get('long_name', 'latitude')
+        lat_var.units = var_lat.attrs.get('units', 'degrees_north')
     if x_var in ds.variables:
         var_lon = ds[x_var]
-        lon_var.standard_name = var_lon.attrs.get('standard_name', "longitude")
-        lon_var.long_name = var_lon.attrs.get('long_name', "longitude")
-        lon_var.units = var_lon.attrs.get('units', "degrees_east")
+        lon_var.standard_name = var_lon.attrs.get('standard_name', 'longitude')
+        lon_var.long_name = var_lon.attrs.get('long_name', 'longitude')
+        lon_var.units = var_lon.attrs.get('units', 'degrees_east')
 
     # Write anomaly data for each variable
     for var in var_list:
@@ -514,7 +514,7 @@ def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, i
         out_var[:] = data_array
 
     # Global attributes
-    nc_out.Conventions = 'CF-1.6'
+    nc_out.Conventions = "CF-1.6"
     nc_out.history = f"Created on {dt.datetime.now(dt.timezone.utc).isoformat()}+00:00"
     nc_out.featureType = "timeSeries"
     nc_out.close()

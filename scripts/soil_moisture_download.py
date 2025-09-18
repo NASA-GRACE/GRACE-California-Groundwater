@@ -66,7 +66,7 @@ def main() -> None:
     options = Options()
     parse_arguments(options)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
-                        datefmt='%Y-%m-%d %H:%M:%S')
+                        datefmt="%Y-%m-%d %H:%M:%S")
 
     if options.soil_moisture_model == "NLDAS":
         download_NLDAS_data(options)

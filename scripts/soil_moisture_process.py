@@ -60,7 +60,7 @@ def main() -> None:
     options = Options()
     parse_arguments(options)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
-                        datefmt='%Y-%m-%d %H:%M:%S')
+                        datefmt="%Y-%m-%d %H:%M:%S")
 
     if options.soil_moisture_model == "NLDAS":
         process_NLDAS_data(options)
@@ -148,7 +148,7 @@ def discover_files(options: Options) -> None:
     # Check for non-readable files
     for fpath in options.in_files:
         try:
-            with Path(fpath).open('r'):
+            with Path(fpath).open("r"):
                 pass
         except (FileNotFoundError, PermissionError):
             raise ValueError(f"File not readable: {fpath}")
