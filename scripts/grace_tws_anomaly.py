@@ -65,11 +65,16 @@ def parse_arguments(options: Options) -> None:
                         help="Optional anomaly baseline start date (YYYY-MM-DD)")
     parser.add_argument("--baseline_end", default=None,
                         help="Optional anomaly baseline end date (YYYY-MM-DD)")
+    parser.add_argument("--full", action="store_true",
+                        help=argparse.SUPPRESS)
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
+    # if options.args.full:
+    #     options.args.start_date = options.full_start
+    #     options.args.end_date   = options.full_end
     # Format dates as YYYY-MM-DD regardless of their original format by parsing and reformatting.
     options.args.start_date = (ra.parse_datetime(options.args.start_date)).strftime("%Y-%m-%d")
     options.args.end_date   = (ra.parse_datetime(options.args.end_date  )).strftime("%Y-%m-%d")

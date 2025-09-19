@@ -25,9 +25,6 @@ class Options(ra.Options):
         self.default_region_name:    str = self.default_basin_safename #default_basin
         self.default_input_xlsx:    Path = self.reservoirs_dir / f"{self.reservoirs_model.lower()}_data_webpage.xlsx"
 
-        self.default_start_date:     str = self.test_start
-        self.default_end_date:       str = self.test_end
-
         if self.default_region_name == "california":
             self.default_shapefile:     Path = self.project_root / "input_data" / "shapefiles" / "hybas_na_lev04_v1c.shp"
             self.default_allowed_names: list = ["22"]
@@ -55,9 +52,9 @@ def parse_arguments(options: Options) -> None:
                         help="Directory containing site CSVs")
     parser.add_argument("--output_dir", default=options.default_output_dir,
                         help="Directory to save per-region outputs")
-    parser.add_argument("--start_date", default=options.default_start_date,
+    parser.add_argument("--start_date", default=options.test_start,
                         help="start date yyyy-mm-dd format in reservoir filenames")
-    parser.add_argument("--end_date", default=options.default_end_date,
+    parser.add_argument("--end_date", default=options.test_end,
                         help="end date yyyy-mm-dd format in reservoir filenames")
     parser.add_argument("--units", default="km3", choices=["km3", "m3"],
                         help="Units for output")
@@ -67,7 +64,9 @@ def parse_arguments(options: Options) -> None:
     options.args = parser.parse_args()
     if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
-
+    if options.args.full:
+        options.args.start_date = options.full_start
+        options.args.end_date   = options.full_end
     # Format dates as YYYY-MM-DD regardless of their original format by parsing and reformatting.
     options.args.start_date = (ra.parse_datetime(options.args.start_date)).strftime("%Y-%m-%d")
     options.args.end_date   = (ra.parse_datetime(options.args.end_date  )).strftime("%Y-%m-%d")

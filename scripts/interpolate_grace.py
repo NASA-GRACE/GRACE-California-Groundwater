@@ -32,6 +32,8 @@ def parse_arguments(options: Options) -> None:
                         help=f"Output filename (default: {options.default_output_filename})")
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
+    parser.add_argument("--full", action="store_true",
+                        help=argparse.SUPPRESS)
     options.args = parser.parse_args()
     if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
