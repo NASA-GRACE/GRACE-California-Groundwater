@@ -31,8 +31,6 @@ class Options(ra.Options):
         self.my_name:                 str = Path(__file__).stem  # The name of this script without the .py extension
         self.default_csv_file:       Path = self.reservoirs_dir / f"{self.reservoirs_model.lower()}_data_webpage.csv"  # default reservoir list file
         self.default_out_dir:        Path = self.reservoirs_dir / "reservoir_data"
-        self.default_start_date:      str = "2005-01-01"
-        self.default_end_date:        str = "2005-12-31"
         self.default_data_type_input: str = "M"
 
 def parse_arguments(options: Options) -> None:
@@ -42,19 +40,24 @@ def parse_arguments(options: Options) -> None:
                         help=f"CSV file containing reservoir names and station IDs (default: '{options.default_csv_file}')")
     parser.add_argument("--output_dir", default=options.default_out_dir,
                         help=f"Directory for outputting {options.reservoirs_model} data (default: '{options.default_out_dir}')")
-    parser.add_argument('--data_type_input', default=options.default_data_type_input,
+    parser.add_argument("--data_type_input", default=options.default_data_type_input,
                         help="download monthly data for reservoirs.")
-    parser.add_argument('--start_date_str_input', default=options.default_start_date,
-                        help=f"End date (YYYY-MM-DD) (default: {options.default_start_date})")
-    parser.add_argument('--end_date_str_input', default=options.default_end_date,
-                        help=f"End date (YYYY-MM-DD) (default: {options.default_end_date})")
-
+    parser.add_argument("--start_date_str_input", default=options.test_start,
+                        help=f"Start date (YYYY-MM-DD) (default: {options.test_start})")
+    parser.add_argument("--end_date_str_input", default=options.test_end,
+                        help=f"End date (YYYY-MM-DD) (default: {options.test_end})")
+    parser.add_argument("--full", action="store_true",
+                        help=f"If set, download the full timespan ({options.full_start} - {options.full_end}).")
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
-
+    if options.args.full:
+        options.args.start_date_str_input, options.args.end_date_str_input = options.full_start, options.full_end
+    # Format dates as YYYY-MM-DD regardless of their original format by parsing and reformatting.
+    options.args.start_date_str_input = (ra.parse_datetime(options.args.start_date_str_input)).strftime("%Y-%m-%d")
+    options.args.end_date_str_input   = (ra.parse_datetime(options.args.end_date_str_input  )).strftime("%Y-%m-%d")
 
 def main() -> None:
     """Main function to download reservoirs data."""
@@ -82,7 +85,7 @@ def reservoirs_download_CDEC(options: Options) -> None:
         None. Downloads data and saves to output_dir.
     
     Raises:
-        None.
+        ValueError: If start date is after end date.
     """
     reservoir_list_file = options.args.reservoir_list_file
     output_dir          = options.args.output_dir
@@ -99,36 +102,25 @@ def reservoirs_download_CDEC(options: Options) -> None:
     duration_code = options.args.data_type_input
     time_period_name = "Daily" if duration_code == "D" else "Monthly"
 
-    while True:
-        try:
-            if not options.args.end_date_str_input:
-                end_date = datetime.now() - timedelta(days=1)
-            else:
-                end_date = datetime.strptime(options.args.end_date_str_input, "%Y-%m-%d")
-            break
-        except ValueError:
-            logging.error("Invalid date format. Please use YYYY-MM-DD.")
+    if not options.args.end_date_str_input:
+        end_date = datetime.now() - timedelta(days=1)
+    else:
+        end_date = datetime.strptime(options.args.end_date_str_input, "%Y-%m-%d")
 
-    while True:
-        try:
-            if duration_code == "D":
-                default_start_days = 30
-                period_name_prompt = "days"
-            else:
-                default_start_days = 365 * 2 # Default to 2 years for monthly, 5 can be a lot
-                period_name_prompt = f"days (for ~{default_start_days//365} years of monthly data)"
+    if duration_code == "D":
+        default_start_days = 30
+        period_name_prompt = "days"
+    else:
+        default_start_days = 365 * 2 # Default to 2 years for monthly, 5 can be a lot
+        period_name_prompt = f"days (for ~{default_start_days//365} years of monthly data)"
 
-            if not options.args.start_date_str_input:
-                start_date = end_date - timedelta(days=default_start_days)
-            else:
-                start_date = datetime.strptime(options.args.start_date_str_input, "%Y-%m-%d")
+    if not options.args.start_date_str_input:
+        start_date = end_date - timedelta(days=default_start_days)
+    else:
+        start_date = datetime.strptime(options.args.start_date_str_input, "%Y-%m-%d")
 
-            if start_date > end_date:
-                logging.error("Start date cannot be after end date. Please try again.")
-            else:
-                break
-        except ValueError:
-            logging.error("Invalid date format. Please use YYYY-MM-DD.")
+    if start_date > end_date:
+        raise ValueError("Start date cannot be after end date.")
 
     start_date_str_cdec = start_date.strftime("%Y-%m-%d")
     end_date_str_cdec   =   end_date.strftime("%Y-%m-%d")

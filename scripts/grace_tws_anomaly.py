@@ -36,14 +36,15 @@ class Options(ra.Options):
             return int(match.group(1)) if match else 0
         latest_nc_file = max(grace_nc_files, key=lambda f: extract_end_date(f.name))
         self.default_grace_file: str = latest_nc_file  
-        
+
+
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Process GRACE TWS data for a basin.")
     parser.add_argument("--start_date", default=options.default_start_date,
-                        help="Start date (YYYY-MM-DD)")
+                        help=f"Start date (default: {options.default_start_date})")
     parser.add_argument("--end_date", default=options.default_end_date,
-                        help="End date (YYYY-MM-DD)")
+                        help=f"End date (default: {options.default_end_date})")
     parser.add_argument("--scaling_factor", type=int, choices=[0, 1], default=1,
                         help="Apply scaling factor (1=yes, 0=no)")
     parser.add_argument("--file_access_type", default="local",
@@ -69,6 +70,13 @@ def parse_arguments(options: Options) -> None:
     options.args = parser.parse_args()
     if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
+    # Format dates as YYYY-MM-DD regardless of their original format by parsing and reformatting.
+    options.args.start_date = (ra.parse_datetime(options.args.start_date)).strftime("%Y-%m-%d")
+    options.args.end_date   = (ra.parse_datetime(options.args.end_date  )).strftime("%Y-%m-%d")
+    if options.args.baseline_start:
+        options.args.baseline_start = (ra.parse_datetime(options.args.baseline_start)).strftime("%Y-%m-%d")
+    if options.args.baseline_end:
+        options.args.baseline_end = (ra.parse_datetime(options.args.baseline_end)).strftime("%Y-%m-%d")
 
 
 # ===== Main function =====
@@ -268,7 +276,7 @@ def save_results(output_csv: str, dates: np.ndarray, tws: np.ndarray, bsn_sig: n
         bsn_sig = (bsn_sig / 100000) * (np.sum(ma) / 1e6)
 
     df = pd.DataFrame({"date": pd.to_datetime(dates), "tws": tws, "tws_error": bsn_sig})
-    
+
     if baseline: #not used as grace fo mascon is already an anomaly of mean (2004-2009)
         start, end = baseline
         mask = (df["date"] >= pd.to_datetime(start)) & (df["date"] <= pd.to_datetime(end))

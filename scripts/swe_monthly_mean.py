@@ -21,7 +21,7 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:  str = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_daily_dir: Path = self.swe_dir /  "daily_data"
+        self.default_daily_dir:  Path = self.swe_dir /   "daily_data"
         self.default_output_dir: Path = self.swe_dir / "monthly_data"
         self.default_scale_factor: float = 1000.0
         

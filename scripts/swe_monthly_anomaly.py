@@ -32,8 +32,7 @@ class Options(ra.Options):
         self.default_mask2_dir:      Path = self.swe_dir / "masks" / "repaired_masks"
         self.default_regions:        list = [self.default_basin_safename]
         self.default_output_regions: list = [f"{self.default_basin_safename}_mask"]
-        self.default_start_date:      str = "2005-01-01" #"2014-10-01"
-        self.default_end_date:        str = "2005-03-31" #"2019-10-31"
+
         
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
@@ -53,15 +52,23 @@ def parse_arguments(options: Options) -> None:
                         help=f"List of region codes (default: {options.default_regions})")
     parser.add_argument("--output_regions", default=options.default_output_regions, nargs="+",
                         help=f"List of output mask names (default: {options.default_output_regions})")
-    parser.add_argument("--start_date", default=options.default_start_date,
-                        help=f"Start date for alternate period (YYYY-MM-DD, default: {options.default_start_date})")
-    parser.add_argument("--end_date", default=options.default_end_date,
-                        help=f"End date for alternate period (YYYY-MM-DD, default: {options.default_end_date})")
+    parser.add_argument("--start_date", default=options.test_start,
+                        help=f"Start date for alternate period (YYYY-MM-DD, default: {options.test_start})")
+    parser.add_argument("--end_date", default=options.test_end,
+                        help=f"End date for alternate period (YYYY-MM-DD, default: {options.test_end})")
+    parser.add_argument("--full", action="store_true",
+                        help=f"If set, calculate the full timespan ({options.full_start} - {options.full_end})")
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
+    if options.args.full:
+        options.args.start_date = options.full_start
+        options.args.end_date   = options.full_end
+    # Format dates as YYYY-MM-DD regardless of their original format by parsing and reformatting.
+    options.args.start_date = (ra.parse_datetime(options.args.start_date)).strftime("%Y-%m-%d")
+    options.args.end_date   = (ra.parse_datetime(options.args.end_date  )).strftime("%Y-%m-%d")
 
 
 def main() -> None:
@@ -250,18 +257,18 @@ def compute_means_with_mask_switch(options: Options, file_list: list, region_mas
         df.insert(0, "date", all_dates)
         safe_name = output_regions[i].replace(" ", "_")
         os.makedirs(output_dir, exist_ok=True)
-        df['swe'] = df['swe']/1000000000 #swe multiplied by area in m3 to km3
+        df['swe']       = df['swe']/1000000000 #swe multiplied by area in m3 to km3
         df['swe_error'] = df['swe_error']/1000000000
         # compute anomaly
         # Filter the period from Jan 2004 to Dec 2009
         swe_values = df['swe'] 
         df['YearMonth'] = pd.to_datetime(df['date']).dt.to_period('M')
-        start_period = pd.Period('2004-01', freq='M')
-        end_period = pd.Period('2009-12', freq='M')
-        time_mask = (df['YearMonth'] >= start_period) & (df['YearMonth'] <= end_period)
-        baseline_mean = swe_values[time_mask].mean()
-        df['swe'] = swe_values - baseline_mean
-        csv_file = output_dir / f"anomaly_timeseries_{options.swe_model}_{safe_name}.csv"
+        start_period    = pd.Period('2004-01', freq='M')
+        end_period      = pd.Period('2009-12', freq='M')
+        time_mask       = (df['YearMonth'] >= start_period) & (df['YearMonth'] <= end_period)
+        baseline_mean   = swe_values[time_mask].mean()
+        df['swe']       = swe_values - baseline_mean
+        csv_file        = output_dir / f"anomaly_timeseries_{options.swe_model}_{safe_name}.csv"
         df.drop(columns=['YearMonth']).to_csv(csv_file, index=False)
         #df.drop(columns=['YearMonth']).to_csv(f"{output_dir}/anomaly_timeseries_{options.swe_model}_{safe_name}.csv", index=False)
     

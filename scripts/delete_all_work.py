@@ -60,7 +60,7 @@ def _delete_dir_contents(target: Path) -> None:
 
 def _confirm_delete_contents(target: Path, assume_yes: bool = False) -> None:
     """
-    Prompt the user: (y/N/q). 'y' deletes contents, 'q' quits the script,
+    Prompt the user: (y/N/q). "y" deletes contents, "q" quits the script,
     anything else cancels for this target.
     """
     logging.info()  # nice spacing between prompts
@@ -93,14 +93,14 @@ def main(argv: list[str] | None = None) -> int:
                         help="Assume 'yes' for all prompts (non-interactive).")
     args = parser.parse_args(argv)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
-                        datefmt='%Y-%m-%d %H:%M:%S')
+                        datefmt="%Y-%m-%d %H:%M:%S")
 
     targets: list[Path] = [
         options.soil_moisture_dir / "data_monthly",
         options.soil_moisture_dir / "data_concatenated",
-        options.project_root / "input_data" / "masks",
+        options.project_root      / "input_data"         / "masks",
         options.timeseries_dir,
-        options.reservoirs_dir / "reservoir_data",
+        options.reservoirs_dir    / "reservoir_data",
     ]
 
     logging.info(f"{targets=}")

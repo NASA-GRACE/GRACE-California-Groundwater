@@ -23,6 +23,8 @@ class Options:
         """Initialize the options with default values."""
         self.script_dir:              Path = Path(__file__).resolve().parent  # Figure out where this file lives on disk
         self.project_root:            Path = self.script_dir.parent           # Project root is one level above script_dir
+        self.test_start:               str = "2005-01-01"                     # Quick test timespan start
+        self.test_end:                 str = "2005-03-31T23:59:59"            # Quick test timespan end
         self.full_start:               str = "2004-01-01"                     # Start of full timeseries
         self.full_end:                 str = "NOW"                            # Current date/time is the end of the full timeseries
         self.soil_moisture_model:      str = "NLDAS"
@@ -223,7 +225,7 @@ def section_header(options: Options, title: str) -> None:
 def ensure_path_is_a_file(path: str | os.PathLike[str], raise_on_empty: bool = False) -> Path:
     """
     Ensure that the given path is an existing file and return it as a Path object.
-    
+
     Args:
         path:           The path to check.
         raise_on_empty: If True, raise an exception if the file is empty.
@@ -254,7 +256,7 @@ class PlotOptions(Options):
         self.myfigsize   = (16, 9)
         self.fsize       = 24
         self.dpi_choice  = 300
-        # keep immutable “base” palettes so we can recompute safely
+        # keep immutable "base" palettes so we can recompute safely
         self._base_colors      = ['black', 'red',    'blue',      'green',      'purple']
         self._base_lightcolors = ['grey',  'pink',   'lightblue', 'lightgreen', 'lightpurple']
         self.markers           = ['o',     's',      '^',         'v',          '<',          '>']
@@ -279,7 +281,7 @@ class PlotOptions(Options):
         if self._dark_mode:
             self.background_color = '#000000'
             self.text_color       = '#FFFFFF'
-            # recompute “view” palettes from the bases
+            # recompute "view" palettes from the bases
             self.colors      = [ ('darkgrey' if  c == 'black' else c) for c in self._base_colors ]
             self.lightcolors = [ ('lightgrey' if c == 'grey'  else c) for c in self._base_lightcolors ]
         else:
@@ -328,7 +330,7 @@ def filename_format(text: str, sep: str = "_", max_length: int = None) -> str:
 
     Returns:
         A clean, filename-safe string.
-    
+
     Raises:
         None: If the input text is None, it will return an empty string.
     """
@@ -375,12 +377,12 @@ def safestring(s: str) -> str:
     """
     Convert a string to a "safe" version by converting to lowercase,
     replacing spaces and special characters with underscores.
-    
+
     Args:
         s: The input string.
 
     Returns:
-        A "safe" lowercase version of the string with only alphanumeric 
+        A "safe" lowercase version of the string with only alphanumeric
         characters and underscores.
     """
     return filename_format(s.casefold())
@@ -441,7 +443,7 @@ def find_ffmpeg() -> str | None:
     sp = Path(sys.prefix)  # current Python env prefix
     candidates = [
         sp / "bin" / "ffmpeg",                 # Unix-like
-        sp / "Library" / "bin" / "ffmpeg.exe", # Windows (Conda)
+        sp / "Library" / "bin" / "ffmpeg.exe",  # Windows (Conda)
         sp / "Scripts" / "ffmpeg.exe",         # Windows (alt)
     ]
 
@@ -564,7 +566,7 @@ _TZ_ABBREV_TO_ZONE: dict[str, str] = {
     "NZDT" : "Pacific/Auckland",     # New Zealand Daylight Time
     "WET"  : "Europe/Lisbon",        # Western European Time
     "WEST" : "Europe/Lisbon",        # Western European Summer Time
-    # …add any others you need
+    # ...add any others you need
 }
 
 # Pre‐compile once for all calls.
@@ -596,7 +598,7 @@ def parse_timezone(tz_arg: str | dt.tzinfo | None = None) -> dt.tzinfo | str:
 
     Args:
         tz_arg : A timezone string, a datetime.tzinfo object, or None.
-    
+
     Returns:
         A datetime.tzinfo object representing the parsed timezone, or a string "Naive"
         if the input was "Naive".
@@ -826,7 +828,7 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
         should_convert: A boolean indicating whether to convert the datetime to the specified timezone by shifting the clock (True) or
                         just attaching the timezone without shifting (False). If None, the function will determine this based on the type of
                         given_date and format_str.
-    
+
     Returns:
         datetime.datetime object in the specified timezone.
         Note that datetime.datetime objects cannot represent dates before 1 January 1, 0001 or after 31 December 9999.

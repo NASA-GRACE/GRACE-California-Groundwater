@@ -9,7 +9,6 @@ import numpy as np
 import xarray as xr
 from osgeo import ogr, gdal
 import json
-import pandas as pd
 import logging
 import argparse
 from pathlib import Path
@@ -43,6 +42,7 @@ def parse_arguments(options: Options) -> None:
     )
     parser.add_argument("-b", "--basin", type=str, default=options.default_basin,
                         help=f"Basin identifier (default: {options.default_basin}, valid basins: {', '.join(options.valid_basins)}).")
+    parser.add_argument("--full", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -66,19 +66,19 @@ def main() -> None:
 def create_mask_for_NLDAS(options: Options) -> None:
     """
     Create a river basin mask for NLDAS data.
-    
+
     Args:
         options: An Options instance with parsed command line arguments in options.args. Contains:
            - basin: Basin identifier (e.g., "California", "Sacramento", etc.).
            - shape_dir: Directory containing shapefiles.
            - masks_dir: Directory to save generated masks.
            - gridded_data_dir: Directory containing gridded soil moisture data (netCDF files).
-    
+
     Returns:
         None. Saves the generated mask as a netCDF file in masks_dir.
-    
+
     Raises:
-        ValueError: If the specified basin is unknown.    
+        ValueError: If the specified basin is unknown.
     """
 
     gdal.UseExceptions()  # Enable GDAL exceptions for error handling
@@ -232,21 +232,21 @@ def create_mask_for_NLDAS(options: Options) -> None:
 
 def align_mask_to_water_grid(ds_water: xr.Dataset, ds_mask: xr.Dataset, tol: float = 1e-8) -> xr.Dataset:
     """
-    Make sure that `ds_mask.lat`/`ds_mask.lon` end up on the *same* 1D arrays (and in the same order)
-    as `ds_water.lat`/`ds_water.lon`.  If ds_mask's coordinates are already correct, returns ds_mask
+    Make sure that 'ds_mask.lat'/'ds_mask.lon' end up on the *same* 1D arrays (and in the same order)
+    as 'ds_water.lat'/'ds_water.lon'.  If ds_mask's coordinates are already correct, returns ds_mask
     unchanged.  If ds_mask.lat/lon are *swapped* (i.e. lat≈ds_water.lon and lon≈ds_water.lat), this
     will:
       1) transpose the 2D variable so that its dims go from ("lon","lat") → ("lat","lon"), and
       2) re-assign the correct coordinate values from ds_water.
-    
+
     Args:
         ds_water: Dataset containing the reference lat/lon grid (e.g., soil moisture or SWE data).
         ds_mask:  Dataset containing the mask to be aligned.
         tol:      Tolerance for floating-point comparison of lat/lon values. Defaults to 1e-8 degrees.
-    
+
     Returns:
         xr.Dataset: A new Dataset with the mask variable aligned to ds_water's lat/lon grid.
-    
+
     Raises:
         ValueError: If ds_mask's lat/lon do not match or swap-match ds_water's lat/lon.
     """
@@ -274,7 +274,7 @@ def align_mask_to_water_grid(ds_water: xr.Dataset, ds_mask: xr.Dataset, tol: flo
         # In this case, ds_mask.lat ≈ ds_water.lon  AND  ds_mask.lon ≈ ds_water.lat.
         logging.info('The 2D array is effectively laid out with dims=("lon","lat") instead of ("lat","lon").')
 
-        # a) Grab the 2D “mask” DataArray (whatever its name is—we'll assume it's called “mask”).
+        # a) Grab the 2D "mask" DataArray (whatever its name is—we'll assume it's called "mask").
         #    If your ds_mask has multiple variables, adjust the name accordingly.
         var = ds_mask["mask"]
 
@@ -288,7 +288,7 @@ def align_mask_to_water_grid(ds_water: xr.Dataset, ds_mask: xr.Dataset, tol: flo
         # c) Now re-assign the *correct* coordinate arrays from ds_water:
         var_t = var_t.assign_coords(lat = ref_lats, lon = ref_lons)
 
-        # d) Package back into a Dataset (so that its name stays “mask” and dims are correct):
+        # d) Package back into a Dataset (so that its name stays "mask" and dims are correct):
         new_ds_mask = var_t.to_dataset(name="mask")
         return new_ds_mask
 

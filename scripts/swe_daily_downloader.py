@@ -20,9 +20,7 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name:  str = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_swe_start_date: str = "2005-01-01"
-        self.default_swe_end_date:   str = "2005-03-31"
+        self.my_name:             str = Path(__file__).stem  # The name of this script without the .py extension
         self.default_output_dir: Path = self.swe_dir / "daily_data"
         current_time = datetime.now()
         self.default_log_file: Path = self.swe_dir /  f"swe_download_{current_time.strftime('%Y-%m-%d_%H-%M-%S')}.log" 
@@ -31,10 +29,10 @@ class Options(ra.Options):
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start_date", default=options.default_swe_start_date,
-                        help=f"Start date (YYYY-MM-DD) (default: {options.default_swe_start_date})")
-    parser.add_argument("--end_date", default=options.default_swe_end_date,
-                        help=f"End date (YYYY-MM-DD) (default: {options.default_swe_end_date})")
+    parser.add_argument("--start_date", default=options.test_start,
+                        help=f"Start date (default: {options.test_start})")
+    parser.add_argument("--end_date", default=options.test_end,
+                        help=f"End date (default: {options.test_end})")
     parser.add_argument("--output_dir", default=options.default_output_dir,
                         help="Directory to download, untar and save swe files from SNODAS")
     parser.add_argument("--log_file", default=options.default_log_file,
@@ -44,7 +42,9 @@ def parse_arguments(options: Options) -> None:
     options.args = parser.parse_args()
     if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
-
+    # Format dates as YYYY-MM-DD regardless of their original format by parsing and reformatting.
+    options.args.start_date = (ra.parse_datetime(options.args.start_date)).strftime("%Y-%m-%d")
+    options.args.end_date   = (ra.parse_datetime(options.args.end_date  )).strftime("%Y-%m-%d")
 
 def main() -> None:
     """Main function to download and process snow water equivalent (SWE) data over a date range."""
@@ -83,9 +83,9 @@ def download_SNODAS(options: Options) -> None:
     Raises:
         None.
     """
-    start_date    = datetime.strptime(options.args.start_date, "%Y-%m-%d")
-    end_date      = datetime.strptime(options.args.end_date, "%Y-%m-%d")
-    output_dir    = options.args.output_dir
+    start_date = datetime.strptime(options.args.start_date, "%Y-%m-%d")
+    end_date   = datetime.strptime(options.args.end_date,   "%Y-%m-%d")
+    output_dir = options.args.output_dir
 
     os.makedirs(output_dir, exist_ok=True)
 

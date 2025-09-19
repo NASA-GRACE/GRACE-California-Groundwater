@@ -5,8 +5,8 @@ Concatenate all netCDF files found under a folder (in subdirectories)
 into a single netCDF file.
 
 Assumptions:
- - Files are named with extensions “.nc” or “.nc4”
- - Each file contains a “time” coordinate and the same set of data variables and dimensions
+ - Files are named with extensions ".nc" or ".nc4"
+ - Each file contains a "time" coordinate and the same set of data variables and dimensions
  - Searches recursively for input files.
 """
 
@@ -22,6 +22,8 @@ import re
 import tqdm
 
 import run_all as ra
+
+from soil_moisture_download import validate_netcdf_integrity
 
 
 class Options(ra.Options):
@@ -46,6 +48,7 @@ def parse_arguments(options: Options) -> None:
                         help="Directory containing input .nc/.nc4 files.")
     parser.add_argument("out_dir", type=Path, nargs="?", default=options.default_out_dir,
                         help="Directory where output (.nc or .nc4) files will be written.")
+    parser.add_argument("--full", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -75,10 +78,10 @@ def process_NLDAS_data(options: Options) -> None:
 
     Args:
         options: An Options instance with parsed arguments.
-    
+
     Returns:
         None.
-    
+
     Raises:
         Various exceptions if processing fails.
     """
@@ -96,10 +99,10 @@ def validate_inputs(options: Options) -> None:
 
     Args:
         options: An Options instance with parsed arguments.
-    
+
     Returns:
         None. Updates options.in_dir and options.out_dir to resolved Paths.
-    
+
     Raises:
         ValueError: If input directory does not exist.
     """
@@ -160,19 +163,21 @@ def discover_files(options: Options) -> None:
     logging.info(f"Loading {len(options.in_files)} files.")
     for fpath in options.in_files:
         logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  {Path(fpath).name}")
+    quarantine = options.in_dir / "_quarantine_bad_netcdf"
+    validate_netcdf_integrity(options.in_files, quarantine_dir=quarantine, strict=True)
 
 
 def infer_model(options: Options) -> None:
     """
     Infer the model name from the basenames of the options.in_files.
-    
+
     Args:
         options: An Options instance with parsed arguments. Contains:
            - in_files: List of input file paths.
-    
+
     Returns:
         None. Updates options.model with inferred model name.
-    
+
     Raises:
         None.
     """
@@ -199,16 +204,16 @@ def infer_model(options: Options) -> None:
 def check_variable_consistency(options: Options, thetol: float = 1e-8) -> None:
     """
     Ensure all files share the same data variables, dimensions, and coordinate values.
-    
+
     Args:
         options: An Options instance with parsed arguments. Contains:
            - in_files: List of input file paths.
            - out_dir: Directory where output files will be written.
         thetol:  Tolerance for comparing lat/lon values (default: 1e-8).
-    
+
     Returns:
         None.
-    
+
     Raises:
         ValueError: If any inconsistencies are found among the files.
     """
@@ -228,7 +233,7 @@ def check_variable_consistency(options: Options, thetol: float = 1e-8) -> None:
             logging.info(f"Dropping variables: {options.vars_to_drop}")
         else:
             options.vars_to_drop = None
-        # Record the “canonical” lat/lon arrays from the first file
+        # Record the "canonical" lat/lon arrays from the first file
         ref_lats = ds0["lat"].values
         ref_lons = ds0["lon"].values
 
@@ -272,7 +277,7 @@ def check_variable_consistency(options: Options, thetol: float = 1e-8) -> None:
 def check_time_continuity(options: Options) -> None:
     """
     Verify that files' time axes do not overlap (last of i < first of i+1). Raises if any overlap is detected.
-    
+
     Args:
         options: An Options instance with parsed arguments. Contains:
            - in_files: List of input file paths.
@@ -280,7 +285,7 @@ def check_time_continuity(options: Options) -> None:
 
     Returns:
         None.
-    
+
     Raises:
         ValueError: If any time overlaps are detected among the files.
     """
@@ -297,24 +302,26 @@ def check_time_continuity(options: Options) -> None:
 def get_datespan(options: Options, ds: xr.Dataset) -> None:
     """
     Build a YYYYMMDD_YYYYMMDD string from ds.time coordinate, store in options.datespan_string.
-    
+
     Args:
         options: An Options instance to store the datespan string.
         ds:      An xarray Dataset with a time coordinate.
-    
+
     Returns:
         None. Updates options.datespan_string.
-    
+
     Raises:
         None.
     """
     times = ds.time.data
+
     def to_ym(dt64: np.datetime64) -> tuple[int, int, int]:
         """Convert a numpy datetime64 to (year, month, day) tuple."""
         y = int(dt64.astype("datetime64[Y]").astype(int)) + 1970
         m = int(dt64.astype("datetime64[M]").astype(int) % 12) + 1
         d = int(dt64.astype("datetime64[D]").astype(int) % 31) + 1
         return y, m, d
+
     y0, m0, d0 = to_ym(times[0])
     y1, m1, d1 = to_ym(times[-1])
     options.datespan_string = f"{y0}{m0:02d}{d0:02d}_{y1}{m1:02d}{d1:02d}"
@@ -324,7 +331,7 @@ def get_datespan(options: Options, ds: xr.Dataset) -> None:
 def create_out_filepath(options: Options) -> None:
     """
     Create an output filename based on the model and datespan, store in options.out_filepath.
-    
+
     Args:
         options: An Options instance with parsed arguments. Contains:
            - out_dir: Directory where output files will be written.
@@ -334,7 +341,7 @@ def create_out_filepath(options: Options) -> None:
 
     Returns:
         None. Updates options.out_filepath.
-    
+
     Raises:
         None.
     """
@@ -345,17 +352,17 @@ def create_out_filepath(options: Options) -> None:
 def concatenate_and_save(options: Options) -> None:
     """
     Open, concatenate, and save the dataset. Cleans up a partial output file on failure.
-    
+
     Args:
         options: An Options instance with parsed arguments. Contains:
            - in_files: List of input file paths.
            - out_dir: Directory where output files will be written.
            - model:   Inferred model name.
            - ext:     File extension (e.g., .nc or .nc4).
-    
+
     Returns:
         None.
-    
+
     Raises:
         FileNotFoundError, PermissionError, OSError, ValueError: If concatenation or saving fails.
     """

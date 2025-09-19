@@ -19,7 +19,7 @@ import matplotlib.dates as mdates
 
 class Options(ra.PlotOptions):
     """Options for plotting time series data."""
-    
+
     def __init__(self) -> None:
         """Initialize the options with values from run_all.PlotOptions and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
@@ -46,7 +46,8 @@ def parse_arguments(options: Options) -> None:
                         help=f"Path(s) to your CSV file(s); if none given, uses the latest .csv file in {os.fspath(options.timeseries_dir)})")
     parser.add_argument("--groundwater", action="store_true",
                         help=f"If set, plot groundwater time series by loading {list(map(os.fspath, options.default_groundwater_files))} (overrides --csv_files if given)")
-    parser.add_argument("--debug", action="store_true",
+    parser.add_argument("--full", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, "debug", False):
@@ -178,7 +179,7 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
     blurbs = [extract_blurb(options, p) for p in csv_paths]
     # keep only non‐None blurbs
     non_empty = [b for b in blurbs if b]
-    # if there’s more than one line to plot and exactly one unique blurb, treat it as “common”
+    # if there's more than one line to plot and exactly one unique blurb, treat it as "common"
     common_blurb = None
     if len(csv_paths) > 1 and non_empty and len(set(non_empty)) == 1:
         common_blurb = non_empty[0]
@@ -216,14 +217,14 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
             the_label = f"{the_label}, {this_blurb}"
 
         # Trend estimation:
-        if options.estimate_trends and len(df) >= 2: # don't try to fit to < 2 pts
+        if options.estimate_trends and len(df) >= 2:  # don't try to fit to < 2 pts
             # Convert dates to matplotlib's internal date format
             x = mdates.date2num(df[date_col])
-            # fit a line: slope is in “units per day”
+            # fit a line: slope is in "units per day"
             slope, intercept = np.polyfit(x, df[val_col], 1)
             # convert slope to units per year (≈365.25 days)
             trend_per_year = slope * 365.25
-            # format it as “+0.23 km³/yr”
+            # format it as "+0.23 km³/yr"
             the_label += f", {trend_per_year:+.2f} {options.units}/yr"
 
         # split df into segments at each discontinuity date

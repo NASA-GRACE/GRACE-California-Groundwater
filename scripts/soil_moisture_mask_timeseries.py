@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
-This program computes water storage anomalies within a polygon’s footprint from a
-concatenated soil moisture (e.g. NLDAS) netCDF file. It outputs both a CSV file containing the region’s
+This program computes water storage anomalies within a polygon's footprint from a
+concatenated soil moisture (e.g. NLDAS) netCDF file. It outputs both a CSV file containing the region's
 mean anomaly time series and a NetCDF file with the corresponding subset anomalies.
 Adapted from the original shbaam_ldas_anoms.py script.
 """
@@ -56,6 +56,7 @@ def parse_arguments(options: Options) -> None:
                         help=f"Output netCDF file for gridded and masked data anomalies (default: {os.fspath(options.default_nc)})")
     parser.add_argument("-mask_nc", type=Path, default=options.default_mask,
                         help=f"Input netCDF mask file in {os.fspath(options.masks_dir)} (0/1 values, rows=lat, cols=lon) (default: {os.fspath(options.default_mask)})")
+    parser.add_argument("--full", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -96,7 +97,7 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
 
     Returns:
         None. Creates CSV and NetCDF files as specified in options.
-    
+
     Raises:
         None.
     """
@@ -145,7 +146,7 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     lat_step = abs(float(lats[1]) - float(lats[0]))
 
     # Process soil moisture data if available
-    sum_soil_moisture_by_depth(options,ds)
+    sum_soil_moisture_by_depth(options, ds)
 
     var_list = [options.newvar]  # Initialize with new soil moisture variable ONLY
     # Only keep variables that have dims (t_var,y_var,x_var)
@@ -226,7 +227,7 @@ def calculate_long_term_avg(var: np.ndarray, total: int, interest_lon: list[tupl
 
     Returns:
         A list of the long-term average for each grid cell.
-    
+
     Raises:
         None.
     """
@@ -253,10 +254,10 @@ def calculate_surface_area(total: int, lon_step: float, lat_step: float,
         lon_step:      Longitude step size (degrees).
         lat_step:      Latitude step size (degrees).
         interest_lat:  List of tuples (lat_index, latitude).
-    
+
     Returns:
         A list of the surface area for each grid cell.
-    
+
     Raises:
         None.
     """
@@ -356,7 +357,7 @@ def compute_anomaly_timeseries(var: np.ndarray, var_factor: float, avg: list[flo
         A tuple of two lists of floats:
             - anomalies: area-weighted anomaly series (in km^3),
             - errors: 10%-of-total-storage error bars (in km^3).
-    
+
     Raises:
         None.
     """
@@ -417,10 +418,10 @@ def output_csv(output_file: str | os.PathLike[str], fieldnames: list[str],
         fieldnames:     List of column names (e.g., date plus variables).
         times:          Array of time values.
         anomalies_dict: Dictionary mapping each variable to its anomaly timeseries.
-    
+
     Returns:
         None. The CSV file is created.
-    
+
     Raises:
         None.
     """
@@ -454,10 +455,10 @@ def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, i
         t_var:        Name of the time variable.
         x_var:        Name of the longitude variable.
         y_var:        Name of the latitude variable.
-    
+
     Returns:
         None. The NetCDF file is created.
-    
+
     Raises:
         None.
     """
@@ -485,18 +486,18 @@ def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, i
         var_time = ds[t_var]
         time_var.standard_name = var_time.attrs.get('standard_name', t_var)
         time_var.long_name = t_var
-        time_var.units = var_time.attrs.get('units', 'days since 2002-01-01 00:00:00 UTC')
-        time_var.calendar = var_time.attrs.get('calendar', 'gregorian')
+        time_var.units     = var_time.attrs.get('units', 'days since 2002-01-01 00:00:00 UTC')
+        time_var.calendar  = var_time.attrs.get('calendar', 'gregorian')
     if y_var in ds.variables:
         var_lat = ds[y_var]
         lat_var.standard_name = var_lat.attrs.get('standard_name', 'latitude')
-        lat_var.long_name = var_lat.attrs.get('long_name', 'latitude')
-        lat_var.units = var_lat.attrs.get('units', 'degrees_north')
+        lat_var.long_name     = var_lat.attrs.get('long_name', 'latitude')
+        lat_var.units         = var_lat.attrs.get('units', 'degrees_north')
     if x_var in ds.variables:
         var_lon = ds[x_var]
         lon_var.standard_name = var_lon.attrs.get('standard_name', 'longitude')
-        lon_var.long_name = var_lon.attrs.get('long_name', 'longitude')
-        lon_var.units = var_lon.attrs.get('units', 'degrees_east')
+        lon_var.long_name     = var_lon.attrs.get('long_name', 'longitude')
+        lon_var.units         = var_lon.attrs.get('units', 'degrees_east')
 
     # Write anomaly data for each variable
     for var in var_list:

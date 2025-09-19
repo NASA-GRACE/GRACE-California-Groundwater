@@ -24,9 +24,10 @@ class Options(ra.Options):
         self.default_output_dir:    Path = self.reservoirs_dir / "monthly_sums"
         self.default_region_name:    str = self.default_basin_safename #default_basin
         self.default_input_xlsx:    Path = self.reservoirs_dir / f"{self.reservoirs_model.lower()}_data_webpage.xlsx"
-        
-        self.default_start_date:     str = "2005-01-01"
-        self.default_end_date:       str = "2005-12-31"
+
+        self.default_start_date:     str = self.test_start
+        self.default_end_date:       str = self.test_end
+
         if self.default_region_name == "california":
             self.default_shapefile:     Path = self.project_root / "input_data" / "shapefiles" / "hybas_na_lev04_v1c.shp"
             self.default_allowed_names: list = ["22"]
@@ -60,11 +61,16 @@ def parse_arguments(options: Options) -> None:
                         help="end date yyyy-mm-dd format in reservoir filenames")
     parser.add_argument("--units", default="km3", choices=["km3", "m3"],
                         help="Units for output")
+    parser.add_argument("--full", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
     if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
+
+    # Format dates as YYYY-MM-DD regardless of their original format by parsing and reformatting.
+    options.args.start_date = (ra.parse_datetime(options.args.start_date)).strftime("%Y-%m-%d")
+    options.args.end_date   = (ra.parse_datetime(options.args.end_date  )).strftime("%Y-%m-%d")
 
 
 def main() -> None:
@@ -129,18 +135,8 @@ def monthly_sums_CDEC(options: Options) -> None:
     if not required_cols.issubset(site_df.columns):
         raise ValueError(f"Excel file must have columns: {required_cols}")
 
-    try:
-        date_format = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-    except ValueError:
-        print("Incorrect date format. Try yyyy-mm-dd")
-        
-    try:
-        date_format = datetime.datetime.strptime(end_date, "%Y-%m-%d")
-    except ValueError:
-        print("Incorrect date format. Try yyyy-mm-dd")
-
     site_names = site_df['sitename'].tolist()
-    latitudes = site_df['latitude'].tolist()
+    latitudes  = site_df['latitude'].tolist()
     longitudes = site_df['longitude'].tolist()
 
     # Handle California SORT shapefile (numeric) case

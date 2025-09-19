@@ -47,6 +47,7 @@ def parse_arguments(options: Options) -> None:
                         help=f"Degrees to pad around data for auto-zoom; negative disables (default: {options.default_map_border})")
     parser.add_argument("-central_lon", type=float, default=options.default_central_lon,
                         help=f"Central longitude for PlateCarree projection (default: {options.default_central_lon})")
+    parser.add_argument("--full", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -76,10 +77,10 @@ def map_fields_for_NLDAS(options: Options) -> None:
 
     Args:
         options: An Options instance with all necessary parameters.
-    
+
     Returns:
         None. Generates PNG maps and a movie.
-    
+
     Raises:
         None.
     """
@@ -145,10 +146,10 @@ def plot_nc_var(options: Options, data2d: np.ndarray, thevar: str, lons: np.ndar
         title: title string for the map
         vmin, vmax:  optional color‐scale bounds (if None, will use symmetric ±max(|data|))
         extent:      [lon_min, lon_max, lat_min, lat_max] (in degrees). If provided, zooms to that box.
-    
+
     Returns:
         None. The PNG file is created.
-    
+
     Raises:
         None.
     """
@@ -198,10 +199,10 @@ def plot_mean_nc_var(options: Options, nc_path: str | os.PathLike[str], thevar: 
         out_png:                       Output PNG filename
         vmin, vmax:                    Passed through to plot_nc_var()
         extent:                        Optional [lon_min, lon_max, lat_min, lat_max] to zoom in
-    
+
     Returns:
         None. The PNG file is created.
-    
+
     Raises:
         None.
     """
@@ -229,7 +230,7 @@ def plot_nc_var_at_time(options: Options, nc_path: str | os.PathLike[str], theva
         time_index:                    Integer index along the "time" dimension
         vmin, vmax:                    Passed through to plot_nc_var()
         extent:                        Optional [lon_min, lon_max, lat_min, lat_max] to zoom in
-    
+
     Returns:
         None. The PNG file is created.
 
@@ -269,10 +270,10 @@ def make_nc_var_movie(options: Options, nc_path: str | os.PathLike[str], thevar:
         frames_dir:                    Directory to save individual frame PNGs
         fps:                           Frames per second for the movie
         vmin, vmax:                    Passed through to plot_nc_var()
-    
+
     Returns:
         None. The movie file is created.
-    
+
     Raises:
         None.
     """

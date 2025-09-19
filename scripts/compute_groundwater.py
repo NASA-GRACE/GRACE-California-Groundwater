@@ -18,7 +18,6 @@ The output CSV will include:
     error:       Propagated uncertainty
 """
 import os
-import sys
 import argparse
 import pandas as pd
 import numpy as np
@@ -58,6 +57,7 @@ def parse_arguments(options: Options) -> None:
                         help=f"Input  GRACE CSV file in {options.timeseries_dir} (default: {options.default_grace_csv})")
     parser.add_argument("--output", type=str, default=options.default_output_csv,
                         help=f"Output CSV path (default: {options.default_output_csv})")
+    parser.add_argument("--full", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Run this program in debug mode, which prints additional debug messages.")
     options.args = parser.parse_args()
@@ -158,10 +158,10 @@ def load_series(path: str | os.PathLike[str], date_col: str = "date", target_day
         path:                Path to the input CSV file.
         date_col:            Name of the date column in the CSV (default "date").
         target_day_of_month: Day of month to which all dates are aligned (default 15).
-    
+
     Returns:
         DataFrame with index as datetime and columns ["value","error"].
-    
+
     Raises:
         ValueError: If the CSV does not have exactly two data columns besides the date column.
     """
@@ -200,7 +200,7 @@ def show_monthly_duplicates(df: pd.DataFrame, name: str) -> None:
 
     Returns:
         None
-    
+
     Raises:
         None
     """
@@ -227,7 +227,7 @@ def remove_mean(series:     pd.Series,
 
     Returns:
         The demeaned series.
-    
+
     Raises:
         None.
     """
@@ -265,10 +265,10 @@ def compute_groundwater(grace:      pd.DataFrame,
         reservoirs: DataFrame with reservoirs data, columns ["value","error"]
         start_time: Start of the window over which to compute long-term means.
         end_time:   End of the window over which to compute long-term means.
-    
+
     Returns:
         DataFrame with columns ["groundwater","error"].
-    
+
     Raises:
         None.
     """
@@ -316,7 +316,7 @@ def smooth_timeseries(sw: pd.DataFrame, window: int = 3) -> pd.DataFrame:
     Returns:
         A new DataFrame "sw_smoothed" with the same structure as "sw",
         where both "groundwater" and "error" have been smoothed.
-    
+
     Raises:
         None.
     """
@@ -343,7 +343,7 @@ def average_timeseries(sw: pd.DataFrame, year_type: str = "calendar") -> pd.Data
     Returns:
         Yearly-averaged DataFrame with index = year (as Timestamp at Dec 31 for
         calendar years, or Sep 30 for water years), and columns ["groundwater","error"].
-    
+
     Raises:
         ValueError: If year_type is not "calendar" or "water".
     """

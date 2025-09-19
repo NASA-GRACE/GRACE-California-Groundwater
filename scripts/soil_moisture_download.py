@@ -11,6 +11,9 @@ import datetime as dt
 import argparse
 import logging
 import time
+from urllib.parse import urlparse
+import shutil
+from typing import Iterable
 
 import earthaccess
 
@@ -25,10 +28,11 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:                      str = Path(__file__).stem  # The name of this script without the .py extension
         self.default_doi:                  str = "10.5067/NL7JTZYO2RVK"  # NLDAS VIC LSM L4 Monthly 0.125 degree v2.0
-        self.default_timespan: tuple[str, str] = ("2005-01-01", "2005-03-31T23:59:59")
-        self.full_timespan:    tuple[str, str] = (self.full_start, self.full_end)
+        self.default_timespan: tuple[str, str] = (self.test_start, self.test_end)  # Quick test timespan (strings)
+        self.full_timespan:    tuple[str, str] = (self.full_start, self.full_end)  # Full timespan (strings)
+        self.default_local_dir:           Path = self.soil_moisture_dir / "data_monthly"
+        self.retry_attempts:               int = 3
         self.default_region: tuple[float, float, float, float] = (-180, -90, 180, 90)  # defaults to global region
-        self.default_local_dir: Path = self.soil_moisture_dir / "data_monthly"
 
 
 def parse_arguments(options: Options) -> None:
@@ -105,11 +109,13 @@ def download_NLDAS_data(options: Options) -> None:
 
     logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"{results = }")
 
-    logging.info("Downloading data...")
-    downloaded_files = earthaccess.download(results, local_path=options.args.local_dir)
-    logging.info(f"Downloaded files: {downloaded_files}")
-    logging.info(f"Successfully downloaded soil moisture data from {options.soil_moisture_model} using Earthaccess...")
-
+    logging.info("Downloading and validating data...")
+    ok_files, bad_files = _download_with_validation_and_retry(options, results)
+    logging.info("Valid files: %d", len(ok_files))
+    if bad_files:
+        logging.warning("Quarantined/unusable files: %d (see _quarantine_bad_netcdf)", len(bad_files))
+    else:
+        logging.info("All granules validated successfully.")
 
 
 def validate_inputs(options: Options) -> tuple[dt.datetime, dt.datetime]:
@@ -126,7 +132,7 @@ def validate_inputs(options: Options) -> tuple[dt.datetime, dt.datetime]:
         A tuple of two datetime.datetime objects: (start_dt, end_dt).
 
     Raises:
-        ValueError: If any input arguments are invalid.    
+        ValueError: If any input arguments are invalid.
     """
     reminder = "Remember, the region needs to be specified as '--region west south east north'."
     if len(options.args.region) != 4:
@@ -141,10 +147,7 @@ def validate_inputs(options: Options) -> tuple[dt.datetime, dt.datetime]:
     if west == east or south == north:
         raise ValueError(f"Invalid region: cannot be a line or a single point. {reminder}")
 
-    try:
-        start_dt, end_dt = map(ra.parse_datetime, options.args.timespan)
-    except ValueError as e:
-        raise ValueError(str(e))
+    start_dt, end_dt = map(ra.parse_datetime, options.args.timespan)
     if start_dt > end_dt:
         raise ValueError("Start date must be before end date.")
 
@@ -200,6 +203,222 @@ def _search_data_with_retries(doi: str, temporal: tuple[str, str],
                 break
     # Exhausted retries
     raise last_exc
+
+
+def _looks_like_netcdf(path: Path) -> bool:
+    """
+    Cheap magic-byte sniff: HDF5 or classic netCDF.
+
+    Args:
+        path: The file path to check.
+
+    Returns:
+        True if the file looks like a NetCDF/HDF file; False otherwise.
+    """
+    try:
+        with path.open("rb") as fh:
+            head = fh.read(8)
+        return head.startswith(b"\x89HDF\r\n\x1a\n") or head.startswith(b"CDF\x01") or head.startswith(b"CDF\x02")
+    except Exception:
+        return False
+
+
+def _openable_by_xarray(path: Path) -> tuple[bool, str]:
+    """
+    Try opening with xarray/netcdf4; return (ok, reason_if_not_ok).
+
+    Args:
+        path: The file path to check.
+
+    Returns:
+        A tuple (True, "") if the file can be opened; (False, reason) otherwise.
+    """
+    try:
+        import xarray as xr  # heavy import only when needed
+        with xr.open_dataset(path, engine="netcdf4", decode_times=False) as ds:
+            _ = list(ds.variables)  # touch structure
+        return True, ""
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"
+
+
+def validate_netcdf_file(path: Path) -> tuple[bool, str]:
+    """
+    Validate a single NetCDF file by magic bytes and xarray openability.
+
+    Args:
+        path: The file path to check.
+
+    Returns:
+        (True, "") if valid; (False, reason) otherwise.
+    """
+    path = Path(path)
+    if not path.exists():
+        return False, "File does not exist"
+    if path.stat().st_size == 0:
+        return False, "File is empty (size == 0 bytes)"
+    if not _looks_like_netcdf(path):
+        return False, "Bad magic bytes (not NetCDF/HDF)"
+    ok, why = _openable_by_xarray(path)
+    if not ok:
+        return False, why
+    return True, ""
+
+
+def validate_netcdf_integrity(paths: Iterable[Path],
+                              quarantine_dir: Path | None = None,
+                              strict: bool = True) -> list[tuple[Path, str]]:
+    """
+    Validate a list of NetCDF files; optionally move bad ones to a quarantine directory.
+
+    Args:
+        paths:          Iterable of file paths to validate.
+        quarantine_dir: If provided, bad files will be moved to this directory.
+        strict:         If True, raises FileNotFoundError if any bad files are found.
+
+    Returns:
+        A list of (bad_path, reason).
+    """
+    bad: list[tuple[Path, str]] = []
+    qdir = Path(quarantine_dir) if quarantine_dir is not None else None
+    if qdir is not None:
+        qdir.mkdir(parents=True, exist_ok=True)
+
+    for p in map(Path, paths):
+        ok, why = validate_netcdf_file(p)
+        if not ok:
+            if qdir is not None and p.exists():
+                try:
+                    dst = qdir / p.name
+                    shutil.move(str(p), str(dst))
+                    logging.warning("Quarantined invalid NetCDF: %s -> %s (%s)", p, dst, why)
+                except Exception as m:
+                    logging.error("Failed to quarantine %s: %s", p, m)
+            bad.append((p, why))
+
+    if strict and bad:
+        report = "\n".join(f" - {p.name}: {why}" for p, why in bad)
+        raise FileNotFoundError("Invalid/corrupt NetCDF files detected:\n" + report)
+
+    return bad
+
+
+def _granule_expected_filename(granule) -> str:
+    """
+    Derive the local filename from the granule's HTTPS data link.
+
+    Args:
+        granule: An earthaccess.results.DataGranule instance.
+
+    Returns:
+        The expected filename as a string.
+
+    Raises:
+        ValueError: If the granule has no downloadable HTTP(S) data link."""
+    try:
+        links = granule.data_links()
+    except Exception:
+        links = []
+    https = next((u for u in links if u.lower().startswith("http")), links[0] if links else None)
+    if not https:
+        raise ValueError("Granule has no downloadable HTTP(S) data link")
+    return Path(urlparse(https).path).name
+
+
+def _download_with_validation_and_retry(options: Options, results) -> tuple[list[Path], list[Path]]:
+    """
+    Download all granules; validate each file and retry up to options.retry_attempts.
+    Bad files are moved to a quarantine directory.
+
+    Args:
+        options: An Options instance with parsed arguments. Contains:
+           - local_dir:   Local directory to download files to.
+           - retry_attempts: Number of validation/download attempts per file.
+        results: List of earthaccess.results.DataGranule instances to download.
+
+    Returns:
+        (ok_files, bad_files).
+    """
+    local_dir = Path(options.args.local_dir)
+    quarantine_dir = local_dir / "_quarantine_bad_netcdf"
+    quarantine_dir.mkdir(parents=True, exist_ok=True)
+
+    # Map granules to intended paths
+    items: list[tuple[object, Path]] = []
+    for g in results:
+        try:
+            name = _granule_expected_filename(g)
+            items.append((g, local_dir / name))
+        except Exception as e:
+            logging.error("Skipping granule with no usable data link: %s", e)
+
+    ok_files: list[Path] = []
+    bad_files: list[Path] = []
+    to_download = []
+
+    # Pre-validate existing files; delete invalid to force clean re-download
+    for g, fpath in items:
+        if fpath.exists():
+            ok, why = validate_netcdf_file(fpath)
+            if ok:
+                logging.info("Already present and valid: %s", fpath.name)
+                ok_files.append(fpath)
+            else:
+                logging.warning("Existing file invalid: %s (%s) — deleting for re-download", fpath.name, why)
+                try:
+                    fpath.unlink()
+                except Exception as e:
+                    logging.error("Failed to delete %s: %s", fpath, e)
+                to_download.append(g)
+        else:
+            to_download.append(g)
+
+    # Batch download missing ones
+    if to_download:
+        logging.info("Downloading %d missing granule(s)...", len(to_download))
+        try:
+            earthaccess.download(to_download, local_path=local_dir)
+        except Exception as e:
+            logging.warning("Batch download raised %s; will continue with per-granule retries.", e)
+
+    # Validate and per-granule retry
+    for g, fpath in items:
+        if fpath in ok_files:
+            continue
+        for attempt in range(1, options.retry_attempts + 1):
+            if not fpath.exists():
+                try:
+                    earthaccess.download([g], local_path=local_dir)
+                except Exception as e:
+                    logging.warning("Download error on %s (attempt %d/%d): %s",
+                                    fpath.name, attempt, options.retry_attempts, e)
+            ok, why = validate_netcdf_file(fpath) if fpath.exists() else (False, "missing after download")
+            if ok:
+                logging.info("Validated: %s", fpath.name)
+                ok_files.append(fpath)
+                break
+            else:
+                logging.warning("Invalid NetCDF: %s — %s (attempt %d/%d)",
+                                fpath.name, why, attempt, options.retry_attempts)
+                try:
+                    if fpath.exists():
+                        fpath.unlink()
+                except Exception as e:
+                    logging.error("Failed to remove invalid file %s: %s", fpath, e)
+                if attempt < options.retry_attempts:
+                    time.sleep(2 * attempt)  # simple backoff
+        else:
+            # Exhausted attempts → quarantine
+            dst = quarantine_dir / fpath.name
+            try:
+                if fpath.exists():
+                    fpath.replace(dst)
+                logging.error("Giving up on %s; moved to %s", fpath.name, dst)
+            except Exception as e:
+                logging.error("Could not quarantine %s: %s", fpath, e)
+            bad_files.append(fpath)
+
+    return ok_files, bad_files
 
 
 if __name__ == "__main__":
