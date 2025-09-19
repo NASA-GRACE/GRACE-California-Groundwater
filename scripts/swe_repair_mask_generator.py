@@ -38,7 +38,10 @@ class Options(ra.Options):
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
-    parser = argparse.ArgumentParser(description=f"Crop {options.swe_model} repair mask and apply to multiple base masks.")
+    parser = argparse.ArgumentParser(
+        description=f"Crop {options.swe_model} repair mask and apply to multiple base masks.",
+        allow_abbrev=False
+    )
     parser.add_argument("--full_tif", default=options.default_full_tif,
                         help=f"Path to full {options.swe_model} zero repair mask (GeoTIFF) to be combined with base mask to generate repaired mask for 2014 oct to 2019 oct")
     parser.add_argument("--template_tif",default=options.default_template_tif,
