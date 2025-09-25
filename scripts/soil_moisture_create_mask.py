@@ -7,8 +7,6 @@ Based on code provided by Munish Sikka (he/him) and Jack McNelis (he/him).
 import os
 import numpy as np
 import xarray as xr
-from osgeo import ogr, gdal
-import json
 import logging
 import argparse
 from pathlib import Path
@@ -81,12 +79,11 @@ def create_mask_for_NLDAS(options: Options) -> None:
         ValueError: If the specified basin is unknown.
     """
 
-    gdal.UseExceptions()  # Enable GDAL exceptions for error handling
     logging.info(f"Creating mask for basin: {options.args.basin}")
 
     if   options.args.basin == "California":
-        shapefile = options.shape_dir / "hybas_na_lev04_v1c.shp"
         filter_sort = 22  # only used for the California basin
+        shapefile = options.shape_dir / "hybas_na_lev04_v1c.shp"
     elif options.args.basin == "Sacramento":
         shapefile = options.shape_dir / "HUC2" / "WBDHU4.shp"
     elif options.args.basin == "San Joaquin":
@@ -103,8 +100,8 @@ def create_mask_for_NLDAS(options: Options) -> None:
     nc_path = max(options.gridded_data_dir.glob("*.nc"), key=os.path.getctime)
     logging.info(f"Opening netCDF file: {os.fspath(nc_path)}")
     ds_water = xr.open_dataset(nc_path)
-    lons = ds_water.lon.values
-    lats = ds_water.lat.values
+    lons     = ds_water.lon.values
+    lats     = ds_water.lat.values
     # If lats happen to be descending, flip them so our raster has the correct orientation
     if lats[0] > lats[-1]:
         logging.info("Latitudes are in descending order; flipping to ascending.")
@@ -121,84 +118,26 @@ def create_mask_for_NLDAS(options: Options) -> None:
     res_lat = float(np.abs(lats[1] - lats[0]))
     logging.info(f"Resolution is {res_lon:.6f} lon x {res_lat:.6f} lat.")
 
-    # 1. Open Shapefile
-    driver = ogr.GetDriverByName("ESRI Shapefile")
-    ds_shape = driver.Open(shapefile, 0)  # Read-only mode
-    if ds_shape is None:
-        raise FileNotFoundError(f"Could not open {shapefile}")
-
-    # 2. Get the Requested Layer
-    # layer = ds_shape.GetLayerByName(layer_name)
-    lyr = ds_shape.GetLayer()
-    ssrs = lyr.GetSpatialRef()
-    wkt = ssrs.ExportToPrettyWkt()
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(lyr)
-
-    for i, feat in enumerate(lyr):
-        # log all fields in the feature
-        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Feature {i} fields: {feat.items()}")
-        for field in feat.items():
-            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Field: {field}")
-        if options.args.basin == "California":
-            if feat.GetField("SORT") == filter_sort:
-                break
-        else:
-            if feat.GetField("name").casefold() == options.args.basin.casefold():
-                break
-    feat = lyr.GetFeature(i)
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Feature #{i} was chosen: {feat}")
-
-    geom = feat.GetGeometryRef()
-    geojson = geom.ExportToJson()
-
-    list(json.loads(geojson).keys())
-    driver = ogr.GetDriverByName("MEM")
-    featds = driver.CreateDataSource("MemoryDataset")
-    newlyr = featds.CreateLayer("california basin", ssrs, geom_type=ogr.wkbPolygon)
-    lyrid = ogr.FieldDefn("ID", ogr.OFTInteger)
-    newlyr.CreateField(lyrid)
-    lyrdefn = newlyr.GetLayerDefn()
-    newfeat = ogr.Feature(lyrdefn)
-    newgeom = ogr.CreateGeometryFromJson(geojson)
-    newfeat.SetGeometry(newgeom)
-    newfeat.SetField("ID", 1)
-    newlyr.CreateFeature(newfeat)
-
-    newfeat = None
+    # Define the GDAL geotransform for the target grid (origin at NW corner)
     gt = (
         lons[0],       # 0  X minimum (upper-left corner, the origin),
         res_lon,       # 1  X resolution,
         0.0,           # 2  X rotation,
         lats[-1],      # 3  Y maximum (upper-left corner, the origin),
         0.0,           # 4  Y rotation,
-        -1*(res_lat),  # 5  Y resolution
+        -1*(res_lat),  # 5  Y resolution (negative because Y decreases as you go down rows)
     )
 
-    mask = gdal.GetDriverByName("MEM").Create(
-        "",             # No filename required for in-memory dataset.
-        n_lon, n_lat,   # Dimensions of the output mask (x,y)
-        1,              # Output mask should contain only one band.
-        gdal.GDT_Byte,  # Output type should be byte [0,1].
+    # Rasterize the chosen basin polygon onto our grid using the common helper
+    select = {"filter_sort": filter_sort} if options.args.basin == "California" else None
+    marr, bbox = ra.rasterize_shapefile_to_mask(
+        shapefile=shapefile,
+        region_name=options.args.basin,
+        gt=gt,
+        n_lon=n_lon,
+        n_lat=n_lat,
+        select=select,
     )
-
-    mask.SetGeoTransform(gt)      # Set the affine transform defined above as the mask's geotransform.
-    mask.SetProjection(wkt)       # Set the wkt defn extracted from the shp as the target coordinate system.
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(mask)
-    band = mask.GetRasterBand(1)  # Select the first and only band in raster mask.
-    band.Fill(0)                  # Fill it with zeros.
-    band.SetNoDataValue(0)        # Set its nodata value to zero.
-
-    err = gdal.RasterizeLayer(
-        mask,
-        [1],                      # Set the target band(s); just the one band mask in this case.
-        newlyr,                   # Set the source feature layer to rasterize in band 1.
-        burn_values = [1],        # Fill the polygon coverage area with 1s.
-    )
-
-    mask.FlushCache()             # "Write" changes to the in-memory dataset.
-    marr = mask.GetRasterBand(1).ReadAsArray()
-    env = feat.GetGeometryRef().GetEnvelope()
-    bbox = [env[0], env[2], env[1], env[3]]
     logging.info(f"Raster mask bounding box: {bbox}")
 
     logging.info(f"Unique values in mask: {np.unique(marr)}")

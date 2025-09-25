@@ -92,13 +92,13 @@ def main() -> None:
     logging.basicConfig(level=options.log_mode, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     parse_arguments(options)
 
-    section_header(options, "Processing soil moisture data")
+    # section_header(options, "Processing soil moisture data")
 
-    logging.info("Download soil moisture data files.")
-    run_script(options, "soil_moisture_download.py")
+    # logging.info("Download soil moisture data files.")
+    # run_script(options, "soil_moisture_download.py")
 
-    logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
-    run_script(options, "soil_moisture_process.py")
+    # logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
+    # run_script(options, "soil_moisture_process.py")
 
     logging.info("Create and save a soil moisture mask for the basin of interest.")
     run_script(options, "soil_moisture_create_mask.py")
@@ -220,6 +220,126 @@ def section_header(options: Options, title: str) -> None:
 
 
 # The following are utility functions and classes that can be imported into other scripts.
+
+
+def rasterize_shapefile_to_mask(shapefile:   str | os.PathLike[str],
+                                region_name: str,
+                                gt:     tuple[float, float, float, float, float, float],
+                                n_lon:  int,
+                                n_lat:  int,
+                                select: dict[str, object] | None = None) -> tuple[np.ndarray, list[float]]:
+    """
+    Open a shapefile, select a single polygon feature for `region_name`, and rasterize it
+    to a byte mask on the provided geotransform/grid.
+    Based on code written by Munish Sikka and ChatGPT, which was based on an 
+    original function provided by Jack McNelis.
+
+    Args:
+        shapefile:    Path to the ESRI Shapefile (.shp).
+        region_name:  Region/basin name to select (case-insensitive compare).
+        gt:           GDAL geotransform tuple for the *target* grid (origin at NW corner).
+        n_lon, n_lat: Output raster width/height (x,y).
+        select:       Optional selection hints:
+            {
+              "filter_sort": int,        # used for California in HYBAS (field SORT)
+              "layer_name": str,         # used for Colorado river basin (field WMOBB_NAME)
+              "field_name": str          # default field to match region_name (default: "name")
+            }
+
+    Returns:
+        (mask_array, bbox) where:
+            mask_array is (n_lat, n_lon) with values {0,1}
+            bbox is [minx, miny, maxx, maxy] of the chosen feature.
+
+    Raises:
+        FileNotFoundError if the shapefile cannot be opened.
+        RuntimeError if a matching feature cannot be found.
+    """
+    import numpy as np
+    from osgeo import ogr, gdal
+
+    gdal.UseExceptions()
+
+    shapefile = ensure_path_is_a_file(shapefile, raise_on_empty=True)
+    region_name_casefolded = region_name.casefold()
+
+    driver = ogr.GetDriverByName("ESRI Shapefile")
+    shp    = driver.Open(os.fspath(shapefile), 0)
+    if shp is None:
+        raise FileNotFoundError(f"Could not open {os.fspath(shapefile)}")
+
+    lyr  = shp.GetLayer()
+    ssrs = lyr.GetSpatialRef()
+    wkt  = ssrs.ExportToPrettyWkt() if ssrs is not None else ""
+
+    # Selection strategy
+    sel           = select or {}
+    filter_sort   = sel.get("filter_sort")
+    layer_name    = sel.get("layer_name")
+    default_field = (sel.get("field_name") or "name").strip()
+
+    chosen_index  = None
+    for i, feat in enumerate(lyr):
+        # Special-case: California by SORT
+        if region_name_casefolded in ("ca", "california"):
+            if filter_sort is not None and feat.GetField("SORT") == filter_sort:
+                chosen_index = i
+                break
+        # Special-case: "Colorado river basin" by WMOBB_NAME
+        elif region_name_casefolded == "colorado river basin":
+            if layer_name is not None and feat.GetField("WMOBB_NAME") == layer_name:
+                chosen_index = i
+                break
+        else:
+            # Default: match by named field (usually "name"), case-insensitive
+            fld_val = feat.GetField(default_field)
+            if isinstance(fld_val, str) and fld_val.casefold() == region_name_casefolded:
+                chosen_index = i
+                break
+
+    if chosen_index is None:
+        raise RuntimeError(
+            f"No feature matched region '{region_name}' in {os.fspath(shapefile)} "
+            f"(select hints: filter_sort={filter_sort}, layer_name={layer_name}, field={default_field})."
+        )
+
+    feat    = lyr.GetFeature(chosen_index)
+    geom    = feat.GetGeometryRef()
+    geojson = geom.ExportToJson()
+
+    # Build an in-memory single-feature layer
+    mem_drv = ogr.GetDriverByName("MEM")
+    featds  = mem_drv.CreateDataSource("MemoryDataset")
+    newlyr  = featds.CreateLayer("selected", ssrs, geom_type=ogr.wkbPolygon)
+    lyrid   = ogr.FieldDefn("ID", ogr.OFTInteger)
+    newlyr.CreateField(lyrid)
+
+    lyrdefn = newlyr.GetLayerDefn()
+    newfeat = ogr.Feature(lyrdefn)
+    newgeom = ogr.CreateGeometryFromJson(geojson)
+    newfeat.SetGeometry(newgeom)
+    newfeat.SetField("ID", 1)
+    newlyr.CreateFeature(newfeat)
+    newfeat = None
+
+    # Create output raster mask in memory
+    mask = gdal.GetDriverByName("MEM").Create("", n_lon, n_lat, 1, gdal.GDT_Byte)
+    mask.SetGeoTransform(gt)
+    if wkt:
+        mask.SetProjection(wkt)
+    band = mask.GetRasterBand(1)
+    band.Fill(0)
+    band.SetNoDataValue(0)
+
+    gdal.RasterizeLayer(mask, [1], newlyr, burn_values=[1])
+    mask.FlushCache()
+
+    marr = mask.GetRasterBand(1).ReadAsArray()
+    env  = geom.GetEnvelope()
+    bbox = [env[0], env[2], env[1], env[3]]
+
+    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug("Rasterized mask created: shape=(%d, %d)", n_lat, n_lon)
+    return marr, bbox
 
 
 def ensure_path_is_a_file(path: str | os.PathLike[str], raise_on_empty: bool = False) -> Path:
