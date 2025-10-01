@@ -26,6 +26,11 @@ from pathlib import Path
 
 import run_all as ra
 
+CSV FILENAME SHOULD HAVE DATA START/END DATES
+PRINT HEADER STATEMENT IN OUTPUT CSV FILE:
+VERSIONS OF INPUT DATA
+WHATEVER THE CALIBRATION PERIOD IS (IT MIGHT NOT BE THE FULL PERIOD ABOVE)
+
 
 class Options(ra.Options):
     """Class that has all global options in one place."""
@@ -40,7 +45,9 @@ class Options(ra.Options):
         self.default_grace_csv:         str = "LATEST_GRACE_FOR_BASIN.csv"
         self.default_output_csv:        str = f"anomaly_timeseries_groundwater_{self.default_basin_safename}_CURRENT_DATETIME.csv"
         self.timeseries_dir.mkdir(parents=True, exist_ok=True)  # Ensure the timeseries directory exists
-
+        # Define calibration period
+        self.cal_start = "2004-01-01"
+        self.cal_end   = "2009-12-31"
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
@@ -113,12 +120,8 @@ def main() -> None:
     logging.info(f"Loaded {options.reservoirs_model} data with {len(reservoirs)} entries.")
     show_monthly_duplicates(reservoirs, options.reservoirs_model)
 
-    # Define calibration period
-    cal_start = "2004-01-01"
-    cal_end   = "2009-12-31"
-
     # Compute groundwater and error
-    sw = compute_groundwater(grace, swe, soil_moisture, reservoirs, cal_start, cal_end)
+    sw = compute_groundwater(grace, swe, soil_moisture, reservoirs, options.cal_start, options.cal_end)
     logging.info(f"Computed groundwater series with {len(sw)} entries.")
 
     # Save results
