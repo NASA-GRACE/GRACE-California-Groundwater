@@ -99,7 +99,7 @@ def main() -> None:
 
     # logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
     # run_script(options, "soil_moisture_process.py")
-
+    
     logging.info("Create and save a soil moisture mask for the basin of interest.")
     run_script(options, "soil_moisture_create_mask.py")
 
@@ -141,24 +141,18 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked GRACE data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Processing SNODAS snow water equivalent data")
 
     logging.info("Downloading snow water equivalent (SWE) data...")
-    run_script(options, "swe_daily_downloader.py")
-
-    logging.info("Processing snow water equivalent (SWE) data into monthly means...")
-    run_script(options, "swe_monthly_mean.py")
+    run_script(options, "swe_daily_downloader_and_monthly_mean.py")
 
     logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
     run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
-
-    logging.info("Processing snow water equivalent (SWE) data into monthly means and anomalies...")
-    run_script(options, "swe_repair_mask_generator.py")
-
+    
     logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
     run_script(options, "swe_monthly_anomaly.py")
-
+    
     logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
     run_script(options, "plot_timeseries.py")
 
@@ -169,7 +163,7 @@ def main() -> None:
 
     logging.info("Generating comparison plots of all water storage components...")
     run_script(options, "plot_timeseries.py", flags=["--groundwater"])
-
+    
 
 def run_script(options: Options, the_script: str, flags: list[str] | None = None) -> None:
     """
