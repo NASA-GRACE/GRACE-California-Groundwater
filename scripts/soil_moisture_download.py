@@ -1,4 +1,4 @@
-# Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o1 (it/its), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
+# Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o1 (it/its), ChatGPT o4-mini-high (it/its), ChatGPT 5 Thinking (it/its), and GitHub Copilot (it/its).
 # Based on the example given here: https://disc.gsfc.nasa.gov/information/howto?keywords=python&title=How%20to%20Access%20GES%20DISC%20Data%20Using%20Python
 # This program will only work if Earthdata prerequisite files have already been generated. See https://disc.gsfc.nasa.gov/information/howto?title=How%20to%20Generate%20Earthdata%20Prerequisite%20Files
 # Documentation:

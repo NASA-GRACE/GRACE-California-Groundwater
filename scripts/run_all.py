@@ -92,14 +92,14 @@ def main() -> None:
     logging.basicConfig(level=options.log_mode, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     parse_arguments(options)
 
-    # section_header(options, "Processing soil moisture data")
+    section_header(options, "Processing soil moisture data")
 
-    # logging.info("Download soil moisture data files.")
-    # run_script(options, "soil_moisture_download.py")
+    logging.info("Download soil moisture data files.")
+    run_script(options, "soil_moisture_download.py")
 
-    # logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
-    # run_script(options, "soil_moisture_process.py")
-    
+    logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
+    run_script(options, "soil_moisture_process.py")
+
     logging.info("Create and save a soil moisture mask for the basin of interest.")
     run_script(options, "soil_moisture_create_mask.py")
 
@@ -141,7 +141,7 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked GRACE data.")
     run_script(options, "plot_timeseries.py")
-    
+
     section_header(options, "Processing SNODAS snow water equivalent data")
 
     logging.info("Downloading snow water equivalent (SWE) data...")
@@ -149,10 +149,10 @@ def main() -> None:
 
     logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
     run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
-    
+
     logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
     run_script(options, "swe_monthly_anomaly.py")
-    
+
     logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
     run_script(options, "plot_timeseries.py")
 
@@ -163,7 +163,7 @@ def main() -> None:
 
     logging.info("Generating comparison plots of all water storage components...")
     run_script(options, "plot_timeseries.py", flags=["--groundwater"])
-    
+
 
 def run_script(options: Options, the_script: str, flags: list[str] | None = None) -> None:
     """
@@ -223,9 +223,9 @@ def rasterize_shapefile_to_mask(shapefile:   str | os.PathLike[str],
                                 n_lat:  int,
                                 select: dict[str, object] | None = None) -> tuple[np.ndarray, list[float]]:
     """
-    Open a shapefile, select a single polygon feature for `region_name`, and rasterize it
+    Open a shapefile, select a single polygon feature for 'region_name', and rasterize it
     to a byte mask on the provided geotransform/grid.
-    Based on code written by Munish Sikka and ChatGPT, which was based on an 
+    Based on code written by Munish Sikka and ChatGPT, which was based on an
     original function provided by Jack McNelis.
 
     Args:

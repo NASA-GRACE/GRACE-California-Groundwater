@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
+Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 Thinking (it/its), and GitHub Copilot (it/its).
 Concatenate all netCDF files found under a folder (in subdirectories)
 into a single netCDF file.
 
@@ -35,7 +35,11 @@ class Options(ra.Options):
         self.my_name:          str = Path(__file__).stem  # The name of this script without the .py extension
         self.default_in_dir:  Path = self.project_root / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_monthly"
         self.default_out_dir: Path = self.project_root / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_concatenated"
-
+        # Attributes to collect (union across files) and storage
+        self.attrs_to_collect = ["shortname", "title", "version", "doi", "reference", "websites", "history"]
+        self.attr_values      = {k: set() for k in self.attrs_to_collect}  # filled during checks
+        # Will hold finalized, sorted lists (set→list) after scanning all files:
+        self.attr_lists = {}
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
@@ -237,6 +241,15 @@ def check_variable_consistency(options: Options, thetol: float = 1e-8) -> None:
         ref_lats = ds0["lat"].values
         ref_lons = ds0["lon"].values
 
+        # Store initial attributes from the first file
+        for key in options.attrs_to_collect:
+            val = ds0.attrs.get(key)
+            if val is not None:
+                if isinstance(val, (list, tuple, np.ndarray)):
+                    options.attr_values[key].update(str(v) for v in val)
+                else:
+                    options.attr_values[key].add(str(val))
+
     for fpath in tqdm.tqdm(options.in_files[1:], desc="Checking files"):
         with xr.open_dataset(fpath, decode_times=False) as ds:
             # 1) Check variable names and dims as before:
@@ -265,6 +278,15 @@ def check_variable_consistency(options: Options, thetol: float = 1e-8) -> None:
             else:
                 raise ValueError(f"Latitude values in {fpath} do not match the reference grid.")
 
+            # 4) Collect global attributes:
+            for key in options.attrs_to_collect:
+                val = ds.attrs.get(key)
+                if val is not None:
+                    if isinstance(val, (list, tuple, np.ndarray)):
+                        options.attr_values[key].update(str(v) for v in val)
+                    else:
+                        options.attr_values[key].add(str(val))
+
             if np.allclose(lons, ref_lons, atol=thetol):
                 pass
             elif np.allclose(lons[::-1], ref_lons, atol=thetol):
@@ -272,6 +294,11 @@ def check_variable_consistency(options: Options, thetol: float = 1e-8) -> None:
                                  "You may need to re‐index or shift longitudes.")
             else:
                 raise ValueError(f"Longitude values in {fpath} do not match the reference grid.")
+    
+    #Finalize to sorted lists (only keep keys that have at least one value)
+    options.attr_lists = {k: sorted(options.attr_values[k])
+                          for k in options.attrs_to_collect
+                          if options.attr_values[k]}
 
 
 def check_time_continuity(options: Options) -> None:
@@ -373,10 +400,15 @@ def concatenate_and_save(options: Options) -> None:
     try:
         with xr.open_mfdataset(options.in_files, combine="by_coords", **open_kwargs) as ds:
             get_datespan(options, ds)
+            # Write merged global attrs back to the concatenated dataset.
+            # Always store as a list of strings (even if length==1).
+            for key, values in getattr(options, "attr_lists", {}).items():
+                ds.attrs[key] = list(values)
+            ds.attrs["source_global_attrs_merge"] = "union across input files"
             out_path = Path(getattr(options, "out_filepath", create_out_filepath(options)))
             tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
             tmp_path.parent.mkdir(parents=True, exist_ok=True)
-            ds.to_netcdf(tmp_path)
+            ds.to_netcdf(tmp_path, engine="netcdf4")  # netCDF-4 handles list-of-strings attributes best.
         tmp_path.replace(out_path)
         logging.info("All files from %s combined into %s", options.model, out_path)
     except (FileNotFoundError, PermissionError, OSError, ValueError) as e:

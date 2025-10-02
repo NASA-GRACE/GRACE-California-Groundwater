@@ -23,13 +23,11 @@ import pandas as pd
 import numpy as np
 import logging
 from pathlib import Path
+import json
 
 import run_all as ra
 
-CSV FILENAME SHOULD HAVE DATA START/END DATES
-PRINT HEADER STATEMENT IN OUTPUT CSV FILE:
-VERSIONS OF INPUT DATA
-WHATEVER THE CALIBRATION PERIOD IS (IT MIGHT NOT BE THE FULL PERIOD ABOVE)
+print("HEADER: WHATEVER THE CALIBRATION PERIOD IS (IT MIGHT NOT BE THE FULL PERIOD ABOVE)"*100)
 
 
 class Options(ra.Options):
@@ -43,7 +41,7 @@ class Options(ra.Options):
         self.default_reservoirs_csv:    str = f"LATEST_{self.reservoirs_model}_FOR_BASIN.csv"
         self.default_swe_csv:           str = f"LATEST_{self.swe_model}_FOR_BASIN.csv"
         self.default_grace_csv:         str = "LATEST_GRACE_FOR_BASIN.csv"
-        self.default_output_csv:        str = f"anomaly_timeseries_groundwater_{self.default_basin_safename}_CURRENT_DATETIME.csv"
+        self.default_output_csv:        str = f"anomaly_timeseries_groundwater_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
         self.timeseries_dir.mkdir(parents=True, exist_ok=True)  # Ensure the timeseries directory exists
         # Define calibration period
         self.cal_start = "2004-01-01"
@@ -78,8 +76,7 @@ def main() -> None:
     parse_arguments(options)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
-    basin_title = options.args.basin
-    basin_title = ra.safestring(basin_title)
+    basin_title = ra.safestring(options.args.basin)
 
     if options.args.grace == options.default_grace_csv:  # If user-specified input GRACE file is the default placeholder
         options.args.grace = (options.timeseries_dir / f"anomaly_timeseries_GRACE_{basin_title}_mask.csv").resolve()
@@ -102,21 +99,34 @@ def main() -> None:
             raise FileNotFoundError(f"No {options.soil_moisture_model} files found for {options.args.basin}.")
     if options.args.output == options.default_output_csv:
         # Create a timestamp for the output filename
-        timestamp = ra.parse_datetime("NOW", timezone="America/Los_Angeles").strftime("%Y%m%d_%H%M%S")
-        options.args.output = options.output_dir / f"anomaly_timeseries_groundwater_{basin_title}_monthly_unsmoothed_created_on_{timestamp}.csv"
+        timestamp = ra.parse_datetime("NOW", timezone="America/Los_Angeles").strftime("%Y%m%d-%H%M%S")
+        options.args.output = options.output_dir / f"anomaly_timeseries_groundwater_{basin_title}_DATA_START_to_DATA_END_monthly_unsmoothed_created_on_{timestamp}.csv"
+    else:
         logging.info(f"Output will be saved to {options.args.output}")
 
     # Load input series
-    grace  = load_series(options.args.grace)
+
+    grace = load_series(options.args.grace)
     logging.info(f"Loaded GRACE data with {len(grace)} entries.")
     show_monthly_duplicates(grace, "GRACE")
+
     swe = load_series(options.args.swe)
     logging.info(f"Loaded {options.swe_model} data with {len(swe)} entries.")
     show_monthly_duplicates(swe, options.swe_model)
-    soil_moisture  = load_series(options.args.soilm)
+
+    soil_moisture = load_series(options.args.soilm)
     logging.info(f"Loaded {options.soil_moisture_model} data with {len(soil_moisture)} entries.")
     show_monthly_duplicates(soil_moisture, options.soil_moisture_model)
-    reservoirs   = load_series(options.args.reservoirs)
+    # Read soil moisture header from its CSV and prepare multi-section header for outputs
+    soil_header_attrs = _read_csv_header_attrs(options.args.soilm)
+    header_sections = {
+        "soil_moisture": soil_header_attrs,     # filled from input
+        "snow_water_equivalent": {},            # placeholder for future
+        "reservoirs": {},                       # placeholder for future
+        "grace": {},                            # placeholder for future
+    }
+
+    reservoirs = load_series(options.args.reservoirs)
     logging.info(f"Loaded {options.reservoirs_model} data with {len(reservoirs)} entries.")
     show_monthly_duplicates(reservoirs, options.reservoirs_model)
 
@@ -124,31 +134,46 @@ def main() -> None:
     sw = compute_groundwater(grace, swe, soil_moisture, reservoirs, options.cal_start, options.cal_end)
     logging.info(f"Computed groundwater series with {len(sw)} entries.")
 
+    if "DATA_START_to_DATA_END" in options.args.output.name:
+        # Replace placeholders in each output filename with actual start and end dates of the combined time series:
+        data_start_monthly = sw.index.min().strftime("%Y-%m")
+        data_end_monthly   = sw.index.max().strftime("%Y-%m")
+        data_start_yearly  = sw.index.min().strftime("%Y")
+        data_end_yearly    = sw.index.max().strftime("%Y")
+
     # Save results
     monthly_unsmoothed_output_path = options.args.output
-    sw.to_csv(monthly_unsmoothed_output_path, index_label="date")
+    if "DATA_START_to_DATA_END" in monthly_unsmoothed_output_path.name:
+        monthly_unsmoothed_output_path = monthly_unsmoothed_output_path.with_name(monthly_unsmoothed_output_path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
+    _write_df_with_header(sw, monthly_unsmoothed_output_path, index_label="date", sections=header_sections)
     logging.info(f"Groundwater series (monthly, unsmoothed) written to {monthly_unsmoothed_output_path}")
 
     # Smooth the time series
     window_size = 3  # centered moving average of 3 months
     logging.info(f"Smoothing the groundwater series with a centered moving average of {window_size} months.")
     sw_smoothed = smooth_timeseries(sw, window=window_size)
-    smoothed_output_path = monthly_unsmoothed_output_path.with_name(monthly_unsmoothed_output_path.name.replace("monthly_unsmoothed", f"monthly_smoothed_{window_size}mo"))
-    sw_smoothed.to_csv(smoothed_output_path, index_label="date")
+    smoothed_output_path = options.args.output.with_name(options.args.output.name.replace("monthly_unsmoothed", f"monthly_smoothed_{window_size}mo"))
+    if "DATA_START_to_DATA_END" in smoothed_output_path.name:
+        smoothed_output_path = smoothed_output_path.with_name(smoothed_output_path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
+    _write_df_with_header(sw_smoothed, smoothed_output_path, index_label="date", sections=header_sections)
     logging.info(f"Groundwater series (monthly, smoothed) written to {smoothed_output_path}")
 
     # Compute calendar-year averages
     logging.info("Computing calendar-year averages of the groundwater series.")
     sw_cal_yr = average_timeseries(sw, year_type="calendar")
-    cal_yr_output_path = monthly_unsmoothed_output_path.with_name(monthly_unsmoothed_output_path.name.replace("monthly_unsmoothed", "calendar_year_averages"))
-    sw_cal_yr.to_csv(cal_yr_output_path, index_label="date")
+    cal_yr_output_path = options.args.output.with_name(options.args.output.name.replace("monthly_unsmoothed", "calendar_year_averages"))
+    if "DATA_START_to_DATA_END" in cal_yr_output_path.name:
+        cal_yr_output_path = cal_yr_output_path.with_name(cal_yr_output_path.name.replace("DATA_START", data_start_yearly).replace("DATA_END", data_end_yearly))
+    _write_df_with_header(sw_cal_yr, cal_yr_output_path, index_label="date", sections=header_sections)
     logging.info(f"Groundwater series (calendar-year averages) written to {cal_yr_output_path}")
 
     # Compute water-year averages
     logging.info("Computing water-year averages of the groundwater series.")
     sw_wat_yr = average_timeseries(sw, year_type="water")
-    wat_yr_output_path = monthly_unsmoothed_output_path.with_name(monthly_unsmoothed_output_path.name.replace("monthly_unsmoothed", "water_year_averages"))
-    sw_wat_yr.to_csv(wat_yr_output_path, index_label="date")
+    wat_yr_output_path = options.args.output.with_name(options.args.output.name.replace("monthly_unsmoothed", "water_year_averages"))
+    if "DATA_START_to_DATA_END" in wat_yr_output_path.name:
+        wat_yr_output_path = wat_yr_output_path.with_name(wat_yr_output_path.name.replace("DATA_START", data_start_yearly).replace("DATA_END", data_end_yearly))
+    _write_df_with_header(sw_wat_yr, wat_yr_output_path, index_label="date", sections=header_sections)
     logging.info(f"Groundwater series (water-year averages) written to {wat_yr_output_path}")
 
 
@@ -173,9 +198,10 @@ def load_series(path: str | os.PathLike[str], date_col: str = "date", target_day
     logging.info(f"Loading time series from {path} with date column '{date_col}', setting the day of the month to target_day_of_month to ignore differences between datasets that record data at different times of the month.")
     df = pd.read_csv(
         path,
-        converters={
-            date_col: lambda x: pd.to_datetime(x).replace(day=target_day_of_month)
-        }
+        comment="#",                 # <- NEW: skip commented header lines we added
+        skip_blank_lines=True,       # <- NEW: be tolerant of blank lines between sections
+        # engine="python",           # (optional) uncomment if you ever hit odd parsing cases
+        converters={date_col: lambda x: pd.to_datetime(x).replace(day=target_day_of_month)}
     )
 
     df = df.set_index(date_col)
@@ -215,6 +241,56 @@ def show_monthly_duplicates(df: pd.DataFrame, name: str) -> None:
             # show each month and the rows that fell into it
             logging.info(f"\n–– {month.date()} ––")
             logging.info(df.loc[month])
+
+
+def _read_csv_header_attrs(path: str | os.PathLike[str]) -> dict[str, list[str]]:
+    """
+    Read top-of-file commented header lines of the form:
+        # key: [json-array]
+    Stop at the first non-comment line. Returns {key: list[str]}.
+    """
+    header: dict[str, list[str]] = {}
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.startswith("#"):
+                break
+            # strip leading '#', keep empty comment lines out
+            text = line[1:].strip()
+            if not text or ":" not in text:
+                continue
+            key, raw = text.split(":", 1)
+            key = key.strip()
+            raw = raw.strip()
+            try:
+                val = json.loads(raw)
+                if isinstance(val, list):
+                    header[key] = [str(x) for x in val]
+                else:
+                    header[key] = [str(val)]
+            except Exception:
+                header[key] = [raw]
+    return header
+
+
+def _write_df_with_header(df: pd.DataFrame, out_path: os.PathLike[str] | str,
+                          index_label: str = "date",
+                          sections: dict[str, dict[str, list[str]]] | None = None) -> None:
+    """
+    Write a multi-section commented header followed by the CSV body.
+    sections: {"soil_moisture": {...}, "snow_water_equivalent": {...}, ...}
+              Each inner dict maps key -> list[str].
+    """
+    with open(out_path, "w", newline="", encoding="utf-8") as fh:
+        if sections:
+            # Emit sections in a stable, readable order if present
+            order = ["soil_moisture", "snow_water_equivalent", "reservoirs", "grace"]
+            for section in order:
+                fh.write(f"# === {section} ===\n")
+                attrs = sections.get(section, {}) if isinstance(sections, dict) else {}
+                for k, vlist in attrs.items():
+                    fh.write(f"# {k}: {json.dumps(list(vlist), ensure_ascii=False)}\n")
+                fh.write("#\n")
+        df.to_csv(fh, index_label=index_label)
 
 
 def remove_mean(series:     pd.Series,

@@ -18,6 +18,7 @@ import csv
 from netCDF4 import Dataset
 import xarray as xr
 from pyproj import Geod
+import json
 
 import run_all as ra
 
@@ -37,7 +38,8 @@ class Options(ra.Options):
         self.default_nc:       Path = self.timeseries_dir   / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.nc"
         self.default_mask:     Path = self.masks_dir        / f"{self.soil_moisture_model}_{self.default_basin_safename}_mask.nc"
         self.unit_factors:     dict = {"mm H2O": 1000, "kg/m2": 1000, "kg/m^2": 1000, "cm": 100, "dm": 10, "m": 1, "km": 0.001}  # Conversions from meters to other units.
-        self.masks_dir.mkdir(       parents=True, exist_ok=True)
+        self.masks_dir.mkdir(parents=True, exist_ok=True)
+        self.attrs_to_copy: list[str] = ["shortname", "title", "version", "doi", "reference", "websites", "history"]
 
 
 def parse_arguments(options: Options) -> None:
@@ -145,6 +147,21 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     lon_step = abs(float(lons[1]) - float(lons[0]))
     lat_step = abs(float(lats[1]) - float(lats[0]))
 
+    # Collect selected global attributes as lists of strings for the CSV header
+    global_attrs: dict[str, list[str]] = {}
+    for key in options.attrs_to_copy:
+        val = ds.attrs.get(key)
+        if val is None:
+            continue
+        if isinstance(val, (list, tuple, np.ndarray)):
+            global_attrs[key] = [str(x) for x in val]
+        else:
+            global_attrs[key] = [str(val)]
+    # Optional: include provenance if present from the previous step
+    prov = ds.attrs.get("source_global_attrs_merge")
+    if prov is not None:
+        global_attrs["source_global_attrs_merge"] = [str(prov)]
+
     # Process soil moisture data if available
     sum_soil_moisture_by_depth(options, ds)
 
@@ -205,7 +222,8 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     for var in var_list:
         fieldnames.append(var)
         fieldnames.append(f"{var}_error")
-    output_csv(options.args.output_csv, fieldnames, ds.time.data, anomalies_dict)
+    output_csv(options.args.output_csv, fieldnames, ds.time.data, anomalies_dict, global_attrs=global_attrs)
+
 
     output_nc(options.args.output_nc, ds, total_interest, interest_lon, interest_lat,
               time_steps, var_list, avg_dict, t_var=t_var, x_var=x_var, y_var=y_var)
@@ -409,7 +427,9 @@ def compute_anomaly_timeseries(var: np.ndarray, var_factor: float, avg: list[flo
 
 
 def output_csv(output_file: str | os.PathLike[str], fieldnames: list[str],
-               times: np.ndarray, anomalies_dict: dict[str, list[float]]) -> None:
+               times: np.ndarray, anomalies_dict: dict[str, list[float]],
+               global_attrs: dict[str, list[str]] | None = None) -> None:
+
     """
     Write the anomaly timeseries to a CSV file.
 
@@ -418,6 +438,7 @@ def output_csv(output_file: str | os.PathLike[str], fieldnames: list[str],
         fieldnames:     List of column names (e.g., date plus variables).
         times:          Array of time values.
         anomalies_dict: Dictionary mapping each variable to its anomaly timeseries.
+        global_attrs:   Optional dictionary of global attributes to include as comments.
 
     Returns:
         None. The CSV file is created.
@@ -426,6 +447,13 @@ def output_csv(output_file: str | os.PathLike[str], fieldnames: list[str],
         None.
     """
     with open(output_file, "w", newline="") as csvfile:
+        # Write selected global attrs as commented header lines (CSV metadata)
+        if global_attrs:
+            for k, vals in global_attrs.items():
+                # store as a JSON array so downstream code can parse reliably
+                csvfile.write(f"# {k}: {json.dumps(vals, ensure_ascii=False)}\n")
+            # blank line for readability (optional)
+            csvfile.write("#\n")
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, dialect="excel")
         writer.writeheader()
         for i, date in enumerate(times):
@@ -518,6 +546,18 @@ def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, i
     nc_out.Conventions = "CF-1.6"
     nc_out.history = f"Created on {dt.datetime.now(dt.timezone.utc).isoformat()}+00:00"
     nc_out.featureType = "timeSeries"
+    # OPTIONAL: propagate selected global attrs from input ds to the anomaly NetCDF
+    for key in ["shortname", "title", "version", "doi", "reference", "websites", "history"]:
+        val = ds.attrs.get(key)
+        if val is not None:
+            try:
+                nc_out.setncattr(key, val)  # works for strings or list-of-strings with NETCDF4
+            except Exception:
+                # fallback: stringify anything odd
+                if isinstance(val, (list, tuple, np.ndarray)):
+                    nc_out.setncattr(key, "; ".join(map(str, val)))
+                else:
+                    nc_out.setncattr(key, str(val))
     nc_out.close()
     logging.info(f"Created NetCDF file: {os.fspath(output_file)}")
 
