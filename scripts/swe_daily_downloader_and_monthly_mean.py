@@ -30,7 +30,7 @@ class Options(ra.Options):
         current_time = datetime.now()
         self.default_log_file: Path = self.swe_dir /  f"swe_download_{current_time.strftime('%Y-%m-%d_%H-%M-%S')}.log" 
         self.default_scale_factor: float = 1000.0
-        self.default_cleanup_daily: bool = True #True: if users want to remove daily files  # False if users want to keep daily GeoTIFFs 
+        self.default_cleanup_daily: bool = False #True: if users want to remove daily files  # False if users want to keep daily GeoTIFFs 
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
@@ -276,6 +276,15 @@ def snodas_monthly_pipeline(options: Options) -> None:
             month_end = end_date
 
         logging.info(f"Processing month: {current.strftime('%Y-%m')}")
+        
+        # Skip month if output already exists
+        current_month_str = current.strftime('%Y%m')
+        
+        already_exists = list(monthly_dir.glob(f"monthly_mean_{current_month_str}_*.tif"))
+        if already_exists:
+            logging.info(f"Monthly file already exists for {current_month_str}, skipping download & computation.")
+            current = (current.replace(day=28) + timedelta(days=4)).replace(day=1)
+            continue
 
         # --- Step 1: Download daily data for this month ---
         d = current
@@ -284,18 +293,19 @@ def snodas_monthly_pipeline(options: Options) -> None:
             d += timedelta(days=1)
 
         # --- Step 2: Compute monthly mean ---
-        # Get the YYYYMM string for the current month being processed
-        current_month_str = current.strftime('%Y%m')
-        
         # Filter the files by the date string in the filename
         monthly_files = sorted([
             str(f) for f in daily_dir.glob("SNODAS_*.tif") 
             if f.is_file() and f.name.startswith(f"SNODAS_{current_month_str}")
         ])
-        #monthly_files = sorted([str(f) for f in daily_dir.glob("SNODAS_*.tif") if f.is_file()])
-
+        
         if monthly_files:
-            output_path = monthly_dir / f"monthly_mean_{current.strftime('%Y%m')}.tif"
+            # Detect first and last day of data available
+            days_available = sorted([int(Path(f).stem.split("_")[1][-2:]) for f in monthly_files])
+            first_day = f"{days_available[0]:02d}"
+            last_day = f"{days_available[-1]:02d}"
+            
+            output_path = monthly_dir / f"monthly_mean_{current_month_str}_{first_day}_{last_day}.tif"
             compute_monthly_mean(monthly_files, str(output_path), scale_factor=scale_factor)
         else:
             logging.warning("No daily GeoTIFFs found for this month, skipping mean computation.")

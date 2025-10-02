@@ -91,7 +91,7 @@ def main() -> None:
     options = Options()
     logging.basicConfig(level=options.log_mode, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     parse_arguments(options)
-
+    
     section_header(options, "Processing soil moisture data")
 
     logging.info("Download soil moisture data files.")
@@ -141,7 +141,7 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked GRACE data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Processing SNODAS snow water equivalent data")
 
     logging.info("Downloading snow water equivalent (SWE) data...")
@@ -152,7 +152,7 @@ def main() -> None:
 
     logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
     run_script(options, "swe_monthly_anomaly.py")
-
+    
     logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
     run_script(options, "plot_timeseries.py")
 
@@ -163,7 +163,7 @@ def main() -> None:
 
     logging.info("Generating comparison plots of all water storage components...")
     run_script(options, "plot_timeseries.py", flags=["--groundwater"])
-
+    
 
 def run_script(options: Options, the_script: str, flags: list[str] | None = None) -> None:
     """

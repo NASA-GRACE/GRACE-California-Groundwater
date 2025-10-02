@@ -240,7 +240,7 @@ def compute_means(options: Options, file_list: list, region_masks: dict,
         
 def extract_date_from_filename(filename: str) -> datetime:
     """
-    Extract date from filenames like snowds_yyyy_mm.tif
+    Extract date from filenames like snowdas_yyyymm_.tif
 
     Args:
         filename: Filename string.
@@ -251,10 +251,14 @@ def extract_date_from_filename(filename: str) -> datetime:
     Raises:
         ValueError: If date cannot be parsed from filename.
     """
-    match = re.search(r'monthly_mean_(\d{4})(\d{2})\.tif', filename)
+    match = re.search(r'(\d{6})', filename)
     if not match:
         raise ValueError(f"Could not parse date from {filename}")
-    year, month = map(int, match.groups())
+    
+    yyyymm = match.group(1)
+    year = int(yyyymm[:4])
+    month = int(yyyymm[4:6])
+    
     return datetime(year, month, 15)  # Mid-month
 
 
