@@ -193,14 +193,13 @@ def load_series(path: str | os.PathLike[str], date_col: str = "date", target_day
     Raises:
         ValueError: If the CSV does not have exactly two data columns besides the date column.
     """
-    # df = pd.read_csv(path, parse_dates=[date_col])
 
     logging.info(f"Loading time series from {path} with date column '{date_col}', setting the day of the month to target_day_of_month to ignore differences between datasets that record data at different times of the month.")
     df = pd.read_csv(
         path,
-        comment="#",                 # <- NEW: skip commented header lines we added
-        skip_blank_lines=True,       # <- NEW: be tolerant of blank lines between sections
-        # engine="python",           # (optional) uncomment if you ever hit odd parsing cases
+        comment="#",
+        skip_blank_lines=True,
+        # engine="python",           # uncomment if you ever hit odd parsing cases
         converters={date_col: lambda x: pd.to_datetime(x).replace(day=target_day_of_month)}
     )
 

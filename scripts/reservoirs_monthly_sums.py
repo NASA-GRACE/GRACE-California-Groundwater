@@ -248,7 +248,7 @@ def read_monthly_csv(file_path: str) -> pd.DataFrame:
     Raises:
         None.
     """
-    df = pd.read_csv(file_path, parse_dates=['DATETIME'])
+    df = pd.read_csv(file_path, parse_dates=['DATETIME'], comment="#", skip_blank_lines=True)
     df = df[['DATETIME', 'VALUE']].copy()
     df = df.groupby('DATETIME').sum()  # Sum per month if duplicates exist
     return df

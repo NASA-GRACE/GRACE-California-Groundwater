@@ -32,7 +32,7 @@ class Options(ra.Options):
         self.default_regions:        list = [self.default_basin_safename]
         self.default_output_regions: list = [f"{self.default_basin_safename}_mask"]
 
-        
+
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description=f"Process {options.swe_model} SWE data by region and date thresholds.")
@@ -107,7 +107,7 @@ def monthly_anomalies_for_SNODAS(options: Options) -> None:
     mask_dir      = options.args.mask_dir
     regions        = options.args.regions
     output_regions = options.args.output_regions
-    
+
     # Change directory if desired
     os.chdir(input_dir)
 
@@ -124,7 +124,7 @@ def monthly_anomalies_for_SNODAS(options: Options) -> None:
     logging.info(f"Mask directory: {mask_dir}")
     logging.info(f"Regions: {regions}")
     logging.info(f"Output region names: {output_regions}")
-    
+
     # processing
     sample_filename = swe_files[0]
     # Compute latitude array using any sample file
@@ -133,20 +133,21 @@ def monthly_anomalies_for_SNODAS(options: Options) -> None:
     origin_y = gt[3]
     pixel_height = gt[5]
     nrows = ds_sample.RasterYSize
-    latitudes = origin_y + np.arange(nrows) * pixel_height  
-    res = np.round(gt[1],5) #longitude resolution
+    latitudes = origin_y + np.arange(nrows) * pixel_height
+    res = np.round(gt[1], 5)  # longitude resolution
     dx = res/2
-    max_lat = np.round(np.max(latitudes),3)   
+    max_lat = np.round(np.max(latitudes), 3)
     # --- Define latitude centers (from north to south) ---
     lat_centers = max_lat - np.arange(nrows) * res  # North to south
     # --- Get area per row ---
-    area_per_row = area(lat_centers,dx)  # shape: (3351,)
+    area_per_row = area(lat_centers, dx)  # shape: (3351,)
     # --- Repeat for all columns (6935) ---
     ncols = ds_sample.RasterXSize
     area_grid = np.tile(area_per_row[:, np.newaxis], (1, ncols))  # shape: (3351, 6935)
 
     # Compute means
     compute_means(options, swe_files, region_masks, regions, output_regions, output_dir, err_coeff, area_grid)
+
 
 def load_region_masks(options: Options, regions: list, mask_dir: str,
                                    template: str = '{swe_model}_{region}_mask.csv') -> dict:
@@ -169,7 +170,7 @@ def load_region_masks(options: Options, regions: list, mask_dir: str,
     for i, region in enumerate(regions):
         mask_path = os.path.join(mask_dir, template.format(swe_model=options.swe_model, region=region))
         # Read and convert to boolean arrays
-        masks[i]  = pd.read_csv(mask_path, header=None).values.astype(bool)
+        masks[i]  = pd.read_csv(mask_path, header=None, comment="#", skip_blank_lines=True).values.astype(bool)
     return masks
 
 
@@ -212,23 +213,23 @@ def compute_means(options: Options, file_list: list, region_masks: dict,
         for j in range(len(region_names)):
             mask = region_masks[j]
             weighted_mean, weighted_sum, total_weight = area_weighted_stats(swe, area_weights, mask)
-            #weighted_sum = np.nan_to_num(weighted_sum, nan=np.nan)  # ensure numeric
-            #weighted_sum = float(weighted_sum)  # make scalar, not array
-            #mean_val = area_weighted_stats(swe, area_weights, mask)
+            # weighted_sum = np.nan_to_num(weighted_sum, nan=np.nan)  # ensure numeric
+            # weighted_sum = float(weighted_sum)  # make scalar, not array
+            # mean_val = area_weighted_stats(swe, area_weights, mask)
             error_val = float(err_coeff) * weighted_sum if not np.isnan(weighted_sum) else np.nan
             all_results[j].append((weighted_sum, error_val))
-            
+
     # Save CSV files per region
     for i, region_data in enumerate(all_results):
         df = pd.DataFrame(region_data, columns=["swe", "swe_error"])
         df.insert(0, "date", all_dates)
         safe_name = output_regions[i].replace(" ", "_")
         os.makedirs(output_dir, exist_ok=True)
-        df['swe'] /= 1e9 #swe multiplied by area in m3 to km3
+        df['swe'] /= 1e9  # swe multiplied by area in m3 to km3
         df['swe_error'] /= 1e9
         # compute anomaly
         # Filter the period from Jan 2004 to Dec 2009
-        swe_values = df['swe'] 
+        swe_values = df['swe']
         df['YearMonth'] = pd.to_datetime(df['date']).dt.to_period('M')
         start_period    = pd.Period('2004-01', freq='M')
         end_period      = pd.Period('2009-12', freq='M')
@@ -237,7 +238,8 @@ def compute_means(options: Options, file_list: list, region_masks: dict,
         df['swe']       = swe_values - baseline_mean
         csv_file        = output_dir / f"anomaly_timeseries_{options.swe_model}_{safe_name}.csv"
         df.drop(columns=['YearMonth']).to_csv(csv_file, index=False)
-        
+
+
 def extract_date_from_filename(filename: str) -> datetime:
     """
     Extract date from filenames like snowdas_yyyymm_.tif
@@ -254,11 +256,11 @@ def extract_date_from_filename(filename: str) -> datetime:
     match = re.search(r'(\d{6})', filename)
     if not match:
         raise ValueError(f"Could not parse date from {filename}")
-    
+
     yyyymm = match.group(1)
     year = int(yyyymm[:4])
     month = int(yyyymm[4:6])
-    
+
     return datetime(year, month, 15)  # Mid-month
 
 

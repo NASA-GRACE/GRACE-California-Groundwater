@@ -245,7 +245,7 @@ def load_reservoirs_from_file(filepath: str) -> list[dict] | None:
         None. Catches exceptions (FileNotFoundError, pd.errors.EmptyDataError, etc.) and logs errors.
     """
     try:
-        df = pd.read_csv(filepath)
+        df = pd.read_csv(filepath, comment="#", skip_blank_lines=True)
         if "Reservoir Name" not in df.columns or "Station ID" not in df.columns:
             logging.error(f"The file '{filepath}' must contain 'Reservoir Name' and 'Station ID' columns.")
             return None
@@ -347,7 +347,7 @@ def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
             return None
 
         csv_data_io = StringIO("\n".join(lines[header_row_index:]))
-        df = pd.read_csv(csv_data_io)
+        df = pd.read_csv(csv_data_io, comment="#", skip_blank_lines=True)
 
         if df.empty:
             logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  Info: Dataframe is empty for {station_id} after parsing.")

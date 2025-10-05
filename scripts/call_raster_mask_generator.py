@@ -13,7 +13,6 @@ import xarray as xr
 import logging
 import pandas as pd 
 import re
-from mask_from_shapefile import read_shapefile_multilayers
 
 import run_all as ra
 
@@ -77,8 +76,8 @@ def parse_arguments(options: Options) -> None:
         options.default_grace_target_dataset = latest_nc_file  # This is a complete Path.
         options.target_dataset = options.default_grace_target_dataset
         options.output_file = options.grace_dir / "masks" / f"grace_{options.default_basin_safename}_mask.csv"
-                
-   
+
+
 def main(input_shapefile: str, output_file: str, region_name: str, dataset_name: str, target_dataset: str) -> None:
     """
     Main function to create a river basin mask.
@@ -126,14 +125,16 @@ def main(input_shapefile: str, output_file: str, region_name: str, dataset_name:
         res_lon = gt[1]
         res_lat = abs(gt[5])
         logging.info(f"GeoTIFF grid detected: res_lon={res_lon}, res_lat={res_lat}")
-        mask,bbox = read_shapefile_multilayers(region_name,input_shapefile,gt,n_lon,n_lat,filter_sort,layer_name)
+        mask,bbox = ra.rasterize_shapefile_to_mask(region_name=region_name, shapefile=input_shapefile,
+                                                   gt=gt, n_lon=n_lon, n_lat=n_lat,
+                                                   select={"filter_sort": filter_sort, "layer_name": layer_name})
         ds = None
         df = pd.DataFrame(mask)
         df.to_csv(output_file, header=False, index=False)
         logging.info(bbox)
         # nc file datset
-    elif str(target_dataset).lower().endswith(".nc")and dataset_name.lower() == 'grace_mascon':
-        dataset = xr.open_dataset((target_dataset))
+    elif str(target_dataset).lower().endswith(".nc") and dataset_name.lower() == 'grace_mascon':
+        dataset = xr.open_dataset(target_dataset)
         lat_var = None
         lon_var = None
         for name in dataset.variables:
@@ -158,7 +159,9 @@ def main(input_shapefile: str, output_file: str, region_name: str, dataset_name:
         0.0,          # 4  Y rotation,
         -1*res_lat,   # 5  Y resolution
         )
-        mask,bbox = read_shapefile_multilayers(region_name,input_shapefile,gt,n_lon,n_lat,filter_sort,layer_name)
+        mask,bbox = ra.rasterize_shapefile_to_mask(region_name=region_name, shapefile=input_shapefile,
+                                                   gt=gt, n_lon=n_lon, n_lat=n_lat,
+                                                   select={"filter_sort": filter_sort, "layer_name": layer_name})
         df = pd.DataFrame(mask)
         df.to_csv(output_file, header=False, index=False)
     else:

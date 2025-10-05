@@ -189,7 +189,7 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
         include_blurb = True
 
     for idx, (path, basin) in enumerate(zip(csv_paths, basin_titles)):
-        df = pd.read_csv(path, parse_dates=[0])
+        df = pd.read_csv(path, parse_dates=[0], comment="#", skip_blank_lines=True)
         if df.shape[1] != 3:
             raise ValueError(f"Expected CSV with three columns, got {list(df.columns)} in {os.fspath(path)}")
         # Eliminate any rows with NaN values

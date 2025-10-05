@@ -106,12 +106,12 @@ def process_csv(options: Options, file_path: str, output_dir: str, start_date: s
         ValueError: If the input CSV does not have the expected format.
     """
     region_name = os.path.splitext(os.path.basename(file_path))[0].replace('_monthly_km3', '')
-    
+
     # Load the CSV
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(file_path, comment="#", skip_blank_lines=True)
     if 'date' not in df.columns:
         raise ValueError(f"CSV {file_path} must have a 'date' column")
-    
+
     df['date'] = pd.to_datetime(df['date'])
 
     # Assume the magnitude column is the only one besides 'date'

@@ -46,10 +46,10 @@ def main() -> None:
                         datefmt='%Y-%m-%d %H:%M:%S')
     parse_arguments(options)
 
-    df = pd.read_csv(options.args.input_file, parse_dates=["date"]).set_index("date").sort_index()
+    df = pd.read_csv(options.args.input_file, parse_dates=["date"], comment="#", skip_blank_lines=True).set_index("date").sort_index()
 
     # Load CSV
-    df = pd.read_csv(options.args.input_file, parse_dates=["date"]).set_index("date").sort_index()
+    df = pd.read_csv(options.args.input_file, parse_dates=["date"], comment="#", skip_blank_lines=True).set_index("date").sort_index()
 
     # Run interpolation
     columns = ["tws", "tws_error"]
