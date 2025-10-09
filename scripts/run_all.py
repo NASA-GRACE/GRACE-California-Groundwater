@@ -27,6 +27,8 @@ class Options:
         self.test_start:               str = "2005-01-01"                     # Quick test timespan start
         self.test_end:                 str = "2005-03-31T23:59:59"            # Quick test timespan end
         self.full_start:               str = "2004-01-01"                     # Start of full timeseries
+        self.baseline_start:           str = "2004-01-01"                     # Start of baseline calibration period
+        self.baseline_end:             str = "2009-12-31"                     # End   of baseline calibration period
         self.full_end:                 str = "NOW"                            # Current date/time is the end of the full timeseries
         self.soil_moisture_model:      str = "NLDAS"
         self.swe_model:                str = "SNODAS"
@@ -216,7 +218,7 @@ def section_header(options: Options, title: str) -> None:
 
 # The following are utility functions and classes that can be imported into other scripts.
 
-DT: TypeAlias = date | datetime
+DT: TypeAlias = date | datetime | str  # date, datetime, or date string (ISO-format, YYYY-MM-DD, anything that parse_datetime() accepts)
 
 
 def compute_baseline(actual_start: DT,
@@ -235,10 +237,10 @@ def compute_baseline(actual_start: DT,
     defined by simple subtraction (end - start).
 
     Args:
-        actual_start: The start of the actual time series.
-        actual_end:   The end of the actual time series.
+        actual_start: The start of the actual   time series.
+        actual_end:   The end   of the actual   time series.
         base_start:   The start of the baseline time series.
-        base_end:     The end of the baseline time series.
+        base_end:     The end   of the baseline time series.
 
     Returns:
         A tuple (start, end) representing the computed baseline interval.
@@ -247,12 +249,19 @@ def compute_baseline(actual_start: DT,
         ValueError: If actual_start is greater than actual_end or base_start is greater than base_end.
         TypeError:  If the types of actual_start, actual_end, base_start, and base_end are not consistent.
     """
+    if type(actual_start) is not type(actual_end) or type(base_start) is not type(base_end):
+        raise TypeError("All inputs must be of the same type (all date or all datetime)")
+
+    if isinstance(actual_start, str):
+        actual_start = parse_datetime(actual_start)
+        actual_end   = parse_datetime(actual_end)
+        base_start   = parse_datetime(base_start)
+        base_end     = parse_datetime(base_end)
+
     if actual_start > actual_end:
         raise ValueError("actual_start must be <= actual_end")
     if base_start > base_end:
         raise ValueError("base_start must be <= base_end")
-    if type(actual_start) is not type(actual_end) or type(base_start) is not type(base_end):
-        raise TypeError("All inputs must be of the same type (all date or all datetime)")
 
     # Intersection
     inter_start = max(base_start, actual_start)

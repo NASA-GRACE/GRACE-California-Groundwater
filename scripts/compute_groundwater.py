@@ -43,9 +43,7 @@ class Options(ra.Options):
         self.default_grace_csv:         str = "LATEST_GRACE_FOR_BASIN.csv"
         self.default_output_csv:        str = f"anomaly_timeseries_groundwater_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
         self.timeseries_dir.mkdir(parents=True, exist_ok=True)  # Ensure the timeseries directory exists
-        # Define calibration period
-        self.cal_start = "2004-01-01"
-        self.cal_end   = "2009-12-31"
+
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
