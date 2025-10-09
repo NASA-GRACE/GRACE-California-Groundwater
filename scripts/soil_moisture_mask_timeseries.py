@@ -231,7 +231,8 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     logging.info("Script complete.")
 
 
-def calculate_long_term_avg(var: np.ndarray, total: int, interest_lon: list[tuple[int, float]],
+def calculate_long_term_avg(var: np.ndarray, total: int,
+                            interest_lon: list[tuple[int, float]],
                             interest_lat: list[tuple[int, float]], time_steps: int) -> list[float]:
     """
     Compute the long-term average value for each grid cell.
@@ -388,11 +389,11 @@ def compute_anomaly_timeseries(var: np.ndarray, var_factor: float, avg: list[flo
         storage_sum = 0.0  # total volume (m³) before subtracting mean
 
         for cell in range(total):
-            lon_index = interest_lon[cell][0]
-            lat_index = interest_lat[cell][0]
+            lon_index      = interest_lon[cell][0]
+            lat_index      = interest_lat[cell][0]
             long_term_mean = avg[cell]
-            cell_area = areas[cell]
-            cell_value = var[t, lat_index, lon_index]
+            cell_area      = areas[cell]
+            cell_value     = var[t, lat_index, lon_index]
 
             # skip if the data is missing
             if np.isnan(cell_value):

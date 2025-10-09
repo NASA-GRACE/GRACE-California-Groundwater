@@ -11,6 +11,7 @@ import shlex
 import logging
 from typing import TypeAlias
 import re  # Used to precompile regexes for performance
+from datetime import date, datetime, timedelta
 
 # This is the version of python which should be used in scripts that import this module.
 PY_VERSION = 3.11
@@ -214,6 +215,58 @@ def section_header(options: Options, title: str) -> None:
 
 
 # The following are utility functions and classes that can be imported into other scripts.
+
+DT: TypeAlias = date | datetime
+
+
+def compute_baseline(actual_start: DT,
+                     actual_end:   DT,
+                     base_start:   DT,
+                     base_end:     DT) -> tuple[DT, DT]:
+    """
+    Return a baseline interval that:
+      1) If there is an intersection between [base_start, base_end] and
+         [actual_start, actual_end], returns that intersection.
+      2) Otherwise, starts at actual_start and has duration no longer than
+         the requested baseline's duration, but never extends past actual_end.
+
+    Assumes all inputs are either 'date' or 'datetime' (and of the same type).
+    Uses closed intervals (start <= t <= end) when checking overlap and length
+    defined by simple subtraction (end - start).
+
+    Args:
+        actual_start: The start of the actual time series.
+        actual_end:   The end of the actual time series.
+        base_start:   The start of the baseline time series.
+        base_end:     The end of the baseline time series.
+
+    Returns:
+        A tuple (start, end) representing the computed baseline interval.
+
+    Raises:
+        ValueError: If actual_start is greater than actual_end or base_start is greater than base_end.
+        TypeError:  If the types of actual_start, actual_end, base_start, and base_end are not consistent.
+    """
+    if actual_start > actual_end:
+        raise ValueError("actual_start must be <= actual_end")
+    if base_start > base_end:
+        raise ValueError("base_start must be <= base_end")
+    if type(actual_start) is not type(actual_end) or type(base_start) is not type(base_end):
+        raise TypeError("All inputs must be of the same type (all date or all datetime)")
+
+    # Intersection
+    inter_start = max(base_start, actual_start)
+    inter_end   = min(base_end,   actual_end)
+    if inter_start <= inter_end:
+        return inter_start, inter_end
+
+    # No intersection: size capped to baseline duration, clipped to actual window
+    baseline_span: timedelta = base_end - base_start  # timedelta (>= 0 by earlier check)
+    # Start at the beginning of the actual series
+    start = actual_start
+    # End is at most start + baseline_span, but never after actual_end
+    end = min(start + baseline_span, actual_end)
+    return start, end
 
 
 def rasterize_shapefile_to_mask(shapefile:   str | os.PathLike[str],
