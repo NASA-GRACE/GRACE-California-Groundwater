@@ -131,6 +131,13 @@ def main() -> None:
     sw = compute_groundwater(options, grace, swe, soil_moisture, reservoirs)
     logging.info(f"Computed groundwater series with {len(sw)} entries.")
 
+    # Include the actual baseline period used for mean removal in each output header
+    baseline_start_str = options.actual_baseline_start.strftime("%Y-%m-%d")
+    baseline_end_str   = options.actual_baseline_end.strftime("%Y-%m-%d")
+    for _sec in header_sections:
+        header_sections[_sec]["mean_removal_baseline_start"] = [baseline_start_str]
+        header_sections[_sec]["mean_removal_baseline_end"]   = [baseline_end_str]
+
     if "DATA_START_to_DATA_END" in options.args.output.name:
         # Replace placeholders in each output filename with actual start and end dates of the combined time series:
         data_start_monthly = sw.index.min().strftime("%Y-%m")
