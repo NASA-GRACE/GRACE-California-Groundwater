@@ -24,10 +24,9 @@ import numpy as np
 import logging
 from pathlib import Path
 import json
+import datetime as dt
 
 import run_all as ra
-
-print("HEADER: WHATEVER THE CALIBRATION PERIOD IS (IT MIGHT NOT BE THE FULL PERIOD ABOVE)"*100)
 
 
 class Options(ra.Options):
@@ -129,7 +128,7 @@ def main() -> None:
     show_monthly_duplicates(reservoirs, options.reservoirs_model)
 
     # Compute groundwater and error
-    sw = compute_groundwater(grace, swe, soil_moisture, reservoirs, options.cal_start, options.cal_end)
+    sw = compute_groundwater(options, grace, swe, soil_moisture, reservoirs)
     logging.info(f"Computed groundwater series with {len(sw)} entries.")
 
     if "DATA_START_to_DATA_END" in options.args.output.name:
@@ -290,16 +289,16 @@ def _write_df_with_header(df: pd.DataFrame, out_path: os.PathLike[str] | str,
         df.to_csv(fh, index_label=index_label)
 
 
-def remove_mean(series:     pd.Series,
-                start_time: pd.Timestamp | str,
-                end_time:   pd.Timestamp | str) -> pd.Series:
+def remove_mean(series:         pd.Series,
+                baseline_start: pd.Timestamp | dt.datetime | str,
+                baseline_end:   pd.Timestamp | dt.datetime | str) -> pd.Series:
     """
     Subtracts the mean of "series" over [start_time, end_time] from the entire series.
 
     Args:
-        series:     Time-indexed data.
-        start_time: Start of the window over which to compute the mean.
-        end_time:   End of the window over which to compute the mean.
+        series:         Time-indexed data.
+        baseline_start: Start of the window over which to compute the mean.
+        baseline_end:   End   of the window over which to compute the mean.
 
     Returns:
         The demeaned series.
@@ -308,24 +307,23 @@ def remove_mean(series:     pd.Series,
         None.
     """
     # ensure pandas timestamps
-    start = pd.to_datetime(start_time)
-    end   = pd.to_datetime(end_time)
+    start = pd.to_datetime(baseline_start)
+    end   = pd.to_datetime(baseline_end)
 
     # extract the window, compute its mean
     window = series.loc[start:end]
     μ = window.mean()
-    logging.info(f"Removing mean {μ} from '{series.name}' over {start_time} to {end_time}")
+    logging.info(f"Removing mean {μ} from '{series.name}' over {baseline_start} to {baseline_end}")
 
     # subtract and return
     return series - μ
 
 
-def compute_groundwater(grace:      pd.DataFrame,
+def compute_groundwater(options:    Options,
+                        grace:      pd.DataFrame,
                         swe:        pd.DataFrame,
                         soilm:      pd.DataFrame,
-                        reservoirs: pd.DataFrame,
-                        start_time: pd.Timestamp | str,
-                        end_time:   pd.Timestamp | str) -> pd.DataFrame:
+                        reservoirs: pd.DataFrame) -> pd.DataFrame:
     """
     Aligns the four series on their shared dates, removes their respective
     long-term means over [start_time, end_time], subtracts snow water equivalent (SWE),
@@ -335,12 +333,13 @@ def compute_groundwater(grace:      pd.DataFrame,
         sigma_sw = sqrt(sigma_grace^2 + sigma_swe^2 + sigma_soilm^2 + sigma_reservoirs^2)
 
     Args:
+        options:    Global options including baseline start and end dates. Contains:
+            - baseline_start: Requested start date for baseline mean removal (YYYY-MM-DD).
+            - baseline_end:   Requested end   date for baseline mean removal (YYYY-MM-DD).
         grace:      DataFrame with GRACE TWS data, columns ["value","error"]
         swe:        DataFrame with snow water equivalent data, columns ["value","error"]
         soilm:      DataFrame with soil moisture data, columns ["value","error"]
         reservoirs: DataFrame with reservoirs data, columns ["value","error"]
-        start_time: Start of the window over which to compute long-term means.
-        end_time:   End of the window over which to compute long-term means.
 
     Returns:
         DataFrame with columns ["groundwater","error"].
@@ -368,9 +367,19 @@ def compute_groundwater(grace:      pd.DataFrame,
 
     logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"DataFrame overview after dropping missing dates:\n{df.describe()}")
 
+    # Now that df has had missing dates dropped, extract start and end times
+    data_start = df.index.min()
+    data_end   = df.index.max()
+    logging.info(f"\nData start: {data_start.date()}\nData end: {data_end.date()}")
+    # Compute the actual baseline interval.
+    # Start by trying to find the intersection of [data_start, data_end] and [options.baseline_start, options.baseline_end]
+    # If they don't overlap, create a baseline starting at data_start with the same duration as the requested baseline (if possible).
+    options.actual_baseline_start, options.actual_baseline_end = ra.compute_baseline(data_start, data_end, options.baseline_start, options.baseline_end)
+    logging.info(f"Using baseline interval {options.actual_baseline_start.date()} to {options.actual_baseline_end.date()} for mean removal.")
+
     logging.info("Removing long-term means from each series after dropping missing dates.")
     for col in ["grace", "swe", "soilm", "reservoirs"]:
-        df[col] = remove_mean(df[col], start_time, end_time)
+        df[col] = remove_mean(df[col], options.actual_baseline_start, options.actual_baseline_end)
     logging.info(f"All series have been demeaned after dropping missing dates:\n{df.describe()}")
 
     # Compute groundwater anomaly and propagated error

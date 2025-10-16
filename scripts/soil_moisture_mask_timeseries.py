@@ -223,8 +223,6 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
         fieldnames.append(var)
         fieldnames.append(f"{var}_error")
     output_csv(options.args.output_csv, fieldnames, ds.time.data, anomalies_dict, global_attrs=global_attrs)
-
-
     output_nc(options.args.output_nc, ds, total_interest, interest_lon, interest_lat,
               time_steps, var_list, avg_dict, t_var=t_var, x_var=x_var, y_var=y_var)
 

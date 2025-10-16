@@ -95,69 +95,69 @@ def main() -> None:
     logging.basicConfig(level=options.log_mode, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     parse_arguments(options)
 
-    section_header(options, "Processing soil moisture data")
+    # section_header(options, "Processing soil moisture data")
 
-    logging.info("Download soil moisture data files.")
-    run_script(options, "soil_moisture_download.py")
+    # logging.info("Download soil moisture data files.")
+    # run_script(options, "soil_moisture_download.py")
 
-    logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
-    run_script(options, "soil_moisture_process.py")
+    # logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
+    # run_script(options, "soil_moisture_process.py")
 
-    logging.info("Create and save a soil moisture mask for the basin of interest.")
-    run_script(options, "soil_moisture_create_mask.py")
+    # logging.info("Create and save a soil moisture mask for the basin of interest.")
+    # run_script(options, "soil_moisture_create_mask.py")
 
-    logging.info("Apply the mask to the processed soil moisture data, extract time series "
-                 "for the basin, then save as CSV and NetCDF files.")
-    run_script(options, "soil_moisture_mask_timeseries.py")
+    # logging.info("Apply the mask to the processed soil moisture data, extract time series "
+    #              "for the basin, then save as CSV and NetCDF files.")
+    # run_script(options, "soil_moisture_mask_timeseries.py")
 
-    logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "
-                 "the masked NetCDF file)")
-    run_script(options, "soil_moisture_map_fields.py")
+    # logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "
+    #              "the masked NetCDF file)")
+    # run_script(options, "soil_moisture_map_fields.py")
 
-    logging.info("Generate a time series plot of the masked soil moisture data.")
-    run_script(options, "plot_timeseries.py")
+    # logging.info("Generate a time series plot of the masked soil moisture data.")
+    # run_script(options, "plot_timeseries.py")
 
-    section_header(options, "Processing reservoirs storage data")
+    # section_header(options, "Processing reservoirs storage data")
 
-    logging.info(f"Downloading reservoirs data...")
-    run_script(options, "reservoirs_download.py")
+    # logging.info(f"Downloading reservoirs data...")
+    # run_script(options, "reservoirs_download.py")
 
-    logging.info("Processing reservoirs data into monthly sums...")
-    run_script(options, "reservoirs_monthly_sums.py")
+    # logging.info("Processing reservoirs data into monthly sums...")
+    # run_script(options, "reservoirs_monthly_sums.py")
 
-    logging.info("Generating reservoirs anomaly and error value time series...")
-    run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
+    # logging.info("Generating reservoirs anomaly and error value time series...")
+    # run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
 
-    logging.info("Generate a time series plot of the masked reservoirs data.")
-    run_script(options, "plot_timeseries.py")
+    # logging.info("Generate a time series plot of the masked reservoirs data.")
+    # run_script(options, "plot_timeseries.py")
 
-    section_header(options, "Processing GRACE TWS data")
+    # section_header(options, "Processing GRACE TWS data")
 
-    logging.info("Call raster mask generator for GRACE TWS data...")
-    run_script(options, "call_raster_mask_generator.py")
+    # logging.info("Call raster mask generator for GRACE TWS data...")
+    # run_script(options, "call_raster_mask_generator.py")
 
-    logging.info("Generating GRACE TWS anomaly time series...")
-    run_script(options, "grace_tws_anomaly.py")
+    # logging.info("Generating GRACE TWS anomaly time series...")
+    # run_script(options, "grace_tws_anomaly.py")
 
-    logging.info("Interpolating GRACE TWS data to daily time steps...")
-    run_script(options, "interpolate_grace.py")
+    # logging.info("Interpolating GRACE TWS data to daily time steps...")
+    # run_script(options, "interpolate_grace.py")
 
-    logging.info("Generate a time series plot of the masked GRACE data.")
-    run_script(options, "plot_timeseries.py")
+    # logging.info("Generate a time series plot of the masked GRACE data.")
+    # run_script(options, "plot_timeseries.py")
 
-    section_header(options, "Processing SNODAS snow water equivalent data")
+    # section_header(options, "Processing SNODAS snow water equivalent data")
 
-    logging.info("Downloading snow water equivalent (SWE) data...")
-    run_script(options, "swe_daily_downloader_and_monthly_mean.py")
+    # logging.info("Downloading snow water equivalent (SWE) data...")
+    # run_script(options, "swe_daily_downloader_and_monthly_mean.py")
 
-    logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
-    run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
+    # logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
+    # run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
 
-    logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
-    run_script(options, "swe_monthly_anomaly.py")
+    # logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
+    # run_script(options, "swe_monthly_anomaly.py")
 
-    logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
-    run_script(options, "plot_timeseries.py")
+    # logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
+    # run_script(options, "plot_timeseries.py")
 
     section_header(options, "Computing groundwater anomaly and plotting results")
 
@@ -249,14 +249,10 @@ def compute_baseline(actual_start: DT,
         ValueError: If actual_start is greater than actual_end or base_start is greater than base_end.
         TypeError:  If the types of actual_start, actual_end, base_start, and base_end are not consistent.
     """
-    if type(actual_start) is not type(actual_end) or type(base_start) is not type(base_end):
-        raise TypeError("All inputs must be of the same type (all date or all datetime)")
-
-    if isinstance(actual_start, str):
-        actual_start = parse_datetime(actual_start)
-        actual_end   = parse_datetime(actual_end)
-        base_start   = parse_datetime(base_start)
-        base_end     = parse_datetime(base_end)
+    actual_start = parse_datetime(actual_start, timezone="Naive")
+    actual_end   = parse_datetime(actual_end,   timezone="Naive")
+    base_start   = parse_datetime(base_start,   timezone="Naive")
+    base_end     = parse_datetime(base_end,     timezone="Naive")
 
     if actual_start > actual_end:
         raise ValueError("actual_start must be <= actual_end")
