@@ -84,7 +84,7 @@ def map_fields_for_NLDAS(options: Options) -> None:
     Raises:
         None.
     """
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"cmap={options.args.cmap}, map_border={options.args.map_border}, central_lon={options.args.central_lon}")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"cmap={options.args.cmap}, map_border={options.args.map_border}, central_lon={options.args.central_lon}")
 
     if options.args.nc_path == options.default_masked_filepath:
         # Look for the latest netCDF file in the masked timeseries directory

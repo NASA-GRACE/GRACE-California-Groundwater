@@ -107,7 +107,7 @@ def download_NLDAS_data(options: Options) -> None:
         num_retries=5  # total attempts
     )
 
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"{results = }")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"{results = }")
 
     logging.info("Downloading and validating data...")
     ok_files, bad_files = _download_with_validation_and_retry(options, results)

@@ -11,7 +11,7 @@ import shlex
 import logging
 from typing import TypeAlias
 import re  # Used to precompile regexes for performance
-from datetime import date, datetime, timedelta
+import datetime as dt
 
 # This is the version of python which should be used in scripts that import this module.
 PY_VERSION = 3.11
@@ -95,69 +95,69 @@ def main() -> None:
     logging.basicConfig(level=options.log_mode, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     parse_arguments(options)
 
-    # section_header(options, "Processing soil moisture data")
+    section_header(options, "Processing soil moisture data")
 
-    # logging.info("Download soil moisture data files.")
-    # run_script(options, "soil_moisture_download.py")
+    logging.info("Download soil moisture data files.")
+    run_script(options, "soil_moisture_download.py")
 
-    # logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
-    # run_script(options, "soil_moisture_process.py")
+    logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
+    run_script(options, "soil_moisture_process.py")
 
-    # logging.info("Create and save a soil moisture mask for the basin of interest.")
-    # run_script(options, "soil_moisture_create_mask.py")
+    logging.info("Create and save a soil moisture mask for the basin of interest.")
+    run_script(options, "soil_moisture_create_mask.py")
 
-    # logging.info("Apply the mask to the processed soil moisture data, extract time series "
-    #              "for the basin, then save as CSV and NetCDF files.")
-    # run_script(options, "soil_moisture_mask_timeseries.py")
+    logging.info("Apply the mask to the processed soil moisture data, extract time series "
+                 "for the basin, then save as CSV and NetCDF files.")
+    run_script(options, "soil_moisture_mask_timeseries.py")
 
-    # logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "
-    #              "the masked NetCDF file)")
-    # run_script(options, "soil_moisture_map_fields.py")
+    logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "
+                 "the masked NetCDF file)")
+    run_script(options, "soil_moisture_map_fields.py")
 
-    # logging.info("Generate a time series plot of the masked soil moisture data.")
-    # run_script(options, "plot_timeseries.py")
+    logging.info("Generate a time series plot of the masked soil moisture data.")
+    run_script(options, "plot_timeseries.py")
 
-    # section_header(options, "Processing reservoirs storage data")
+    section_header(options, "Processing reservoirs storage data")
 
-    # logging.info(f"Downloading reservoirs data...")
-    # run_script(options, "reservoirs_download.py")
+    logging.info(f"Downloading reservoirs data...")
+    run_script(options, "reservoirs_download.py")
 
-    # logging.info("Processing reservoirs data into monthly sums...")
-    # run_script(options, "reservoirs_monthly_sums.py")
+    logging.info("Processing reservoirs data into monthly sums...")
+    run_script(options, "reservoirs_monthly_sums.py")
 
-    # logging.info("Generating reservoirs anomaly and error value time series...")
-    # run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
+    logging.info("Generating reservoirs anomaly and error value time series...")
+    run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
 
-    # logging.info("Generate a time series plot of the masked reservoirs data.")
-    # run_script(options, "plot_timeseries.py")
+    logging.info("Generate a time series plot of the masked reservoirs data.")
+    run_script(options, "plot_timeseries.py")
 
-    # section_header(options, "Processing GRACE TWS data")
+    section_header(options, "Processing GRACE TWS data")
 
-    # logging.info("Call raster mask generator for GRACE TWS data...")
-    # run_script(options, "call_raster_mask_generator.py")
+    logging.info("Call raster mask generator for GRACE TWS data...")
+    run_script(options, "call_raster_mask_generator.py")
 
-    # logging.info("Generating GRACE TWS anomaly time series...")
-    # run_script(options, "grace_tws_anomaly.py")
+    logging.info("Generating GRACE TWS anomaly time series...")
+    run_script(options, "grace_tws_anomaly.py")
 
-    # logging.info("Interpolating GRACE TWS data to daily time steps...")
-    # run_script(options, "interpolate_grace.py")
+    logging.info("Interpolating GRACE TWS data to daily time steps...")
+    run_script(options, "interpolate_grace.py")
 
-    # logging.info("Generate a time series plot of the masked GRACE data.")
-    # run_script(options, "plot_timeseries.py")
+    logging.info("Generate a time series plot of the masked GRACE data.")
+    run_script(options, "plot_timeseries.py")
 
-    # section_header(options, "Processing SNODAS snow water equivalent data")
+    section_header(options, "Processing SNODAS snow water equivalent data")
 
-    # logging.info("Downloading snow water equivalent (SWE) data...")
-    # run_script(options, "swe_daily_downloader_and_monthly_mean.py")
+    logging.info("Downloading snow water equivalent (SWE) data...")
+    run_script(options, "swe_daily_downloader_and_monthly_mean.py")
 
-    # logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
-    # run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
+    logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
+    run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
 
-    # logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
-    # run_script(options, "swe_monthly_anomaly.py")
+    logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
+    run_script(options, "swe_monthly_anomaly.py")
 
-    # logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
-    # run_script(options, "plot_timeseries.py")
+    logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
+    run_script(options, "plot_timeseries.py")
 
     section_header(options, "Computing groundwater anomaly and plotting results")
 
@@ -218,13 +218,13 @@ def section_header(options: Options, title: str) -> None:
 
 # The following are utility functions and classes that can be imported into other scripts.
 
-DT: TypeAlias = date | datetime | str  # date, datetime, or date string (ISO-format, YYYY-MM-DD, anything that parse_datetime() accepts)
+DT: TypeAlias = dt.date | dt.datetime | str  # date, datetime, or date string (ISO-format, YYYY-MM-DD, anything that parse_datetime() accepts)
 
 
 def compute_baseline(actual_start: DT,
                      actual_end:   DT,
                      base_start:   DT,
-                     base_end:     DT) -> tuple[DT, DT]:
+                     base_end:     DT) -> tuple[dt.datetime, dt.datetime]:
     """
     Return a baseline interval that:
       1) If there is an intersection between [base_start, base_end] and
@@ -266,7 +266,7 @@ def compute_baseline(actual_start: DT,
         return inter_start, inter_end
 
     # No intersection: size capped to baseline duration, clipped to actual window
-    baseline_span: timedelta = base_end - base_start  # timedelta (>= 0 by earlier check)
+    baseline_span: dt.timedelta = base_end - base_start  # timedelta (>= 0 by earlier check)
     # Start at the beginning of the actual series
     start = actual_start
     # End is at most start + baseline_span, but never after actual_end
@@ -778,9 +778,6 @@ def parse_timezone(tz_arg: str | dt.tzinfo | None = None) -> dt.tzinfo | str:
     Raises:
         ValueError if the string cannot be converted to a valid timezone.
     """
-
-    import datetime as dt
-
     # If tz_arg is None, return UTC timezone
     if tz_arg is None:
         return dt.timezone.utc
@@ -859,7 +856,6 @@ def decimal_year_to_datetime(dec: float, use_astropy: bool = False) -> dt.dateti
     If use_astropy is True, astropy.time is used for sub-second and leap-second–aware conversion.
     Usage: new_datetime_datetime_object = decimal_year_to_datetime(2002.291)
     """
-    import datetime as dt
     if use_astropy:
         try:
             from astropy.time import Time
@@ -912,7 +908,6 @@ AnyDateTimeType: TypeAlias = "str | float | int | np.datetime64 | pd.Timestamp |
 
 def _should_convert(given_date: AnyDateTimeType, format_str: str | None = None) -> bool:
     """Determine if the given date should be converted to a timezone (i.e. if the wall clock should be shifted) or if the timezone should just be attached without shifting the clock."""
-    import datetime as dt
 
     # 1) Numbers, JD/MJD, decimal years, special keywords
     if isinstance(given_date, (int, float)) and not isinstance(given_date, bool):
@@ -1012,7 +1007,6 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
         TypeError:   If the given_date is not a string, float, int, numpy.datetime64, pandas.Timestamp, or datetime.datetime object.
         ImportError: If the 'jdcal' library is not installed and the given_date is a Julian Date or Modified Julian Date.
     """
-    import datetime as dt
     fallback_logging_config()  # Ensure logging is configured
 
     parsed_tz = parse_timezone(timezone)  # Ensure timezone is a valid tzinfo object or string

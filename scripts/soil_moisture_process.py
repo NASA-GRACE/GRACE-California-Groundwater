@@ -166,7 +166,7 @@ def discover_files(options: Options) -> None:
             raise ValueError(f"File extension mismatch: {fpath} does not match {options.in_files[0]}")
     logging.info(f"Loading {len(options.in_files)} files.")
     for fpath in options.in_files:
-        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"  {Path(fpath).name}")
+        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"  {Path(fpath).name}")
     quarantine = options.in_dir / "_quarantine_bad_netcdf"
     validate_netcdf_integrity(options.in_files, quarantine_dir=quarantine, strict=True)
 

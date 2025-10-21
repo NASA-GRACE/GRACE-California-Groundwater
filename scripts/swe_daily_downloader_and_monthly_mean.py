@@ -177,7 +177,7 @@ def download_and_process_day(date: datetime, daily_dir: str, product_code: str =
         for file in os.listdir(daily_dir):
             if file.endswith(".txt") or file.endswith(".gz") or file.endswith(".dat") :
                 os.remove(os.path.join(daily_dir, file))
-                logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Removed: {file}")
+                if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Removed: {file}")
 
     except Exception as e:
         logging.error(f"Error on {date_str}: {e}")

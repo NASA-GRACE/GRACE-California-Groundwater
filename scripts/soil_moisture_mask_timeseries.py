@@ -256,7 +256,7 @@ def calculate_long_term_avg(var: np.ndarray, total: int,
         for t in range(time_steps):
             cell_sum += var[t, lat_index, lon_index]
         avg[cell] = cell_sum / time_steps
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Long-term averages: {avg}")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Long-term averages: {avg}")
     return avg
 
 
@@ -307,7 +307,7 @@ def calculate_surface_area(total: int, lon_step: float, lat_step: float,
             areas[i] = area
 
     total_km2 = sum(areas) / 1e6
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Ellipsoidal surface areas: {areas}")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Ellipsoidal surface areas: {areas}")
     logging.info(f"Calculated total surface area of {total_km2:.2f} km² for {total} grid cells.")
     return areas
 
@@ -420,8 +420,8 @@ def compute_anomaly_timeseries(var: np.ndarray, var_factor: float, avg: list[flo
         error_km3 = (0.1 * storage_sum) / 1e9
         errors.append(error_km3)
 
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Anomaly timeseries: {anomalies}")
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Error bars (10%% of storage): {errors}")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Anomaly timeseries: {anomalies}")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Error bars (10%% of storage): {errors}")
     return anomalies, errors
 
 

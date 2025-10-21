@@ -87,7 +87,7 @@ def main() -> None:
     if options.args.soilm == options.default_soil_moisture_csv:  # If user-specified input soil moisture file is the default placeholder
         # Find the latest soil moisture file in the directory
         glob_pattern = f"*{options.soil_moisture_model}_{basin_title}*.csv"
-        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Looking for soil moisture files with pattern: {glob_pattern}")
+        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Looking for soil moisture files with pattern: {glob_pattern}")
         soil_moisture_files = list(options.timeseries_dir.glob(glob_pattern))
         if soil_moisture_files:
             options.args.soilm = max(soil_moisture_files, key=os.path.getctime)
@@ -367,12 +367,12 @@ def compute_groundwater(options:    Options,
         "err_reservoirs": reservoirs['error'],
     })
 
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"DataFrame overview before dropping dates with missing data:\n{df.describe()}")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"DataFrame overview before dropping dates with missing data:\n{df.describe()}")
 
     logging.info("Dropping any dates with missing data...")
     df = df.dropna()
 
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"DataFrame overview after dropping missing dates:\n{df.describe()}")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"DataFrame overview after dropping missing dates:\n{df.describe()}")
 
     # Now that df has had missing dates dropped, extract start and end times
     data_start = df.index.min()
