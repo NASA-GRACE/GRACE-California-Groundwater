@@ -26,9 +26,9 @@ class Options:
         self.project_root:            Path = self.script_dir.parent           # Project root is one level above script_dir
         self.test_start:               str = "2005-01-01"                     # Quick test timespan start
         self.test_end:                 str = "2005-03-31T23:59:59"            # Quick test timespan end
-        self.full_start:               str = "2004-01-01"                     # Start of full timeseries
         self.baseline_start:           str = "2004-01-01"                     # Start of baseline calibration period
         self.baseline_end:             str = "2009-12-31"                     # End   of baseline calibration period
+        self.full_start:               str = "2004-01-01"                     # Start of full timeseries
         self.full_end:                 str = "NOW"                            # Current date/time is the end of the full timeseries
         self.soil_moisture_model:      str = "NLDAS"
         self.swe_model:                str = "SNODAS"
@@ -93,79 +93,88 @@ def main() -> None:
     """Run all the processing scripts in order."""
     options = Options()
     logging.basicConfig(level=options.log_mode, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+    run_all_start_time = dt.datetime.now()
+    logging.info(f"Starting {Path(__file__).name} at {run_all_start_time.isoformat()}")
+
     parse_arguments(options)
 
-    section_header(options, "Processing soil moisture data")
+    # section_header(options, "Processing soil moisture data")
 
-    logging.info("Download soil moisture data files.")
-    run_script(options, "soil_moisture_download.py")
+    # logging.info("Download soil moisture data files.")
+    # run_script(options, "soil_moisture_download.py")
 
-    logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
-    run_script(options, "soil_moisture_process.py")
+    # logging.info("If necessary, process the downloaded soil moisture files into a single NetCDF file.")
+    # run_script(options, "soil_moisture_process.py")
 
-    logging.info("Create and save a soil moisture mask for the basin of interest.")
-    run_script(options, "soil_moisture_create_mask.py")
+    # logging.info("Create and save a soil moisture mask for the basin of interest.")
+    # run_script(options, "soil_moisture_create_mask.py")
 
-    logging.info("Apply the mask to the processed soil moisture data, extract time series "
-                 "for the basin, then save as CSV and NetCDF files.")
-    run_script(options, "soil_moisture_mask_timeseries.py")
+    # logging.info("Apply the mask to the processed soil moisture data, extract time series "
+    #              "for the basin, then save as CSV and NetCDF files.")
+    # run_script(options, "soil_moisture_mask_timeseries.py")
 
-    logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "
-                 "the masked NetCDF file)")
-    run_script(options, "soil_moisture_map_fields.py")
+    # logging.info("Generate a time series plot of the CSV file (and optionally, a movie of "
+    #              "the masked NetCDF file)")
+    # run_script(options, "soil_moisture_map_fields.py")
 
-    logging.info("Generate a time series plot of the masked soil moisture data.")
-    run_script(options, "plot_timeseries.py")
+    # logging.info("Generate a time series plot of the masked soil moisture data.")
+    # run_script(options, "plot_timeseries.py")
 
-    section_header(options, "Processing reservoirs storage data")
+    # section_header(options, "Processing reservoirs storage data")
 
-    logging.info(f"Downloading reservoirs data...")
-    run_script(options, "reservoirs_download.py")
+    # logging.info(f"Downloading reservoirs data...")
+    # run_script(options, "reservoirs_download.py")
 
-    logging.info("Processing reservoirs data into monthly sums...")
-    run_script(options, "reservoirs_monthly_sums.py")
+    # logging.info("Processing reservoirs data into monthly sums...")
+    # run_script(options, "reservoirs_monthly_sums.py")
 
-    logging.info("Generating reservoirs anomaly and error value time series...")
-    run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
+    # logging.info("Generating reservoirs anomaly and error value time series...")
+    # run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
 
-    logging.info("Generate a time series plot of the masked reservoirs data.")
-    run_script(options, "plot_timeseries.py")
+    # logging.info("Generate a time series plot of the masked reservoirs data.")
+    # run_script(options, "plot_timeseries.py")
 
-    section_header(options, "Processing GRACE TWS data")
+    # section_header(options, "Processing GRACE TWS data")
 
-    logging.info("Call raster mask generator for GRACE TWS data...")
-    run_script(options, "call_raster_mask_generator.py")
+    # logging.info("Call raster mask generator for GRACE TWS data...")
+    # run_script(options, "call_raster_mask_generator.py")
 
-    logging.info("Generating GRACE TWS anomaly time series...")
-    run_script(options, "grace_tws_anomaly.py")
+    # logging.info("Generating GRACE TWS anomaly time series...")
+    # run_script(options, "grace_tws_anomaly.py")
 
-    logging.info("Interpolating GRACE TWS data to daily time steps...")
-    run_script(options, "interpolate_grace.py")
+    # logging.info("Interpolating GRACE TWS data to daily time steps...")
+    # run_script(options, "interpolate_grace.py")
 
-    logging.info("Generate a time series plot of the masked GRACE data.")
-    run_script(options, "plot_timeseries.py")
+    # logging.info("Generate a time series plot of the masked GRACE data.")
+    # run_script(options, "plot_timeseries.py")
 
-    section_header(options, "Processing SNODAS snow water equivalent data")
+    # section_header(options, "Processing SNODAS snow water equivalent data")
 
-    logging.info("Downloading snow water equivalent (SWE) data...")
-    run_script(options, "swe_daily_downloader_and_monthly_mean.py")
+    # logging.info("Downloading snow water equivalent (SWE) data...")
+    # run_script(options, "swe_daily_downloader_and_monthly_mean.py")
 
-    logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
-    run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
+    # logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
+    # run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
 
-    logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
-    run_script(options, "swe_monthly_anomaly.py")
+    # logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
+    # run_script(options, "swe_monthly_anomaly.py")
 
-    logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
-    run_script(options, "plot_timeseries.py")
+    # logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
+    # run_script(options, "plot_timeseries.py")
 
-    section_header(options, "Computing groundwater anomaly and plotting results")
+    # section_header(options, "Computing groundwater anomaly and plotting results")
 
-    logging.info("Computing groundwater anomaly time series...")
-    run_script(options, "compute_groundwater.py")
+    # logging.info("Computing groundwater anomaly time series...")
+    # run_script(options, "compute_groundwater.py")
 
-    logging.info("Generating comparison plots of all water storage components...")
-    run_script(options, "plot_timeseries.py", flags=["--groundwater"])
+    # logging.info("Generating comparison plots of all water storage components...")
+    # run_script(options, "plot_timeseries.py", flags=["--groundwater"])
+
+    run_all_end_time = dt.datetime.now()
+    logging.info(f"Finished {Path(__file__).name} at {run_all_end_time.isoformat()}.")
+    total_duration = run_all_end_time - run_all_start_time
+    logging.info(f"Total duration: {total_duration}.")
 
 
 def run_script(options: Options, the_script: str, flags: list[str] | None = None) -> None:
