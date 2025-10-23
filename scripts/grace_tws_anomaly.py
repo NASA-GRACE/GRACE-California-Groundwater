@@ -10,6 +10,7 @@ from read_grace_s3_bucket import read_grace_dataset
 from pathlib import Path
 import logging
 import re
+import json
 import run_all as ra
 
 #Written by Munish Sikka, Felix Landerer and ChatGPT
@@ -36,7 +37,11 @@ class Options(ra.Options):
             return int(match.group(1)) if match else 0
         latest_nc_file = max(grace_nc_files, key=lambda f: extract_end_date(f.name))
         self.default_grace_file: str = latest_nc_file  
-
+        # Attributes to collect (union across files) and storage
+        self.attrs_to_collect = ["title", "product_version", "id", "months_missing", "journal_reference", "date_created"]
+        self.attr_values      = {k: set() for k in self.attrs_to_collect}  # filled during checks
+        # Will hold finalized, sorted lists (set→list) after scanning all files:
+        self.attr_lists = {}
 
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
@@ -93,13 +98,42 @@ def main() -> None:
     parse_arguments(options)
 
     dataset = load_dataset(options.args.grace_input_dir, options.args.grace_filename, options.args.file_access_type, options.args.shortname_mass)
+    # Store global attributes from the file
+    for key in options.attrs_to_collect:
+        val = dataset.attrs.get(key)
+        if val is not None:
+            if isinstance(val, (list, tuple, np.ndarray)):
+                options.attr_values[key].update(str(v) for v in val)
+            else:
+                options.attr_values[key].add(str(val))
+
+    #Finalize to sorted lists (only keep keys that have at least one value)
+    options.attr_lists = {k: sorted(options.attr_values[k])
+                          for k in options.attrs_to_collect
+                          if options.attr_values[k]}
+    
+    # Collect selected global attributes as lists of strings for the CSV header
+    global_attrs: dict[str, list[str]] = {}
+    for key in options.attrs_to_collect:
+        val = dataset.attrs.get(key)
+        if val is None:
+            continue
+        if isinstance(val, (list, tuple, np.ndarray)):
+            global_attrs[key] = [str(x) for x in val]
+        else:
+            global_attrs[key] = [str(val)]
+    # Optional: include provenance if present from the previous step
+    #prov = ds.attrs.get("source_global_attrs_merge")
+    #if prov is not None:
+    #    global_attrs["source_global_attrs_merge"] = [str(prov)]
+        
     mask_array = load_mask(options.args.mask_basin)
 
     region_mask, ma = prepare_grid_and_mask(dataset, mask_array)
     tws, bsn_sig, dates = compute_timeseries(dataset, region_mask, ma, options.args.scaling_factor, options.args.start_date, options.args.end_date)
 
     baseline = (options.args.baseline_start, options.args.baseline_end) if options.args.baseline_start and options.args.baseline_end else None
-    save_results(options.args.output_csv, dates, tws, bsn_sig, ma, options.args.units, baseline)
+    save_results(options.args.output_csv, dates, tws, bsn_sig, ma, options.args.units, baseline,global_attrs=global_attrs)
     
 
 def load_dataset(grace_input_dir: str, grace_filename: str, file_access_type: str, shortname_mass: str) -> xr.Dataset:
@@ -257,7 +291,8 @@ def compute_uncertainty(sig_lwe: np.ndarray, mascon_id: np.ndarray, ma: np.ndarr
 
 
 def save_results(output_csv: str, dates: np.ndarray, tws: np.ndarray, bsn_sig: np.ndarray,
-                 ma: np.ndarray, units: str = "km3", baseline: tuple = None) -> None:
+                 ma: np.ndarray, units: str = "km3", baseline: tuple = None, 
+                 global_attrs: dict[str, list[str]] | None = None) -> None:
     """
     Save final time series with optional anomaly calculation.
     
@@ -269,6 +304,7 @@ def save_results(output_csv: str, dates: np.ndarray, tws: np.ndarray, bsn_sig: n
         ma:         2D numpy array of area weights multiplied by mask.
         units:      "km3" or "cm" for output units.
         baseline:   Optional tuple of (start_date, end_date) for anomaly baseline.
+        global_attrs:   Optional dictionary of global attributes to include as comments.
     
     Returns:
         None. Saves output CSV to output_csv.
@@ -289,7 +325,17 @@ def save_results(output_csv: str, dates: np.ndarray, tws: np.ndarray, bsn_sig: n
         df["tws"] = df["tws"] - baseline_mean
     
     os.makedirs(os.path.dirname(output_csv), exist_ok=True)  # create folder if it doesn't exist
-    df.to_csv(output_csv, index=False)
+    # --- Write metadata and data together ---
+    print(global_attrs)
+    with open(output_csv, "w", encoding="utf-8") as csvfile:
+        if global_attrs:
+            for k, vals in global_attrs.items():
+                # Write JSON-encoded values as comments (reliable to parse later)
+                csvfile.write(f"# {k}: {json.dumps(vals, ensure_ascii=False)}\n")
+            # Optional blank line separator
+            csvfile.write("#\n")
+    
+    df.to_csv(output_csv,mode="a", index=False)
     print(f"Saved results to {output_csv}")
 
 

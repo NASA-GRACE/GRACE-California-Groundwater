@@ -133,7 +133,21 @@ def process_csv(options: Options, file_path: str, output_dir: str, start_date: s
     # Save output CSV
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, f"anomaly_timeseries_{options.reservoirs_model}_{region_name}_mask.csv")
-    df[['date','anomaly', 'error']].to_csv(output_file, index=False)
+    header_lines = options.cdec_url_prefix
+    if isinstance(header_lines, str):
+        header_lines = [header_lines]
+    with open(output_file, "w", encoding="utf-8") as f:
+        for line in header_lines:
+            # Automatically prefix with "# " if not already
+            if not line.startswith("#"):
+                f.write(f"# {line}\n")
+            else:
+                f.write(line + "\n")
+    # Optional blank line for readability
+        f.write("#\n")
+    # --- Step 2: Append the dataframe ---
+    df[['date','anomaly', 'error']].to_csv(output_file, mode="a", index=False)
+    #df[['date','anomaly', 'error']].to_csv(output_file, index=False)
 
     logging.info(f"Saved anomaly CSV for {region_name} → {output_file}")
 

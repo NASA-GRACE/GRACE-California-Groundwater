@@ -237,7 +237,22 @@ def compute_means(options: Options, file_list: list, region_masks: dict,
         baseline_mean   = swe_values[time_mask].mean()
         df['swe']       = swe_values - baseline_mean
         csv_file        = output_dir / f"anomaly_timeseries_{options.swe_model}_{safe_name}.csv"
-        df.drop(columns=['YearMonth']).to_csv(csv_file, index=False)
+        df = df.drop(columns=['YearMonth'],errors="ignore")
+        header_lines = options.swe_url_prefix
+        if isinstance(header_lines, str):
+            header_lines = [header_lines]
+        with open(csv_file, "w", encoding="utf-8") as f:
+            for line in header_lines:
+                # Automatically prefix with "# " if not already
+                if not line.startswith("#"):
+                    f.write(f"# {line}\n")
+                else:
+                    f.write(line + "\n")
+        # Optional blank line for readability
+            f.write("#\n")
+        # --- Step 2: Append the dataframe ---
+        df.to_csv(csv_file, mode="a", index=False)
+        #df.drop(columns=['YearMonth']).to_csv(csv_file, index=False)
 
 
 def extract_date_from_filename(filename: str) -> datetime:

@@ -4,7 +4,7 @@ import argparse
 import os
 from pathlib import Path
 import logging
-
+import json
 import run_all as ra
 
 #Written by Munish Sikka and ChatGPT
@@ -46,11 +46,31 @@ def main() -> None:
                         datefmt='%Y-%m-%d %H:%M:%S')
     parse_arguments(options)
 
-    df = pd.read_csv(options.args.input_file, parse_dates=["date"], comment="#", skip_blank_lines=True).set_index("date").sort_index()
+    #df = pd.read_csv(options.args.input_file, parse_dates=["date"], comment="#", skip_blank_lines=True).set_index("date").sort_index()
 
     # Load CSV
-    df = pd.read_csv(options.args.input_file, parse_dates=["date"], comment="#", skip_blank_lines=True).set_index("date").sort_index()
+    #df = pd.read_csv(options.args.input_file, parse_dates=["date"], comment="#", skip_blank_lines=True).set_index("date").sort_index()
 
+    # --- Step 1: Read metadata (lines starting with "#") ---
+    metadata = {}
+    with open(options.args.input_file, "r", encoding="utf-8") as csvfile:
+        for line in csvfile:
+            if not line.startswith("#"):
+                break  # stop reading once data section starts
+            line = line.lstrip("#").strip()
+            if not line:
+                continue
+            key, value = line.split(":", 1)
+            metadata[key.strip()] = json.loads(value.strip())
+    
+    # --- Step 2: Read data ---
+    df = pd.read_csv(
+        options.args.input_file,
+        comment="#",
+        parse_dates=["date"],
+        skip_blank_lines=True
+    ).set_index("date").sort_index()    
+    
     # Run interpolation
     columns = ["tws", "tws_error"]
     df_result = interpolate_and_filter(df, columns)
@@ -61,7 +81,16 @@ def main() -> None:
 
     os.makedirs(options.args.output_dir, exist_ok=True)
     outpath = os.path.join(options.args.output_dir, options.args.output_file)
-    df_result.to_csv(outpath, index=False)
+    
+    # --- Write output file with same metadata ---
+    with open(outpath, "w", encoding="utf-8") as csvfile:
+        for k, v in metadata.items():
+            csvfile.write(f"# {k}: {json.dumps(v, ensure_ascii=False)}\n")
+        csvfile.write("#\n")
+
+    # append processed dataframe
+    df_result.to_csv(outpath, mode="a", index=False)
+    #df_result.to_csv(outpath, index=False)
     logging.info(f"Saved to {outpath}")
 
 

@@ -101,7 +101,7 @@ def setup_logger(options: Options, log_path: str) -> None:
 
 
 # ------------------ 1. DOWNLOAD & PROCESS ONE DAY ------------------ #
-def download_and_process_day(date: datetime, daily_dir: str, product_code: str = '1034') -> None:
+def download_and_process_day(options: Options, date: datetime, daily_dir: str, product_code: str = '1034') -> None:
     """
     Download, extract, gunzip, and convert SNODAS data for a given date.
     Skips if .tif for that day already exists.
@@ -117,7 +117,7 @@ def download_and_process_day(date: datetime, daily_dir: str, product_code: str =
     month_name = date.strftime('%m_%b')
 
     # URL and local paths
-    url = f'https://noaadata.apps.nsidc.org/NOAA/G02158/masked/{year_str}/{month_name}/SNODAS_{date_str}.tar'
+    url = f'{options.swe_url_prefix}/{year_str}/{month_name}/SNODAS_{date_str}.tar'
     # tar_file = os.path.join(daily_dir, f'SNODAS_{date_str}.tar')
     tar_file = Path(daily_dir) / f"SNODAS_{date_str}.tar"
 
@@ -387,7 +387,7 @@ def snodas_monthly_pipeline(options: Options) -> None:
                     logging.info(f"Attempting to fill missing local daily files for {current_month_str}: {needed_days}")
                     for dnum in needed_days:
                         ddate = current.replace(day=dnum)
-                        download_and_process_day(ddate, daily_dir)
+                        download_and_process_day(options, ddate, daily_dir)
 
                 # Re-scan local dailies after attempted downloads
                 local_daily_after = sorted([
@@ -446,7 +446,7 @@ def snodas_monthly_pipeline(options: Options) -> None:
                 logging.info("TEST ONLY: Skipping download of the last month's last day to simulate an incomplete month.")
                 d += timedelta(days=1)
                 continue
-            download_and_process_day(d, daily_dir)
+            download_and_process_day(options,d, daily_dir)
             d += timedelta(days=1)
 
         # --- Step 2: Compute monthly mean ---

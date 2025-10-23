@@ -58,7 +58,13 @@ class Options:
         self.timeseries_dir.mkdir(   parents=True, exist_ok=True)
         self.output_dir.mkdir(       parents=True, exist_ok=True)
         self.graphics_dir.mkdir(     parents=True, exist_ok=True)
-
+        self.swe_url_prefix: str = 'https://noaadata.apps.nsidc.org/NOAA/G02158/masked'
+        self.cdec_base_url: str = "https://cdec.water.ca.gov/dynamicapp/req/CSVDataServlet" # CDEC base URL for CSV data
+        # CDEC sensor ID for storage in Acre-Feet
+        self.storage_sensor_af     = "15" # Primary sensor for storage
+        self.alt_storage_sensor_af = "69" # Alternative sensor, often for more current daily
+        self.cdec_url_prefix: str = f'{self.cdec_base_url}?Stations=<station_id>&SensorNums=<storge or alt storage sensor>&dur_code=M&Start=YYYY-MM-DD&End=YYYY-MM-DD'
+        
         self.log_mode:           int = logging.INFO  # Use the --debug command line argument to change to DEBUG.
         self.separator_line:     str = "-" * 60  # A line of dashes for logging separation
 
@@ -98,7 +104,7 @@ def main() -> None:
     logging.info(f"Starting {Path(__file__).name} at {run_all_start_time.isoformat()}")
 
     parse_arguments(options)
-
+    
     section_header(options, "Processing soil moisture data")
 
     logging.info("Download soil moisture data files.")
@@ -120,7 +126,7 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked soil moisture data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Processing reservoirs storage data")
 
     logging.info(f"Downloading reservoirs data...")
@@ -134,7 +140,7 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked reservoirs data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Processing GRACE TWS data")
 
     logging.info("Call raster mask generator for GRACE TWS data...")
@@ -145,10 +151,10 @@ def main() -> None:
 
     logging.info("Interpolating GRACE TWS data to daily time steps...")
     run_script(options, "interpolate_grace.py")
-
+    
     logging.info("Generate a time series plot of the masked GRACE data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Processing SNODAS snow water equivalent data")
 
     logging.info("Downloading snow water equivalent (SWE) data...")
@@ -162,7 +168,7 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Computing groundwater anomaly and plotting results")
 
     logging.info("Computing groundwater anomaly time series...")
