@@ -104,7 +104,7 @@ def main() -> None:
     logging.info(f"Starting {Path(__file__).name} at {run_all_start_time.isoformat()}")
 
     parse_arguments(options)
-    
+       
     section_header(options, "Processing soil moisture data")
 
     logging.info("Download soil moisture data files.")
@@ -131,7 +131,7 @@ def main() -> None:
 
     logging.info(f"Downloading reservoirs data...")
     run_script(options, "reservoirs_download.py")
-
+    
     logging.info("Processing reservoirs data into monthly sums...")
     run_script(options, "reservoirs_monthly_sums.py")
 
@@ -145,7 +145,7 @@ def main() -> None:
 
     logging.info("Call raster mask generator for GRACE TWS data...")
     run_script(options, "call_raster_mask_generator.py")
-
+    
     logging.info("Generating GRACE TWS anomaly time series...")
     run_script(options, "grace_tws_anomaly.py")
 
@@ -176,7 +176,7 @@ def main() -> None:
 
     logging.info("Generating comparison plots of all water storage components...")
     run_script(options, "plot_timeseries.py", flags=["--groundwater"])
-
+    
     run_all_end_time = dt.datetime.now()
     logging.info(f"Finished {Path(__file__).name} at {run_all_end_time.isoformat()}.")
     total_duration = run_all_end_time - run_all_start_time

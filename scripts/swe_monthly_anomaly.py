@@ -231,11 +231,24 @@ def compute_means(options: Options, file_list: list, region_masks: dict,
         # Filter the period from Jan 2004 to Dec 2009
         swe_values = df['swe']
         df['YearMonth'] = pd.to_datetime(df['date']).dt.to_period('M')
-        start_period    = pd.Period('2004-01', freq='M')
-        end_period      = pd.Period('2009-12', freq='M')
-        time_mask       = (df['YearMonth'] >= start_period) & (df['YearMonth'] <= end_period)
-        baseline_mean   = swe_values[time_mask].mean()
-        df['swe']       = swe_values - baseline_mean
+        df = df.sort_values('date')
+        # Convert baseline periods to datetime.date
+        base_start = pd.Period(options.baseline_start, freq='M').to_timestamp().date()
+        base_end   = (pd.Period(options.baseline_end, freq='M') + 1).to_timestamp().date() - pd.Timedelta(days=1)
+        first_period = df['YearMonth'].iloc[0]
+        last_period  = df['YearMonth'].iloc[-1]
+        # Convert actual periods to datetime.date
+        actual_start = first_period.to_timestamp().date()
+        actual_end   = (last_period + 1).to_timestamp().date() - pd.Timedelta(days=1)
+        result_start, result_end = ra.compute_baseline(actual_start, actual_end,base_start, base_end) 
+        logging.info(f"baseline: {result_start} to {result_end}")
+        #Convert adaptive baseline dates back to Period for filtering
+        result_start_period = pd.Period(result_start.strftime("%Y-%m"), freq='M')
+        result_end_period   = pd.Period(result_end.strftime("%Y-%m"), freq='M')
+        time_mask = (df['YearMonth'] >= result_start_period) & (df['YearMonth'] <= result_end_period)
+        baseline_mean = df.loc[time_mask, 'swe'].mean()
+        df['swe']       = df['swe'] - baseline_mean
+        # baseline mean subtracted now save the csv file along with metadata   
         csv_file        = output_dir / f"anomaly_timeseries_{options.swe_model}_{safe_name}.csv"
         df = df.drop(columns=['YearMonth'],errors="ignore")
         header_lines = options.swe_url_prefix
