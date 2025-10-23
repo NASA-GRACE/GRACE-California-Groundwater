@@ -26,9 +26,9 @@ class Options:
         self.project_root:            Path = self.script_dir.parent           # Project root is one level above script_dir
         self.test_start:               str = "2005-01-01"                     # Quick test timespan start
         self.test_end:                 str = "2005-03-31T23:59:59"            # Quick test timespan end
-        self.full_start:               str = "2004-01-01"                     # Start of full timeseries
         self.baseline_start:           str = "2004-01-01"                     # Start of baseline calibration period
         self.baseline_end:             str = "2009-12-31"                     # End   of baseline calibration period
+        self.full_start:               str = "2004-01-01"                     # Start of full timeseries
         self.full_end:                 str = "NOW"                            # Current date/time is the end of the full timeseries
         self.soil_moisture_model:      str = "NLDAS"
         self.swe_model:                str = "SNODAS"
@@ -99,6 +99,10 @@ def main() -> None:
     """Run all the processing scripts in order."""
     options = Options()
     logging.basicConfig(level=options.log_mode, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+    run_all_start_time = dt.datetime.now()
+    logging.info(f"Starting {Path(__file__).name} at {run_all_start_time.isoformat()}")
+
     parse_arguments(options)
     
     section_header(options, "Processing soil moisture data")
@@ -172,7 +176,13 @@ def main() -> None:
 
     logging.info("Generating comparison plots of all water storage components...")
     run_script(options, "plot_timeseries.py", flags=["--groundwater"])
-    
+
+    run_all_end_time = dt.datetime.now()
+    logging.info(f"Finished {Path(__file__).name} at {run_all_end_time.isoformat()}.")
+    total_duration = run_all_end_time - run_all_start_time
+    logging.info(f"Total duration: {total_duration}.")
+
+
 def run_script(options: Options, the_script: str, flags: list[str] | None = None) -> None:
     """
     Run a script with the given options.
