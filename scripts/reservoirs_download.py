@@ -300,10 +300,10 @@ def get_cdec_data(options, station_id: str, sensor_num: str, duration_code: str,
         "Start": start_date_str,
         "End": end_date_str,
     }
-    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"  Requesting URL: {options.cdec_base_url} with params: {params}")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"  Requesting URL: {options.reservoirs_base_url} with params: {params}")
 
     try:
-        response = requests.get(options.cdec_base_url, params=params, timeout=45)
+        response = requests.get(options.reservoirs_base_url, params=params, timeout=45)
         response.raise_for_status()
 
         response_text_upper = response.text.strip().upper()

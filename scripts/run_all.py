@@ -58,15 +58,15 @@ class Options:
         self.timeseries_dir.mkdir(   parents=True, exist_ok=True)
         self.output_dir.mkdir(       parents=True, exist_ok=True)
         self.graphics_dir.mkdir(     parents=True, exist_ok=True)
-        self.swe_url_prefix: str = 'https://noaadata.apps.nsidc.org/NOAA/G02158/masked'
-        self.cdec_base_url: str = "https://cdec.water.ca.gov/dynamicapp/req/CSVDataServlet" # CDEC base URL for CSV data
-        # CDEC sensor ID for storage in Acre-Feet
-        self.storage_sensor_af     = "15" # Primary sensor for storage
-        self.alt_storage_sensor_af = "69" # Alternative sensor, often for more current daily
-        self.cdec_url_prefix: str = f'{self.cdec_base_url}?Stations=<station_id>&SensorNums=<storge or alt storage sensor>&dur_code=M&Start=YYYY-MM-DD&End=YYYY-MM-DD'
-        
-        self.log_mode:           int = logging.INFO  # Use the --debug command line argument to change to DEBUG.
-        self.separator_line:     str = "-" * 60  # A line of dashes for logging separation
+        self.swe_url_prefix:        str = "https://noaadata.apps.nsidc.org/NOAA/G02158/masked"
+        self.reservoirs_base_url:   str = "https://cdec.water.ca.gov/dynamicapp/req/CSVDataServlet"  # CDEC base URL for CSV data
+        # Reservoirs sensor ID for storage in Acre-Feet (specific to CDEC dataset)
+        self.storage_sensor_af:     str = "15"  # Primary sensor for storage
+        self.alt_storage_sensor_af: str = "69"  # Alternative sensor, often for more current daily
+        self.reservoirs_url_prefix: str = f"{self.reservoirs_base_url}?Stations=<station_id>&SensorNums=<storge or alt storage sensor>&dur_code=M&Start=YYYY-MM-DD&End=YYYY-MM-DD"
+
+        self.log_mode:              int = logging.INFO  # Use the --debug command line argument to change to DEBUG.
+        self.separator_line:        str = "-" * 60  # A line of dashes for logging separation
 
         # Generate safe names for basins (no spaces or special characters) and dictionaries for mapping between them.
         self.basin_safenames:           list[str] = [safestring(title) for title in self.valid_basins]
@@ -76,7 +76,7 @@ class Options:
         self.reverse_safename_map: dict[str, str] = {v: k for k, v in self.basin_safename_map.items()}
 
         if self.default_basin not in self.valid_basins:
-            raise ValueError(f"In run_all.py, default basin '{self.default_basin}' specified in Options.__init__() is not in the list of valid basins: {self.valid_basins}")
+            raise ValueError(f"In {Path(__file__).name}, default basin '{self.default_basin}' specified in Options.__init__() is not in the list of valid basins: {self.valid_basins}")
 
         self.default_basin_safename = self.basin_safename_map[self.default_basin]
 
@@ -104,7 +104,7 @@ def main() -> None:
     logging.info(f"Starting {Path(__file__).name} at {run_all_start_time.isoformat()}")
 
     parse_arguments(options)
-       
+
     section_header(options, "Processing soil moisture data")
 
     logging.info("Download soil moisture data files.")
@@ -126,12 +126,12 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked soil moisture data.")
     run_script(options, "plot_timeseries.py")
-    
+
     section_header(options, "Processing reservoirs storage data")
 
     logging.info(f"Downloading reservoirs data...")
     run_script(options, "reservoirs_download.py")
-    
+
     logging.info("Processing reservoirs data into monthly sums...")
     run_script(options, "reservoirs_monthly_sums.py")
 
@@ -140,21 +140,21 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked reservoirs data.")
     run_script(options, "plot_timeseries.py")
-    
+
     section_header(options, "Processing GRACE TWS data")
 
     logging.info("Call raster mask generator for GRACE TWS data...")
     run_script(options, "call_raster_mask_generator.py")
-    
+
     logging.info("Generating GRACE TWS anomaly time series...")
     run_script(options, "grace_tws_anomaly.py")
 
     logging.info("Interpolating GRACE TWS data to daily time steps...")
     run_script(options, "interpolate_grace.py")
-    
+
     logging.info("Generate a time series plot of the masked GRACE data.")
     run_script(options, "plot_timeseries.py")
-    
+
     section_header(options, "Processing SNODAS snow water equivalent data")
 
     logging.info("Downloading snow water equivalent (SWE) data...")
@@ -168,7 +168,7 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
     run_script(options, "plot_timeseries.py")
-    
+
     section_header(options, "Computing groundwater anomaly and plotting results")
 
     logging.info("Computing groundwater anomaly time series...")
@@ -176,7 +176,7 @@ def main() -> None:
 
     logging.info("Generating comparison plots of all water storage components...")
     run_script(options, "plot_timeseries.py", flags=["--groundwater"])
-    
+
     run_all_end_time = dt.datetime.now()
     logging.info(f"Finished {Path(__file__).name} at {run_all_end_time.isoformat()}.")
     total_duration = run_all_end_time - run_all_start_time
@@ -529,7 +529,7 @@ def filename_format(text: str, sep: str = "_", max_length: int = None) -> str:
         import unidecode
         text = unidecode.unidecode(text)
     except ImportError:
-        logging.warning("unidecode package not found, falling back to ASCII encoding.")
+        logging.debug("unidecode package not found, falling back to ASCII encoding.")
         # Fallback: encode to ASCII, ignore errors
         text = text.encode('ascii', 'ignore').decode('ascii')
 

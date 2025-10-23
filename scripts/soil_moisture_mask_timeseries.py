@@ -19,6 +19,7 @@ from netCDF4 import Dataset
 import xarray as xr
 from pyproj import Geod
 import json
+from bisect import bisect_left, bisect_right
 
 import run_all as ra
 
@@ -29,17 +30,18 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name:           str = Path(__file__).stem  # The name of this script without the .py extension
-        self.newvar:            str = "SMTa"  # New variable name for soil moisture
-        self.masks_dir:        Path = self.project_root     / "input_data" / "masks"
-        self.gridded_data_dir: Path = self.project_root     / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_concatenated"
-        self.default_input_nc: Path = self.gridded_data_dir / "LATEST.nc"
-        self.default_csv:      Path = self.timeseries_dir   / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.csv"
-        self.default_nc:       Path = self.timeseries_dir   / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.nc"
-        self.default_mask:     Path = self.masks_dir        / f"{self.soil_moisture_model}_{self.default_basin_safename}_mask.nc"
-        self.unit_factors:     dict = {"mm H2O": 1000, "kg/m2": 1000, "kg/m^2": 1000, "cm": 100, "dm": 10, "m": 1, "km": 0.001}  # Conversions from meters to other units.
-        self.masks_dir.mkdir(parents=True, exist_ok=True)
+        self.my_name:             str = Path(__file__).stem  # The name of this script without the .py extension
+        self.newvar:              str = "SMTa"  # New variable name for soil moisture
+        self.masks_dir:          Path = self.project_root     / "input_data" / "masks"
+        self.gridded_data_dir:   Path = self.project_root     / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_concatenated"
+        self.default_input_nc:   Path = self.gridded_data_dir / "LATEST.nc"
+        self.default_csv:        Path = self.timeseries_dir   / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.csv"
+        self.default_nc:         Path = self.timeseries_dir   / "anomaly_timeseries_MASK_FILE_CURRENT_DATE.nc"
+        self.default_mask:       Path = self.masks_dir        / f"{self.soil_moisture_model}_{self.default_basin_safename}_mask.nc"
+        self.unit_factors:       dict = {"mm H2O": 1000, "kg/m2": 1000, "kg/m^2": 1000, "cm": 100, "dm": 10, "m": 1, "km": 0.001}  # Divisors to convert source units to meters.
         self.attrs_to_copy: list[str] = ["shortname", "title", "version", "doi", "reference", "websites", "history"]
+        self.base_date:   dt.datetime = dt.datetime(2002, 1, 1)  # In the output soil moisture netCDF file, time=0 corresponds to this date.
+        self.masks_dir.mkdir(parents=True, exist_ok=True)
 
 
 def parse_arguments(options: Options) -> None:
@@ -114,7 +116,7 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
             logging.error(f"No concatenated netCDF files found in {os.fspath(options.gridded_data_dir)}")
             sys.exit(22)
         input_nc_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-        options.args.input_nc = options.gridded_data_dir / input_nc_files[0]
+        options.args.input_nc = input_nc_files[0]
     logging.info(f"Input netCDF file: {os.fspath(options.args.input_nc)}")
 
     # Make sure options.args.mask_nc is a file inside the masks directory with nonzero size.
@@ -163,7 +165,7 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
         global_attrs["source_global_attrs_merge"] = [str(prov)]
 
     # Process soil moisture data if available
-    sum_soil_moisture_by_depth(options, ds)
+    ds = sum_soil_moisture_by_depth(options, ds)
 
     var_list = [options.newvar]  # Initialize with new soil moisture variable ONLY
     # Only keep variables that have dims (t_var,y_var,x_var)
@@ -178,6 +180,7 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     mask_var  = mask_ds['mask'].data  # should be a 2D array with dims (lat, lon)
     mask_lats = mask_ds[y_var].data
     mask_lons = mask_ds[x_var].data
+    mask_ds.close()
 
     # Verify that the mask grid exactly matches the input_nc grid
     if mask_lats.shape != ds.lat.shape or not np.allclose(mask_lats, ds.lat.data):
@@ -196,19 +199,31 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     # Calculate surface areas for each grid cell of interest
     areas = calculate_surface_area(total_interest, lon_step, lat_step, interest_lat)
 
-    avg_dict = {}
-    anomalies_dict = {}
+    # Compute baseline window and its index range in ds.time
+    times_dt = [ra.parse_datetime(str(t), timezone="Naive") for t in ds.time.data]
+    data_start, data_end = times_dt[0], times_dt[-1]
+    bstart,         bend = ra.compute_baseline(data_start, data_end,
+                                               options.baseline_start, options.baseline_end)
+    t_start    = bisect_left( times_dt, bstart)
+    t_end_excl = bisect_right(times_dt, bend)
+    if t_start >= t_end_excl:
+        raise ValueError(f"Baseline interval {bstart.date()}–{bend.date()} "
+                         f"does not intersect data range {data_start.date()}–{data_end.date()}.")
+    logging.info(f"Baseline indices: [{t_start}, {t_end_excl}) "
+                 f"→ {times_dt[t_start].date()} to {times_dt[t_end_excl-1].date()}")
+
+    avg_dict:       dict[str, list[float]] = {}
+    anomalies_dict: dict[str, list[float]] = {}
 
     # Compute anomalies and errors for each variable in the dataset
     for var in var_list:
         logging.info(f"Processing variable: {var}")
-        var_data = ds[var].data
-        var_units = ds[var].attrs.get('units', 'm')
+        var_data   = ds[var].data
+        var_units  = ds[var].attrs.get('units', 'm')
         var_factor = options.unit_factors.get(var_units, 1)
-        # compute both anomalies and errors
-        avg = calculate_long_term_avg(var_data, total_interest, interest_lon, interest_lat, time_steps)
-        anomalies, errors = compute_anomaly_timeseries(var_data, var_factor, avg, time_steps,
-                                                       total_interest,
+        # compute both anomalies (relative to average over the baseline period) and errors
+        avg = averages_during_baseline(var_data, total_interest, interest_lon, interest_lat, t_start, t_end_excl)
+        anomalies, errors = compute_anomaly_timeseries(var_data, var_factor, avg, time_steps, total_interest,
                                                        interest_lon, interest_lat, areas)
         # store long-term mean (unchanged)
         avg_dict[var] = avg
@@ -222,16 +237,17 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     for var in var_list:
         fieldnames.append(var)
         fieldnames.append(f"{var}_error")
-    output_csv(options.args.output_csv, fieldnames, ds.time.data, anomalies_dict, global_attrs=global_attrs)
-    output_nc(options.args.output_nc, ds, total_interest, interest_lon, interest_lat,
+    output_csv(options, options.args.output_csv, fieldnames, ds.time.data, anomalies_dict, global_attrs=global_attrs)
+    output_nc(options,  options.args.output_nc,  ds, total_interest, interest_lon, interest_lat,
               time_steps, var_list, avg_dict, t_var=t_var, x_var=x_var, y_var=y_var)
 
     logging.info("Script complete.")
 
 
-def calculate_long_term_avg(var: np.ndarray, total: int,
-                            interest_lon: list[tuple[int, float]],
-                            interest_lat: list[tuple[int, float]], time_steps: int) -> list[float]:
+def averages_during_baseline(var: np.ndarray, total: int,
+                             interest_lon: list[tuple[int, float]],
+                             interest_lat: list[tuple[int, float]],
+                             t_start_idx: int, t_end_idx: int) -> list[float]:
     """
     Compute the long-term average value for each grid cell.
 
@@ -240,7 +256,8 @@ def calculate_long_term_avg(var: np.ndarray, total: int,
         total:        Total number of grid cells of interest.
         interest_lon: List of tuples (lon_index, longitude).
         interest_lat: List of tuples (lat_index, latitude).
-        time_steps:   Number of time steps.
+        t_start_idx:  Inclusive start index of the baseline window.
+        t_end_idx:    Exclusive   end index of the baseline window.
 
     Returns:
         A list of the long-term average for each grid cell.
@@ -249,13 +266,18 @@ def calculate_long_term_avg(var: np.ndarray, total: int,
         None.
     """
     avg = [0.0] * total
+    baseline_len = max(0, t_end_idx - t_start_idx)
+    if baseline_len == 0:
+        raise ValueError("Empty baseline window: t_start_idx == t_end_idx")
+
     for cell in range(total):
         lon_index = interest_lon[cell][0]
         lat_index = interest_lat[cell][0]
         cell_sum = 0.0
-        for t in range(time_steps):
+        for t in range(t_start_idx, t_end_idx):
             cell_sum += var[t, lat_index, lon_index]
-        avg[cell] = cell_sum / time_steps
+        avg[cell] = cell_sum / baseline_len
+
     if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Long-term averages: {avg}")
     return avg
 
@@ -279,8 +301,8 @@ def calculate_surface_area(total: int, lon_step: float, lat_step: float,
         None.
     """
     geod = Geod(ellps="WGS84")
-    half_lon = lon_step / 2.0
-    half_lat = lat_step / 2.0
+    half_lon: float = lon_step / 2.0
+    half_lat: float = lat_step / 2.0
 
     areas: list[float] = [0.0] * total
     cache: dict[float, float] = {}
@@ -306,13 +328,13 @@ def calculate_surface_area(total: int, lon_step: float, lat_step: float,
             cache[key] = area
             areas[i] = area
 
-    total_km2 = sum(areas) / 1e6
+    total_km2: float = sum(areas) / 1e6
     if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Ellipsoidal surface areas: {areas}")
     logging.info(f"Calculated total surface area of {total_km2:.2f} km² for {total} grid cells.")
     return areas
 
 
-def sum_soil_moisture_by_depth(options: Options, ds: xr.Dataset) -> None:
+def sum_soil_moisture_by_depth(options: Options, ds: xr.Dataset) -> xr.Dataset:
     """
     Sum soil moisture over all depths and adjust the dataset.
 
@@ -320,7 +342,7 @@ def sum_soil_moisture_by_depth(options: Options, ds: xr.Dataset) -> None:
         ds: Input dataset which is modified with soil moisture summed.
 
     Returns:
-        None. The dataset ds is modified in place.
+        The modified dataset with soil moisture summed over depth.
 
     Raises:
         ValueError: If no soil moisture variable is found or if multiple are found.
@@ -350,6 +372,7 @@ def sum_soil_moisture_by_depth(options: Options, ds: xr.Dataset) -> None:
         # more than one match → ambiguous
         raise ValueError(f"Multiple soil moisture variables found: {found!r}. "
                          f"Please leave only one of {soil_moisture_names!r} in the dataset.")
+    return ds
 
 
 def compute_anomaly_timeseries(var: np.ndarray, var_factor: float, avg: list[float],
@@ -425,7 +448,7 @@ def compute_anomaly_timeseries(var: np.ndarray, var_factor: float, avg: list[flo
     return anomalies, errors
 
 
-def output_csv(output_file: str | os.PathLike[str], fieldnames: list[str],
+def output_csv(options: Options, output_file: str | os.PathLike[str], fieldnames: list[str],
                times: np.ndarray, anomalies_dict: dict[str, list[float]],
                global_attrs: dict[str, list[str]] | None = None) -> None:
 
@@ -433,6 +456,7 @@ def output_csv(output_file: str | os.PathLike[str], fieldnames: list[str],
     Write the anomaly timeseries to a CSV file.
 
     Args:
+        options:        Options object containing various settings.
         output_file:    Path for the output CSV file.
         fieldnames:     List of column names (e.g., date plus variables).
         times:          Array of time values.
@@ -463,7 +487,7 @@ def output_csv(output_file: str | os.PathLike[str], fieldnames: list[str],
     logging.info(f"Created CSV file: {os.fspath(output_file)}")
 
 
-def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, interest_lon: list[tuple[int, float]],
+def output_nc(options: Options, output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, interest_lon: list[tuple[int, float]],
               interest_lat: list[tuple[int, float]], time_steps: int, var_list: list[str],
               avg_dict: dict[str, list[float]],
               t_var: str = "time", x_var: str = "lon", y_var: str = "lat") -> None:
@@ -471,6 +495,9 @@ def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, i
     Write the anomaly data to a new NetCDF file, masking non-interest grid cells as NaN.
 
     Args:
+        options:      Options object containing:
+                         - base_date:     Base date for the time variable.
+                         - attrs_to_copy: List of global attributes to copy from input dataset.
         output_file:  Path for the output NetCDF file.
         ds:           Input dataset.
         total:        Total number of grid cells of interest.
@@ -490,74 +517,82 @@ def output_nc(output_file: str | os.PathLike[str], ds: xr.Dataset, total: int, i
         None.
     """
     nc_out = Dataset(output_file, "w", format="NETCDF4")
-    nc_out.createDimension(t_var, None)
-    nc_out.createDimension(y_var, len(ds.lat.data))
-    nc_out.createDimension(x_var, len(ds.lon.data))
+    try:
+        nc_out.createDimension(t_var, None)
+        nc_out.createDimension(y_var, len(ds.lat.data))
+        nc_out.createDimension(x_var, len(ds.lon.data))
 
-    # Create coordinate variables
-    time_var = nc_out.createVariable(t_var, "i4", (t_var,))
-    lat_var  = nc_out.createVariable( y_var, "f4", (y_var,))
-    lon_var  = nc_out.createVariable( x_var, "f4", (x_var,))
-    time_data = []
-    base_date = dt.datetime(2002, 1, 1)
-    for t in ds.time.data:
-        dt_obj = dt.datetime.strptime(str(t).split("T")[0], "%Y-%m-%d")
-        time_data.append((dt_obj - base_date).days)
-    time_var[:] = time_data
-    lat_var[:] = ds.lat.data
-    lon_var[:] = ds.lon.data
-    nc_out.createVariable("crs", "i4")
+        # Create coordinate variables
+        time_var = nc_out.createVariable(t_var, "i4", (t_var,))
+        lat_var  = nc_out.createVariable( y_var, "f4", (y_var,))
+        lon_var  = nc_out.createVariable( x_var, "f4", (x_var,))
+        time_data = []
+        for t in ds.time.data:
+            dt_obj = dt.datetime.strptime(str(t).split("T")[0], "%Y-%m-%d")
+            time_data.append((dt_obj - options.base_date).days)
+        time_var[:] = time_data
+        lat_var[:] = ds.lat.data
+        lon_var[:] = ds.lon.data
+        nc_out.createVariable("crs", "i4")
 
-    # Set attributes for coordinate variables
-    if t_var in ds.variables:
-        var_time = ds[t_var]
-        time_var.standard_name = var_time.attrs.get('standard_name', t_var)
-        time_var.long_name = t_var
-        time_var.units     = var_time.attrs.get('units', 'days since 2002-01-01 00:00:00 UTC')
-        time_var.calendar  = var_time.attrs.get('calendar', 'gregorian')
-    if y_var in ds.variables:
-        var_lat = ds[y_var]
-        lat_var.standard_name = var_lat.attrs.get('standard_name', 'latitude')
-        lat_var.long_name     = var_lat.attrs.get('long_name', 'latitude')
-        lat_var.units         = var_lat.attrs.get('units', 'degrees_north')
-    if x_var in ds.variables:
-        var_lon = ds[x_var]
-        lon_var.standard_name = var_lon.attrs.get('standard_name', 'longitude')
-        lon_var.long_name     = var_lon.attrs.get('long_name', 'longitude')
-        lon_var.units         = var_lon.attrs.get('units', 'degrees_east')
+        # Set attributes for coordinate variables
+        if t_var in ds.variables:
+            var_time               = ds[t_var]
+            time_var.standard_name = "time"
+            time_var.long_name     = "time"
+            time_var.units         = f"days since {options.base_date.strftime('%Y-%m-%d')}"
+            time_var.calendar      = var_time.attrs.get('calendar', 'gregorian')
+        if y_var in ds.variables:
+            var_lat                = ds[y_var]
+            lat_var.standard_name  = var_lat.attrs.get('standard_name', 'latitude')
+            lat_var.long_name      = var_lat.attrs.get('long_name', 'latitude')
+            lat_var.units          = var_lat.attrs.get('units', 'degrees_north')
+        if x_var in ds.variables:
+            var_lon                = ds[x_var]
+            lon_var.standard_name  = var_lon.attrs.get('standard_name', 'longitude')
+            lon_var.long_name      = var_lon.attrs.get('long_name', 'longitude')
+            lon_var.units          = var_lon.attrs.get('units', 'degrees_east')
 
-    # Write anomaly data for each variable
-    for var in var_list:
-        out_var = nc_out.createVariable(var, ds[var].dtype, ds[var].dims)
-        out_var.setncatts(ds[var].attrs)
-        out_var.units = "km^3"
-        logging.info(f"Setting units for {var} to {out_var.units}")
-        data_array = np.full(ds[var].shape, np.nan)
-        for i in range(total):
-            lon_idx = interest_lon[i][0]
-            lat_idx = interest_lat[i][0]
-            long_term_mean = avg_dict[var][i]
-            for t in range(time_steps):
-                data_array[t, lat_idx, lon_idx] = ds[var].data[t, lat_idx, lon_idx] - long_term_mean
-        out_var[:] = data_array
+        # Write anomaly data for each variable
+        for var in var_list:
+            out_var = nc_out.createVariable(var, ds[var].dtype, ds[var].dims)
+            out_var.setncatts(ds[var].attrs)
+            out_var.long_name = (ds[var].attrs.get("long_name", var) + " anomaly").strip()
+            out_var.comment   = "Per-gridcell anomaly; units match source variable."
+            # Per-gridcell anomaly units are identical to the source variable (e.g., "mm H2O")
+            logging.info(f"Keeping units for {var} as {out_var.units!s}")
+            data_array = np.full(ds[var].shape, np.nan)
+            for i in range(total):
+                lon_idx = interest_lon[i][0]
+                lat_idx = interest_lat[i][0]
+                long_term_mean = avg_dict[var][i]
+                for t in range(time_steps):
+                    data_array[t, lat_idx, lon_idx] = ds[var].data[t, lat_idx, lon_idx] - long_term_mean
+            out_var[:] = data_array
 
-    # Global attributes
-    nc_out.Conventions = "CF-1.6"
-    nc_out.history = f"Created on {dt.datetime.now(dt.timezone.utc).isoformat()}+00:00"
-    nc_out.featureType = "timeSeries"
-    # OPTIONAL: propagate selected global attrs from input ds to the anomaly NetCDF
-    for key in ["shortname", "title", "version", "doi", "reference", "websites", "history"]:
-        val = ds.attrs.get(key)
-        if val is not None:
-            try:
-                nc_out.setncattr(key, val)  # works for strings or list-of-strings with NETCDF4
-            except Exception:
-                # fallback: stringify anything odd
-                if isinstance(val, (list, tuple, np.ndarray)):
-                    nc_out.setncattr(key, "; ".join(map(str, val)))
-                else:
-                    nc_out.setncattr(key, str(val))
-    nc_out.close()
+        # Global attributes
+        nc_out.Conventions = "CF-1.6"
+        nc_out.featureType = "grid"
+        nc_out.history     = f"Created on {dt.datetime.now(dt.timezone.utc).isoformat()}"
+        src_hist = ds.attrs.get("history")
+        if src_hist:
+            nc_out.history += f"\nSource history:\n{src_hist}"
+        # Propagate selected global attrs from input ds to the anomaly NetCDF
+        for key in options.attrs_to_copy:
+            if key == "history":
+                continue
+            val = ds.attrs.get(key)
+            if val is not None:
+                try:
+                    nc_out.setncattr(key, val)  # works for strings or list-of-strings with NETCDF4
+                except Exception:
+                    # fallback: stringify anything odd
+                    if isinstance(val, (list, tuple, np.ndarray)):
+                        nc_out.setncattr(key, "; ".join(map(str, val)))
+                    else:
+                        nc_out.setncattr(key, str(val))
+    finally:
+        nc_out.close()
     logging.info(f"Created NetCDF file: {os.fspath(output_file)}")
 
 
