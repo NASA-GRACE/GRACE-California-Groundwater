@@ -63,7 +63,7 @@ class Options:
         # Reservoirs sensor ID for storage in Acre-Feet (specific to CDEC dataset)
         self.storage_sensor_af:     str = "15"  # Primary sensor for storage
         self.alt_storage_sensor_af: str = "69"  # Alternative sensor, often for more current daily
-        self.reservoirs_url_prefix: str = f"{self.reservoirs_base_url}?Stations=<station_id>&SensorNums=<storge or alt storage sensor>&dur_code=M&Start=YYYY-MM-DD&End=YYYY-MM-DD"
+        self.reservoirs_url_prefix: str = f"{self.reservoirs_base_url}?Stations=<station_id>&SensorNums=<storage or alt storage sensor>&dur_code=M&Start=YYYY-MM-DD&End=YYYY-MM-DD"
 
         self.log_mode:              int = logging.INFO  # Use the --debug command line argument to change to DEBUG.
         self.separator_line:        str = "-" * 60  # A line of dashes for logging separation
