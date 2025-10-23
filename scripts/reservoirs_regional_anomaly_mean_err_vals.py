@@ -122,11 +122,24 @@ def process_csv(options: Options, file_path: str, output_dir: str, start_date: s
 
     # Compute error values
     df['error'] = df[value_col].abs() * err_val  # magnitude * percentage
-
     # Compute baseline mean for given period
-    baseline_mask = (df['date'] >= pd.to_datetime(start_date)) & (df['date'] <= pd.to_datetime(end_date))
+    # Convert baseline time strings to datetime.date (first day of month and last day of month)
+    baseline_start = pd.Period(options.baseline_start, freq='M').to_timestamp().date()
+    baseline_end   = (pd.Period(options.baseline_end, freq='M') + 1).to_timestamp().date() - pd.Timedelta(days=1)
+    # --- Determine actual range from data ---
+    actual_start = df['date'].min().date()  
+    actual_end   = df['date'].max().date()  
+    resulting_baseline_start, resulting_baseline_end = ra.compute_baseline(actual_start, actual_end, baseline_start, baseline_end)
+    resulting_baseline_start = pd.Timestamp(resulting_baseline_start)
+    resulting_baseline_end = pd.Timestamp(resulting_baseline_end)
+    print("Adaptive baseline:", resulting_baseline_start, "to", resulting_baseline_end)
+    baseline_mask = (df['date'] >= resulting_baseline_start) & (df['date'] <= resulting_baseline_end)
     baseline_mean = df.loc[baseline_mask, value_col].mean()
-
+    print(resulting_baseline_start)
+    print(resulting_baseline_end)
+    print(baseline_mask)
+    print(baseline_mean)
+    print(df[value_col])
     # Compute anomaly (subtract baseline mean)
     df['anomaly'] = df[value_col] - baseline_mean
 

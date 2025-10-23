@@ -132,8 +132,7 @@ def main() -> None:
     region_mask, ma = prepare_grid_and_mask(dataset, mask_array)
     tws, bsn_sig, dates = compute_timeseries(dataset, region_mask, ma, options.args.scaling_factor, options.args.start_date, options.args.end_date)
 
-    baseline = (options.args.baseline_start, options.args.baseline_end) if options.args.baseline_start and options.args.baseline_end else None
-    save_results(options.args.output_csv, dates, tws, bsn_sig, ma, options.args.units, baseline,global_attrs=global_attrs)
+    save_results(options, options.args.output_csv, dates, tws, bsn_sig, ma, options.args.units,global_attrs=global_attrs)
     
 
 def load_dataset(grace_input_dir: str, grace_filename: str, file_access_type: str, shortname_mass: str) -> xr.Dataset:
@@ -290,11 +289,11 @@ def compute_uncertainty(sig_lwe: np.ndarray, mascon_id: np.ndarray, ma: np.ndarr
     return np.sqrt(np.sum(sig_ma**2, axis=1)) / np.sum(maA)
 
 
-def save_results(output_csv: str, dates: np.ndarray, tws: np.ndarray, bsn_sig: np.ndarray,
-                 ma: np.ndarray, units: str = "km3", baseline: tuple = None, 
+def save_results(options, output_csv: str, dates: np.ndarray, tws: np.ndarray, bsn_sig: np.ndarray,
+                 ma: np.ndarray, units: str = "km3", 
                  global_attrs: dict[str, list[str]] | None = None) -> None:
     """
-    Save final time series with optional anomaly calculation.
+    Save final time series with anomaly calculation.
     
     Args:
         output_csv: Path to save the output CSV.
@@ -303,7 +302,6 @@ def save_results(output_csv: str, dates: np.ndarray, tws: np.ndarray, bsn_sig: n
         bsn_sig:    1D numpy array of basin uncertainty time series.
         ma:         2D numpy array of area weights multiplied by mask.
         units:      "km3" or "cm" for output units.
-        baseline:   Optional tuple of (start_date, end_date) for anomaly baseline.
         global_attrs:   Optional dictionary of global attributes to include as comments.
     
     Returns:
@@ -317,12 +315,21 @@ def save_results(output_csv: str, dates: np.ndarray, tws: np.ndarray, bsn_sig: n
         bsn_sig = (bsn_sig / 100000) * (np.sum(ma) / 1e6)
 
     df = pd.DataFrame({"date": pd.to_datetime(dates), "tws": tws, "tws_error": bsn_sig})
-
-    if baseline: #not used as grace fo mascon is already an anomaly of mean (2004-2009)
-        start, end = baseline
-        mask = (df["date"] >= pd.to_datetime(start)) & (df["date"] <= pd.to_datetime(end))
-        baseline_mean = df.loc[mask, "tws"].mean()
-        df["tws"] = df["tws"] - baseline_mean
+    # compute and subtract baseline mean 
+    # convert to datetime.date objects
+    baseline_start = pd.to_datetime(options.baseline_start).date()
+    baseline_end   = pd.to_datetime(options.baseline_end).date()
+    actual_start  = pd.to_datetime(options.args.start_date).date()
+    actual_end    = pd.to_datetime(options.args.end_date).date()
+    # compute adaptive baseline interval
+    result_start, result_end = ra.compute_baseline(
+        actual_start, actual_end,
+        baseline_start, baseline_end)
+    logging.info(f"Adaptive baseline: {result_start} to {result_end}")
+    
+    baseline_mask = (df["date"] >= pd.to_datetime(result_start)) & (df["date"] <= pd.to_datetime(result_end))
+    baseline_mean = df.loc[baseline_mask, "tws"].mean()
+    df["tws"] = df["tws"] - baseline_mean
     
     os.makedirs(os.path.dirname(output_csv), exist_ok=True)  # create folder if it doesn't exist
     # --- Write metadata and data together ---
