@@ -11,13 +11,6 @@ import run_all as ra
 
 #Written by Felix Landerer, Munish Sikka, Gemini and ChatGPT
 
-# CDEC sensor ID for storage in Acre-Feet
-STORAGE_SENSOR_AF     = "15" # Primary sensor for storage
-ALT_STORAGE_SENSOR_AF = "69" # Alternative sensor, often for more current daily
-
-# CDEC base URL for CSV data
-CDEC_BASE_URL = "https://cdec.water.ca.gov/dynamicapp/req/CSVDataServlet"
-
 # Conversion factor
 ACRE_FEET_TO_CUBIC_METERS = 1233.4818375475
 
@@ -140,21 +133,21 @@ def reservoirs_download_CDEC(options: Options) -> None:
         logging.info(f"Fetching data for {name} ({station_id})...")
 
         df_reservoir = None
-        current_sensor_used = STORAGE_SENSOR_AF # Assume primary sensor first
+        current_sensor_used = options.storage_sensor_af # Assume primary sensor first
         
         # Try primary sensor
-        df_reservoir = get_cdec_data(station_id, STORAGE_SENSOR_AF, duration_code, start_date_str_cdec, end_date_str_cdec)
+        df_reservoir = get_cdec_data(options, station_id, options.storage_sensor_af, duration_code, start_date_str_cdec, end_date_str_cdec)
 
         # If primary fails or returns no usable data, and it's daily, try alternative sensor
         if not (df_reservoir is not None and not df_reservoir.empty and 'VALUE' in df_reservoir.columns and df_reservoir['UNITS'].iloc[0] == 'M3'):
             if duration_code == "D": 
-                logging.info(f"  Primary sensor {STORAGE_SENSOR_AF} failed or data not convertible for {name}. Trying sensor {ALT_STORAGE_SENSOR_AF}...")
-                df_reservoir_alt = get_cdec_data(station_id, ALT_STORAGE_SENSOR_AF, duration_code, start_date_str_cdec, end_date_str_cdec)
+                logging.info(f"  Primary sensor {options.storage_sensor_af} failed or data not convertible for {name}. Trying sensor {options.alt_storage_sensor_af}...")
+                df_reservoir_alt = get_cdec_data(options, station_id, options.alt_storage_sensor_af, duration_code, start_date_str_cdec, end_date_str_cdec)
                 if df_reservoir_alt is not None and not df_reservoir_alt.empty and 'VALUE' in df_reservoir_alt.columns and df_reservoir_alt['UNITS'].iloc[0] == 'M3':
                     df_reservoir = df_reservoir_alt # Use data from alternative sensor
-                    current_sensor_used = ALT_STORAGE_SENSOR_AF
+                    current_sensor_used = alt_storage_sensor_af
                 else:
-                    logging.warning(f"  Alternative sensor {ALT_STORAGE_SENSOR_AF} also failed or data not convertible for {name}.")
+                    logging.warning(f"  Alternative sensor {options.alt_storage_sensor_af} also failed or data not convertible for {name}.")
             # If not daily, or if alt sensor also failed for daily
             if not (df_reservoir is not None and not df_reservoir.empty and 'VALUE' in df_reservoir.columns and df_reservoir['UNITS'].iloc[0] == 'M3'):
                  # Check if df_reservoir has any data at all, even if not M3 (e.g. original units warning)
@@ -164,7 +157,7 @@ def reservoirs_download_CDEC(options: Options) -> None:
                     # For simplicity in this version, we'll treat it as a "failed M3 conversion" for the combined file.
                     logging.info(f"  Data found for {name} (Sensor {current_sensor_used}) but units are not M3 (Original units: {df_reservoir['UNITS'].iloc[0] if 'UNITS' in df_reservoir.columns and not df_reservoir['UNITS'].empty else 'Unknown'}). Will save individual file if possible.")
                     # Save this non-M3 data individually
-                    filename_suffix = f"_sensor{current_sensor_used}" if current_sensor_used != STORAGE_SENSOR_AF else ""
+                    filename_suffix = f"_sensor{current_sensor_used}" if current_sensor_used != options.storage_sensor_af else ""
                     original_unit_tag = df_reservoir['UNITS'].iloc[0] if 'UNITS' in df_reservoir.columns and not df_reservoir['UNITS'].empty else "UNKNOWN_UNITS"
                     filename = f"{station_id}{filename_suffix}_{time_period_name.lower()}_{original_unit_tag}_{start_date_str_cdec}_to_{end_date_str_cdec}.csv"
                     filepath = os.path.join(output_dir, filename)
@@ -181,7 +174,7 @@ def reservoirs_download_CDEC(options: Options) -> None:
 
         if df_reservoir is not None and not df_reservoir.empty and 'VALUE' in df_reservoir.columns and df_reservoir['UNITS'].iloc[0] == 'M3':
             all_data_frames[name] = df_reservoir # Add to list for combined M3 file
-            filename_suffix = f"_sensor{current_sensor_used}" if current_sensor_used != STORAGE_SENSOR_AF else ""
+            filename_suffix = f"_sensor{current_sensor_used}" if current_sensor_used != options.storage_sensor_af else ""
             filename = f"{station_id}{filename_suffix}_{time_period_name.lower()}_m3_{start_date_str_cdec}_to_{end_date_str_cdec}.csv"
             filepath = os.path.join(output_dir, filename)
             try:
@@ -282,7 +275,7 @@ def load_reservoirs_from_file(filepath: str) -> list[dict] | None:
         return None
 
 
-def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
+def get_cdec_data(options, station_id: str, sensor_num: str, duration_code: str,
                   start_date_str: str, end_date_str: str) -> pd.DataFrame | None:
     """
     Fetches data from CDEC and converts storage to cubic meters.
@@ -307,10 +300,10 @@ def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
         "Start": start_date_str,
         "End": end_date_str,
     }
-    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"  Requesting URL: {CDEC_BASE_URL} with params: {params}")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"  Requesting URL: {options.cdec_base_url} with params: {params}")
 
     try:
-        response = requests.get(CDEC_BASE_URL, params=params, timeout=45)
+        response = requests.get(options.cdec_base_url, params=params, timeout=45)
         response.raise_for_status()
 
         response_text_upper = response.text.strip().upper()
@@ -415,7 +408,7 @@ def get_cdec_data(station_id: str, sensor_num: str, duration_code: str,
                 if original_units.upper() in ["ACRE-FEET", "ACRE FEET", "AF", "STORAGE AF"]: # Added "STORAGE AF"
                     perform_conversion = True
             # If original_units was not conclusive (e.g. "UNKNOWN"), but sensor is known storage sensor
-            elif sensor_num in [STORAGE_SENSOR_AF, ALT_STORAGE_SENSOR_AF]:
+            elif sensor_num in [options.storage_sensor_af, options.alt_storage_sensor_af]:
                 perform_conversion = True
 
             if perform_conversion:
