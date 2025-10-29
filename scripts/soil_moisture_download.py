@@ -252,7 +252,7 @@ def validate_netcdf_file(path: Path) -> tuple[bool, str]:
     Returns:
         (True, "") if valid; (False, reason) otherwise.
     """
-    path = Path(path)
+    path = Path(path)  # ensure Path object
     if not path.exists():
         return False, "File does not exist"
     if path.stat().st_size == 0:
@@ -339,7 +339,7 @@ def _download_with_validation_and_retry(options: Options, results) -> tuple[list
     Returns:
         (ok_files, bad_files).
     """
-    local_dir = Path(options.args.local_dir)
+    local_dir      = Path(options.args.local_dir)
     quarantine_dir = local_dir / "_quarantine_bad_netcdf"
     quarantine_dir.mkdir(parents=True, exist_ok=True)
 
@@ -352,9 +352,9 @@ def _download_with_validation_and_retry(options: Options, results) -> tuple[list
         except Exception as e:
             logging.error("Skipping granule with no usable data link: %s", e)
 
-    ok_files: list[Path] = []
-    bad_files: list[Path] = []
-    to_download = []
+    ok_files:      list[Path] = []
+    bad_files:     list[Path] = []
+    to_download: list[object] = []
 
     # Pre-validate existing files; delete invalid to force clean re-download
     for g, fpath in items:

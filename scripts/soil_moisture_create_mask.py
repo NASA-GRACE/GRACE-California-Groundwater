@@ -67,9 +67,9 @@ def create_mask_for_NLDAS(options: Options) -> None:
 
     Args:
         options: An Options instance with parsed command line arguments in options.args. Contains:
-           - basin: Basin identifier (e.g., "California", "Sacramento", etc.).
-           - shape_dir: Directory containing shapefiles.
-           - masks_dir: Directory to save generated masks.
+           - basin:            Basin identifier (e.g., "California", "Sacramento", etc.).
+           - shape_dir:        Directory containing shapefiles.
+           - masks_dir:        Directory to save generated masks.
            - gridded_data_dir: Directory containing gridded soil moisture data (netCDF files).
 
     Returns:

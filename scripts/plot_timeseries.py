@@ -34,9 +34,8 @@ class Options(ra.PlotOptions):
         # self.discontinuities: list[dt.datetime] = []  # Uncomment this line to have no discontinuities
         self.discontinuities: list[dt.datetime] = [ra.parse_datetime(d, timezone='naive') for d in ['2018-05-01']]
         self.estimate_trends = 1  # 1 = estimate trends, 0 = do not estimate
-        self.units = "km³"
-
-        self.dark_mode   = 1  # 1 = dark mode, 0 = light mode
+        self.units           = "km³"
+        self.dark_mode       = 0  # 1 = dark mode, 0 = light mode
 
 
 def parse_arguments(options: Options) -> None:

@@ -190,7 +190,7 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
 
     logging.info(f"mask.shape: {mask_var.shape}")
     # Find all (row, col) indices where mask == 1
-    coords = np.argwhere(mask_var == 1)
+    coords         = np.argwhere(mask_var == 1)
     total_interest = int(coords.shape[0])
     # Build lists of (index, coordinate value) exactly as before
     interest_lon = [(int(col), float(lons[col])) for (row, col) in coords]
@@ -200,12 +200,12 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     areas = calculate_surface_area(total_interest, lon_step, lat_step, interest_lat)
 
     # Compute baseline window and its index range in ds.time
-    times_dt = [ra.parse_datetime(str(t), timezone="Naive") for t in ds.time.data]
+    times_dt             = [ra.parse_datetime(str(t), timezone="Naive") for t in ds.time.data]
     data_start, data_end = times_dt[0], times_dt[-1]
     bstart,         bend = ra.compute_baseline(data_start, data_end,
                                                options.baseline_start, options.baseline_end)
-    t_start    = bisect_left( times_dt, bstart)
-    t_end_excl = bisect_right(times_dt, bend)
+    t_start              = bisect_left( times_dt, bstart)
+    t_end_excl           = bisect_right(times_dt, bend)
     if t_start >= t_end_excl:
         raise ValueError(f"Baseline interval {bstart.date()}–{bend.date()} "
                          f"does not intersect data range {data_start.date()}–{data_end.date()}.")
@@ -304,7 +304,7 @@ def calculate_surface_area(total: int, lon_step: float, lat_step: float,
     half_lon: float = lon_step / 2.0
     half_lat: float = lat_step / 2.0
 
-    areas: list[float] = [0.0] * total
+    areas:        list[float] = [0.0] * total
     cache: dict[float, float] = {}
 
     for i in range(total):
@@ -348,7 +348,7 @@ def sum_soil_moisture_by_depth(options: Options, ds: xr.Dataset) -> xr.Dataset:
         ValueError: If no soil moisture variable is found or if multiple are found.
     """
     # list all the candidate soil-moisture variables you might have
-    soil_moisture_names = ["SoilM_0_100cm"]
+    soil_moisture_names: list[str] = ["SoilM_0_100cm"]
 
     # find which of those are actually in ds
     found = [name for name in soil_moisture_names if name in ds.data_vars]
@@ -401,13 +401,13 @@ def compute_anomaly_timeseries(var: np.ndarray, var_factor: float, avg: list[flo
     Raises:
         None.
     """
-    anomalies = []
-    errors = []
+    anomalies: list[float] = []
+    errors:    list[float] = []
     # total_area = sum(areas) # Only used if computing in mm H₂O
 
     for t in range(time_steps):
-        anomaly_sum = 0.0
-        storage_sum = 0.0  # total volume (m³) before subtracting mean
+        anomaly_sum: float = 0.0
+        storage_sum: float = 0.0  # total volume (m³) before subtracting mean
 
         for cell in range(total):
             lon_index      = interest_lon[cell][0]

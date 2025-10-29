@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
 Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 Thinking (it/its), and GitHub Copilot (it/its).
-Concatenate all netCDF files found under a folder (in subdirectories)
-into a single netCDF file.
+Concatenate all netCDF files found under a folder (in subdirectories) into a single netCDF file.
 
 Assumptions:
  - Files are named with extensions ".nc" or ".nc4"
  - Each file contains a "time" coordinate and the same set of data variables and dimensions
  - Searches recursively for input files.
+
 """
 
 import os
@@ -20,9 +20,9 @@ import xarray as xr
 import datetime as dt
 import re
 import tqdm
+from typing import Literal
 
 import run_all as ra
-
 from soil_moisture_download import validate_netcdf_integrity
 
 
@@ -112,11 +112,119 @@ def validate_inputs(options: Options) -> None:
     """
     if not options.args.in_dir.exists():
         raise ValueError(f"Input directory does not exist: {options.args.in_dir}")
-    options.in_dir = options.args.in_dir.resolve()
+    options.in_dir  = options.args.in_dir.resolve()
     options.out_dir = options.args.out_dir.resolve()
     options.out_dir.mkdir(parents=True, exist_ok=True)
     logging.info(f"Input  directory: {options.in_dir}")
     logging.info(f"Output directory: {options.out_dir}")
+
+
+def _classify_temporal_resolution_and_prefix(fname: str | os.PathLike[str]) -> tuple[Literal["monthly", "daily", "hourly"], str]:
+    """
+    Inspect a single filename (basename only, no directory) and determine:
+      - temporal resolution: "monthly", "daily", or "hourly"
+      - the prefix portion of the filename *before* the date stamp
+
+    Rules:
+      monthly date looks like YYYYMM
+      daily   date looks like YYYYMMDD
+      hourly  date looks like YYYYMMDD.HHMM  (e.g. 20050103.1400)
+
+    We always prefer the *most specific* match:
+      hourly > daily > monthly
+    
+    Args:
+        fname: Filename to classify.
+    
+    Returns:
+        A tuple of (temporal_resolution, prefix_string).
+
+    Raises:
+      ValueError if we can't find any supported date pattern.
+    """
+    base = Path(fname).name  # just to be safe if we got a path
+
+    # Hourly first: 20050103.1400
+    hourly_regex = re.compile(
+        r"^(?P<prefix>.*?)(?P<stamp>[12]\d{3}"
+        r"(0[1-9]|1[0-2])"
+        r"(0[1-9]|[12]\d|3[01])"
+        r"\.(?:[01]\d|2[0-3])[0-5]\d)"
+    )
+    m = hourly_regex.search(base)
+    if m:
+        return "hourly", m.group("prefix")
+
+    # Daily next: 20050103
+    daily_regex = re.compile(
+        r"^(?P<prefix>.*?)(?P<stamp>[12]\d{3}"
+        r"(0[1-9]|1[0-2])"
+        r"(0[1-9]|[12]\d|3[01]))"
+    )
+    m = daily_regex.search(base)
+    if m:
+        return "daily", m.group("prefix")
+
+    # Monthly last: 200501
+    monthly_regex = re.compile(
+        r"^(?P<prefix>.*?)(?P<stamp>[12]\d{3}(0[1-9]|1[0-2]))"
+    )
+    m = monthly_regex.search(base)
+    if m:
+        return "monthly", m.group("prefix")
+
+    raise ValueError(f"Could not infer temporal resolution/date stamp from filename: {fname}")
+
+
+def _filter_files_by_pattern(filepaths: list[str | os.PathLike[str]]) -> list[str]:
+    """
+    Given a list of candidate NetCDF filepaths, choose the *most recent* file
+    (by modification time on disk), infer that file's temporal resolution and
+    its pre-date prefix, and then return ONLY the files that match BOTH:
+      - same temporal resolution ("monthly" vs "daily" vs "hourly")
+      - same prefix before the date
+
+    Notes / edge cases handled:
+      - If multiple files share the same mtime, max() will just pick one; that's fine.
+      - We intentionally compare prefix strings *exactly* (no fuzzy matching).
+      - If classification fails for the most recent file, we raise.
+      - We do NOT check variable consistency here; that's done later.
+
+    Raises:
+      ValueError if input list is empty or classification fails.
+    """
+    if not filepaths:
+        raise ValueError("No candidate .nc/.nc4 files were found to filter.")
+
+    # Pick the most recent file by modification timestamp
+    most_recent = max(filepaths, key=lambda p: Path(p).stat().st_mtime)
+
+    temporal_res, wanted_prefix = _classify_temporal_resolution_and_prefix(Path(most_recent).name)
+
+    logging.info(f"Most recent file: {most_recent}")
+    logging.info(f"Inferred temporal resolution: {temporal_res}")
+    logging.info(f"Inferred prefix: {wanted_prefix}")
+
+    filtered = []
+    for f in filepaths:
+        try:
+            this_res, this_prefix = _classify_temporal_resolution_and_prefix(Path(f).name)
+        except ValueError:
+            # skip files that don't even look like our YYYY.. pattern
+            continue
+
+        if this_res == temporal_res and this_prefix == wanted_prefix:
+            filtered.append(f)
+
+    if not filtered:
+        raise ValueError(
+            f"No files matched the temporal resolution '{temporal_res}' "
+            f"and prefix '{wanted_prefix}' inferred from most recent file {most_recent}"
+        )
+
+    # We'll sort them for determinism (alphabetical by path, which for these filenames
+    # usually implies chronological order if the date stamp is embedded).
+    return sorted(filtered)
 
 
 def discover_files(options: Options) -> None:
@@ -136,39 +244,105 @@ def discover_files(options: Options) -> None:
         ValueError:        If duplicate, empty, non-netCDF, non-readable, or mismatched-extension files are found.
     """
     pattern = options.in_dir / "**" / "*.nc*"
-    options.in_files = sorted(glob.glob(str(pattern), recursive=True))
-    if not options.in_files:
+    # Grab *all* .nc/.nc4-ish candidates
+    all_candidates = glob.glob(str(pattern), recursive=True)
+
+    if not all_candidates:
         raise FileNotFoundError(f"No .nc/.nc4 files found under {options.in_dir}")
-    # Check for duplicates
-    if len(options.in_files) != len(set(options.in_files)):
-        # List duplicates
-        duplicates = set([f for f in options.in_files if options.in_files.count(f) > 1])
-        raise ValueError(f"Duplicate files found: {duplicates}")
-    # Check for empty files
-    for fpath in options.in_files:
-        if Path(fpath).stat().st_size == 0:
-            raise ValueError(f"Empty file found: {fpath}")
-    # Check for non-netCDF files
-    for fpath in options.in_files:
-        if not fpath.endswith((".nc", ".nc4")):
-            raise ValueError(f"Non-netCDF file found: {fpath}")
-    # Check for non-readable files
-    for fpath in options.in_files:
-        try:
-            with Path(fpath).open("r"):
-                pass
-        except (FileNotFoundError, PermissionError):
-            raise ValueError(f"File not readable: {fpath}")
-    # Make sure all files have the same extension
-    options.ext = Path(options.in_files[0]).suffix
-    for fpath in options.in_files:
-        if Path(fpath).suffix != options.ext:
-            raise ValueError(f"File extension mismatch: {fpath} does not match {options.in_files[0]}")
-    logging.info(f"Loading {len(options.in_files)} files.")
-    for fpath in options.in_files:
-        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"  {Path(fpath).name}")
+
+    # Filter down to just the cohort we actually want to merge
+    options.in_files = _filter_files_by_pattern(all_candidates)
+
+    # Move "bad" files to this quarantine folder:
     quarantine = options.in_dir / "_quarantine_bad_netcdf"
-    validate_netcdf_integrity(options.in_files, quarantine_dir=quarantine, strict=True)
+
+    # Basic checks on the filtered list:
+
+    # We'll iteratively build a cleaned list and quarantine any broken files.
+    cleaned_files: list[str] = []
+
+    # 1. Handle duplicates by keeping only the first occurrence.
+    #    We'll iterate in order and skip repeats.
+    seen: set[str] = set()
+
+    for fpath in options.in_files:
+        if fpath in seen:
+            logging.warning("Duplicate file detected and skipped: %s", fpath)
+            continue
+        seen.add(fpath)
+
+        p = Path(fpath)
+
+        # 2. Check readability
+        try:
+            with p.open("r"):
+                pass
+        except (FileNotFoundError, PermissionError) as e:
+            logging.warning("Unreadable file will be quarantined and skipped: %s (%s)", fpath, e)
+            try:
+                quarantine.mkdir(parents=True, exist_ok=True)
+                p.replace(quarantine / p.name)
+            except Exception as move_err:
+                logging.warning("Failed to move unreadable file %s to quarantine: %s", fpath, move_err)
+            continue  # don't keep this file
+
+        # 3. Check empty file
+        if p.stat().st_size == 0:
+            logging.warning("Empty file will be quarantined and skipped: %s", fpath)
+            try:
+                quarantine.mkdir(parents=True, exist_ok=True)
+                p.replace(quarantine / p.name)
+            except Exception as move_err:
+                logging.warning("Failed to move empty file %s to quarantine: %s", fpath, move_err)
+            continue  # don't keep this file
+
+        cleaned_files.append(fpath)
+
+    # 4. Enforce uniform extension without raising:
+    #    Determine the majority / first extension in cleaned_files, then drop mismatches.
+    if not cleaned_files:
+        raise ValueError("No valid input files remain after filtering, de-dup, and quarantine.")
+
+    canonical_ext = Path(cleaned_files[0]).suffix
+    really_cleaned: list[str] = []
+
+    for fpath in cleaned_files:
+        this_ext = Path(fpath).suffix
+        if this_ext != canonical_ext:
+            logging.warning(
+                "File with mismatched extension skipped: %s (expected %s, got %s)",
+                fpath, canonical_ext, this_ext
+            )
+            continue
+        really_cleaned.append(fpath)
+
+    if not really_cleaned:
+        raise ValueError("All files were dropped due to extension mismatch; nothing to process.")
+
+    # Update options.in_files to only the survivors
+    options.in_files = really_cleaned
+    options.ext      = canonical_ext
+
+    logging.info(f"Loading {len(options.in_files)} files (filtered cohort).")
+    for fpath in options.in_files:
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug(f"  {Path(fpath).name}")
+
+    bad_list = validate_netcdf_integrity(options.in_files, quarantine_dir=quarantine, strict=False)
+    if bad_list:
+        # bad_list is a list of (Path, reason)
+        bad_paths = {str(p) for (p, _) in bad_list}  # ignore the "why" by setting it to "_"
+        # Remove any quarantined/invalid files from our working set
+        surviving = [f for f in options.in_files if f not in bad_paths]
+
+        if len(surviving) != len(options.in_files):
+            logging.warning("Skipping %d corrupt/invalid NetCDF files that were quarantined.",
+                            len(options.in_files) - len(surviving))
+
+        if not surviving:
+            raise ValueError("All candidate NetCDF files were invalid/corrupt after quarantine; nothing left to process.")
+
+        options.in_files = surviving
 
 
 def infer_model(options: Options) -> None:
@@ -328,7 +502,7 @@ def check_time_continuity(options: Options) -> None:
 
 def get_datespan(options: Options, ds: xr.Dataset) -> None:
     """
-    Build a YYYYMMDD_YYYYMMDD string from ds.time coordinate, store in options.datespan_string.
+    Build a YYYYMMDD_to_YYYYMMDD string from ds.time coordinate, store in options.datespan_string.
 
     Args:
         options: An Options instance to store the datespan string.
@@ -351,7 +525,7 @@ def get_datespan(options: Options, ds: xr.Dataset) -> None:
 
     y0, m0, d0 = to_ym(times[0])
     y1, m1, d1 = to_ym(times[-1])
-    options.datespan_string = f"{y0}{m0:02d}{d0:02d}_{y1}{m1:02d}{d1:02d}"
+    options.datespan_string = f"{y0}{m0:02d}{d0:02d}_to_{y1}{m1:02d}{d1:02d}"
     logging.info(f"Datespan: {options.datespan_string}")
 
 
