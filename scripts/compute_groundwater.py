@@ -24,6 +24,7 @@ import numpy as np
 import logging
 from pathlib import Path
 import json
+import re
 import datetime as dt
 
 import run_all as ra
@@ -255,7 +256,7 @@ def show_monthly_duplicates(df: pd.DataFrame, name: str) -> None:
 
 def _read_csv_header_attrs(path: str | os.PathLike[str]) -> dict[str, list[str]]:
     """
-    Read top-of-file commented header lines of the form:
+    Read top-of-file commented header lines of the strict form:
         # key: [json-array]
     Stop at the first non-comment line. Returns {key: list[str]}.
     """
@@ -266,6 +267,11 @@ def _read_csv_header_attrs(path: str | os.PathLike[str]) -> dict[str, list[str]]
                 break
             # strip leading '#', keep empty comment lines out
             text = line[1:].strip()
+            # If the comment is a bare URL like "https://..." or "ftp://...", store as {scheme: [full_url]}
+            m = re.match(r'^([A-Za-z][A-Za-z0-9+.\-]*)://.+$', text)
+            if m:
+                header[m.group(1)] = [text]
+                continue
             if not text or ":" not in text:
                 continue
             key, raw = text.split(":", 1)
