@@ -106,26 +106,33 @@ def main() -> None:
     grace = load_series(options.args.grace)
     logging.info(f"Loaded GRACE data with {len(grace)} entries.")
     show_monthly_duplicates(grace, "GRACE")
+    # Read GRACE header from its CSV and prepare multi-section header for outputs
+    grace_header_attrs = _read_csv_header_attrs(options.args.grace)
 
     swe = load_series(options.args.swe)
     logging.info(f"Loaded {options.swe_model} data with {len(swe)} entries.")
     show_monthly_duplicates(swe, options.swe_model)
+    # Read SWE header from its CSV and prepare multi-section header for outputs
+    swe_header_attrs = _read_csv_header_attrs(options.args.swe)
 
     soil_moisture = load_series(options.args.soilm)
     logging.info(f"Loaded {options.soil_moisture_model} data with {len(soil_moisture)} entries.")
     show_monthly_duplicates(soil_moisture, options.soil_moisture_model)
     # Read soil moisture header from its CSV and prepare multi-section header for outputs
     soil_header_attrs = _read_csv_header_attrs(options.args.soilm)
-    header_sections = {
-        "soil_moisture": soil_header_attrs,     # filled from input
-        "snow_water_equivalent": {},            # placeholder for future
-        "reservoirs": {},                       # placeholder for future
-        "grace": {},                            # placeholder for future
-    }
 
     reservoirs = load_series(options.args.reservoirs)
     logging.info(f"Loaded {options.reservoirs_model} data with {len(reservoirs)} entries.")
     show_monthly_duplicates(reservoirs, options.reservoirs_model)
+    # Read reservoirs header from its CSV and prepare multi-section header for outputs
+    reservoirs_header_attrs = _read_csv_header_attrs(options.args.reservoirs)
+
+    header_sections = {
+        "soil_moisture":         soil_header_attrs,
+        "snow_water_equivalent": swe_header_attrs,
+        "reservoirs":            reservoirs_header_attrs,
+        "grace":                 grace_header_attrs,
+    }
 
     # Compute groundwater and error
     sw = compute_groundwater(options, grace, swe, soil_moisture, reservoirs)
