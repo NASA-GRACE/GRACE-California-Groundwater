@@ -25,7 +25,7 @@ confirm_delete_contents() {
 }
 
 # NO! THINK CAREFULLY ABOUT THE NEW DIR STRUCTURE BEFORE UNCOMMENTING THESE LINES
-confirm_delete_contents "$PROJECT_ROOT/input_data/soil_moisture/NLDAS/data_monthly"
+confirm_delete_contents "$PROJECT_ROOT/input_data/soil_moisture/NLDAS/data_individual"
 confirm_delete_contents "$PROJECT_ROOT/input_data/soil_moisture/NLDAS/data_concatenated"
 confirm_delete_contents "$PROJECT_ROOT/input_data/masks"
 confirm_delete_contents "$PROJECT_ROOT/input_data/masked_timeseries"

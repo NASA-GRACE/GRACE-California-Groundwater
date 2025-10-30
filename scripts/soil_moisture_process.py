@@ -33,7 +33,7 @@ class Options(ra.Options):
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:          str = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_in_dir:  Path = self.project_root / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_monthly"
+        self.default_in_dir:  Path = self.project_root / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_individual"  # Also in soil_moisture_download.py
         self.default_out_dir: Path = self.project_root / "input_data" / "soil_moisture" / self.soil_moisture_model / "data_concatenated"
         # Attributes to collect (union across files) and storage
         self.attrs_to_collect = ["shortname", "title", "version", "doi", "reference", "websites", "history"]

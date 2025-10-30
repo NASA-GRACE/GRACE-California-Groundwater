@@ -30,7 +30,7 @@ class Options(ra.Options):
         self.default_doi:                  str = "10.5067/NL7JTZYO2RVK"  # NLDAS VIC LSM L4 Monthly 0.125 degree v2.0
         self.default_timespan: tuple[str, str] = (self.test_start, self.test_end)  # Quick test timespan (strings)
         self.full_timespan:    tuple[str, str] = (self.full_start, self.full_end)  # Full timespan (strings)
-        self.default_local_dir:           Path = self.soil_moisture_dir / "data_monthly"
+        self.default_local_dir:           Path = self.soil_moisture_dir / "data_individual"  # Also in soil_moisture_process.py
         self.retry_attempts:               int = 3
         self.default_region: tuple[float, float, float, float] = (-180, -90, 180, 90)  # defaults to global region
 
@@ -361,6 +361,8 @@ def _download_with_validation_and_retry(options: Options, results) -> tuple[list
         if fpath.exists():
             ok, why = validate_netcdf_file(fpath)
             if ok:
+                # Touch file to update its modified time so that it's not considered "old" later
+                fpath.touch()
                 logging.info("Already present and valid: %s", fpath.name)
                 ok_files.append(fpath)
             else:

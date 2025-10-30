@@ -127,9 +127,9 @@ def extract_blurb(options: Options, path: str | os.PathLike[str]) -> str | None:
     m = re.search(r"_smoothed_(\d+)mo_", path_lower)
     if m:
         return f"smoothed ({m.group(1)}mo)"
-    if "unsmoothed" in path_lower:
+    if      "unsmoothed" in path_lower:
         return "unsmoothed"
-    elif "water_year" in path_lower:
+    elif    "water_year" in path_lower:
         return "water year"
     elif "calendar_year" in path_lower:
         return "calendar year"

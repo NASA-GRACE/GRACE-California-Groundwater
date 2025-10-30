@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     using paths from run_all.Options where possible.
     """
     options = Options()
-    parser = argparse.ArgumentParser(description="Delete contents of specific input directories (interactive y/N/q prompts).")
+    parser  = argparse.ArgumentParser(description="Delete contents of specific input directories (interactive y/N/q prompts).")
     parser.add_argument("--yes", "-y", action="store_true",
                         help="Assume 'yes' for all prompts (non-interactive).")
     args = parser.parse_args(argv)
@@ -96,11 +96,18 @@ def main(argv: list[str] | None = None) -> int:
                         datefmt="%Y-%m-%d %H:%M:%S")
 
     targets: list[Path] = [
-        options.soil_moisture_dir / "data_monthly",
+        options.soil_moisture_dir / "data_individual",
         options.soil_moisture_dir / "data_concatenated",
-        options.project_root      / "input_data"         / "masks",
-        options.timeseries_dir,
+        options.swe_dir           / "masks"                               / "basin_masks",
+        options.swe_dir           / "masks"                               / "repaired_masks",
         options.reservoirs_dir    / "reservoir_data",
+        options.reservoirs_dir    / "monthly_sums",
+        options.grace_dir         / "masks",
+        options.grace_dir         / "monthly_grace_anomaly",
+        options.grace_dir         / "monthly_interpolated_grace_anomaly",
+        options.project_root      / "input_data"                          / "masks",
+        options.timeseries_dir,
+        options.output_dir,
     ]
 
     logging.info(f"{targets=}")
