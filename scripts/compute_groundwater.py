@@ -280,6 +280,21 @@ def _read_csv_header_attrs(path: str | os.PathLike[str]) -> dict[str, list[str]]
             try:
                 val = json.loads(raw)
                 if isinstance(val, list):
+                    # Special-case: for a "history" list with multiple entries,
+                    # keep only the most recent ISO timestamp.
+                    if key.lower() == "history" and len(val) > 1:
+                        ts = []
+                        for item in val:
+                            mm = re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", str(item))
+                            if mm:
+                                try:
+                                    ts.append(dt.datetime.fromisoformat(mm.group(0)))
+                                except Exception:
+                                    pass
+                        if ts:
+                            latest = max(ts)
+                            header[key] = [f"most recent created on date: {latest.isoformat()}"]
+                            continue
                     header[key] = [str(x) for x in val]
                 else:
                     header[key] = [str(val)]

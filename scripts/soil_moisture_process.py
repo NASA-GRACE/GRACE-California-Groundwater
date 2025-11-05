@@ -41,6 +41,7 @@ class Options(ra.Options):
         # Will hold finalized, sorted lists (set→list) after scanning all files:
         self.attr_lists = {}
 
+
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(
@@ -145,30 +146,24 @@ def _classify_temporal_resolution_and_prefix(fname: str | os.PathLike[str]) -> t
     base = Path(fname).name  # just to be safe if we got a path
 
     # Hourly first: 20050103.1400
-    hourly_regex = re.compile(
-        r"^(?P<prefix>.*?)(?P<stamp>[12]\d{3}"
-        r"(0[1-9]|1[0-2])"
-        r"(0[1-9]|[12]\d|3[01])"
-        r"\.(?:[01]\d|2[0-3])[0-5]\d)"
-    )
+    hourly_regex = re.compile(r"^(?P<prefix>.*?)(?P<stamp>[12]\d{3}"
+                              r"(0[1-9]|1[0-2])"
+                              r"(0[1-9]|[12]\d|3[01])"
+                              r"\.(?:[01]\d|2[0-3])[0-5]\d)")
     m = hourly_regex.search(base)
     if m:
         return "hourly", m.group("prefix")
 
     # Daily next: 20050103
-    daily_regex = re.compile(
-        r"^(?P<prefix>.*?)(?P<stamp>[12]\d{3}"
-        r"(0[1-9]|1[0-2])"
-        r"(0[1-9]|[12]\d|3[01]))"
-    )
+    daily_regex = re.compile(r"^(?P<prefix>.*?)(?P<stamp>[12]\d{3}"
+                             r"(0[1-9]|1[0-2])"
+                             r"(0[1-9]|[12]\d|3[01]))")
     m = daily_regex.search(base)
     if m:
         return "daily", m.group("prefix")
 
     # Monthly last: 200501
-    monthly_regex = re.compile(
-        r"^(?P<prefix>.*?)(?P<stamp>[12]\d{3}(0[1-9]|1[0-2]))"
-    )
+    monthly_regex = re.compile(r"^(?P<prefix>.*?)(?P<stamp>[12]\d{3}(0[1-9]|1[0-2]))")
     m = monthly_regex.search(base)
     if m:
         return "monthly", m.group("prefix")
@@ -233,7 +228,7 @@ def discover_files(options: Options) -> None:
 
     Args:
         options: An Options instance with parsed arguments. Contains:
-        - in_dir: Directory to search for .nc/.nc4 files.
+        - in_dir:  Directory to search for .nc/.nc4 files.
         - out_dir: Directory where output files will be written.
 
     Returns:
@@ -482,7 +477,7 @@ def check_time_continuity(options: Options) -> None:
     Args:
         options: An Options instance with parsed arguments. Contains:
            - in_files: List of input file paths.
-           - out_dir: Directory where output files will be written.
+           - out_dir:  Directory where output files will be written.
 
     Returns:
         None.
@@ -518,9 +513,9 @@ def get_datespan(options: Options, ds: xr.Dataset) -> None:
 
     def to_ym(dt64: np.datetime64) -> tuple[int, int, int]:
         """Convert a numpy datetime64 to (year, month, day) tuple."""
-        y = int(dt64.astype("datetime64[Y]").astype(int)) + 1970
-        m = int(dt64.astype("datetime64[M]").astype(int) % 12) + 1
-        d = int(dt64.astype("datetime64[D]").astype(int) % 31) + 1
+        y = int(dt64.astype("datetime64[Y]").astype(int)     ) + 1970
+        m = int(dt64.astype("datetime64[M]").astype(int) % 12) +    1
+        d = int(dt64.astype("datetime64[D]").astype(int) % 31) +    1
         return y, m, d
 
     y0, m0, d0 = to_ym(times[0])
@@ -535,10 +530,10 @@ def create_out_filepath(options: Options) -> None:
 
     Args:
         options: An Options instance with parsed arguments. Contains:
-           - out_dir: Directory where output files will be written.
-           - model:   Inferred model name.
+           - out_dir:         Directory where output files will be written.
+           - model:           Inferred model name.
            - datespan_string: String representing the date span.
-           - ext:     File extension (e.g., .nc or .nc4).
+           - ext:             File extension (e.g., .nc or .nc4).
 
     Returns:
         None. Updates options.out_filepath.
@@ -557,9 +552,9 @@ def concatenate_and_save(options: Options) -> None:
     Args:
         options: An Options instance with parsed arguments. Contains:
            - in_files: List of input file paths.
-           - out_dir: Directory where output files will be written.
-           - model:   Inferred model name.
-           - ext:     File extension (e.g., .nc or .nc4).
+           - out_dir:  Directory where output files will be written.
+           - model:    Inferred model name.
+           - ext:      File extension (e.g., .nc or .nc4).
 
     Returns:
         None.
