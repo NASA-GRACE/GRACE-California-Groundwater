@@ -24,8 +24,6 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:                  str = Path(__file__).stem  # The name of this script without the .py extension
         self.default_grace_input_dir: Path = self.grace_dir
-        self.default_start_date:       str = "2002-04-01"
-        self.default_end_date:         str = "2025-03-31"
         self.default_mask_file:       Path = self.grace_dir / "masks"                 / f"grace_{self.default_basin_safename}_mask.csv"
         self.default_output_path:     Path = self.grace_dir / "monthly_grace_anomaly" / f"anomaly_timeseries_GRACE_{self.default_basin_safename}_mask.csv"
         # grace mascon: read latest file from input dir. 
@@ -46,10 +44,10 @@ class Options(ra.Options):
 def parse_arguments(options: Options) -> None:
     """Parse command-line arguments into options.args."""
     parser = argparse.ArgumentParser(description="Process GRACE TWS data for a basin.")
-    parser.add_argument("--start_date", default=options.default_start_date,
-                        help=f"Start date (default: {options.default_start_date})")
-    parser.add_argument("--end_date", default=options.default_end_date,
-                        help=f"End date (default: {options.default_end_date})")
+    parser.add_argument("--start_date", default=options.full_start,
+                        help=f"Start date (default: {options.full_start})")
+    parser.add_argument("--end_date", default=options.full_end,
+                        help=f"End date (default: {options.full_end})")
     parser.add_argument("--scaling_factor", type=int, choices=[0, 1], default=1,
                         help="Apply scaling factor (1=yes, 0=no)")
     parser.add_argument("--file_access_type", default="local",
@@ -77,9 +75,9 @@ def parse_arguments(options: Options) -> None:
     options.args = parser.parse_args()
     if getattr(options.args, "debug", False):
         options.log_mode = logging.DEBUG
-    # if options.args.full:
-    #     options.args.start_date = options.full_start
-    #     options.args.end_date   = options.full_end
+    if options.args.full:
+        options.args.start_date = options.full_start
+        options.args.end_date   = options.full_end
     # Format dates as YYYY-MM-DD regardless of their original format by parsing and reformatting.
     options.args.start_date = (ra.parse_datetime(options.args.start_date)).strftime("%Y-%m-%d")
     options.args.end_date   = (ra.parse_datetime(options.args.end_date  )).strftime("%Y-%m-%d")
