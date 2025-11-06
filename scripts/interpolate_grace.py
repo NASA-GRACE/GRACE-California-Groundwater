@@ -119,7 +119,7 @@ def interpolate_and_filter(df: pd.DataFrame, columns: list, max_gap_days: int = 
 
     Args:
         df:           DataFrame with datetime index and columns to interpolate.
-        columns:       List of column names to interpolate.
+        columns:      List of column names to interpolate.
         max_gap_days: Maximum gap in days to allow interpolation (default 10000, effectively no limit).
 
     Returns:

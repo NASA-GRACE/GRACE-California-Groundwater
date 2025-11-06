@@ -66,10 +66,10 @@ def parse_arguments(options: Options) -> None:
                         help="Full path and filename to save the output CSV")
     parser.add_argument("--units", default="km3", choices=["km3", "cm"],
                         help="Units for output")
-    parser.add_argument("--baseline_start", default=None,
-                        help="Optional anomaly baseline start date (YYYY-MM-DD)")
-    parser.add_argument("--baseline_end", default=None,
-                        help="Optional anomaly baseline end date (YYYY-MM-DD)")
+    parser.add_argument("--baseline_start", default=options.baseline_start,
+                        help=f"Optional anomaly baseline start date (default: {options.baseline_start})")
+    parser.add_argument("--baseline_end", default=options.baseline_end,
+                        help=f"Optional anomaly baseline end date (default: {options.baseline_end})")
     parser.add_argument("--full", action="store_true",
                         help=argparse.SUPPRESS)
     parser.add_argument("-d", "--debug", action="store_true",
@@ -86,7 +86,7 @@ def parse_arguments(options: Options) -> None:
     if options.args.baseline_start:
         options.args.baseline_start = (ra.parse_datetime(options.args.baseline_start)).strftime("%Y-%m-%d")
     if options.args.baseline_end:
-        options.args.baseline_end = (ra.parse_datetime(options.args.baseline_end)).strftime("%Y-%m-%d")
+        options.args.baseline_end   = (ra.parse_datetime(options.args.baseline_end)).strftime("%Y-%m-%d")
 
 
 # ===== Main function =====
@@ -311,16 +311,16 @@ def save_results(options, output_csv: str, dates: np.ndarray, tws: np.ndarray, b
         None.
     """
     if units.lower() == "km3":
-        tws = (tws / 100000) * (np.sum(ma) / 1e6)
+        tws     = (tws     / 100000) * (np.sum(ma) / 1e6)
         bsn_sig = (bsn_sig / 100000) * (np.sum(ma) / 1e6)
 
     df = pd.DataFrame({"date": pd.to_datetime(dates), "tws": tws, "tws_error": bsn_sig})
     # compute and subtract baseline mean 
     # convert to datetime.date objects
-    baseline_start = pd.to_datetime(options.baseline_start).date()
-    baseline_end   = pd.to_datetime(options.baseline_end).date()
-    actual_start  = pd.to_datetime(options.args.start_date).date()
-    actual_end    = pd.to_datetime(options.args.end_date).date()
+    baseline_start = pd.to_datetime(options.args.baseline_start).date()
+    baseline_end   = pd.to_datetime(options.args.baseline_end).date()
+    actual_start   = pd.to_datetime(options.args.start_date).date()
+    actual_end     = pd.to_datetime(options.args.end_date).date()
     # compute adaptive baseline interval
     result_start, result_end = ra.compute_baseline(
         actual_start, actual_end,
