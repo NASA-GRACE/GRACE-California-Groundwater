@@ -107,8 +107,9 @@ def main(input_shapefile: str, output_file: str, region_name: str, dataset_name:
         pass
     else:
         raise ValueError(f"Unknown basin '{region_name}'")
-    basin_title = region_name.replace(' ', '_').casefold()
-    logging.info(basin_title)
+    #region_name = region_name.replace(' ', '_').casefold()
+    region_name = region_name.replace('_', ' ').casefold()
+    logging.info(region_name)
     #tif dataset
     print(target_dataset)
     print(dataset_name)
