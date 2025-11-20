@@ -104,7 +104,7 @@ def main() -> None:
     logging.info(f"Starting {Path(__file__).name} at {run_all_start_time.isoformat()}")
 
     parse_arguments(options)
-
+    
     section_header(options, "Processing soil moisture data")
 
     logging.info("Download soil moisture data files.")
@@ -128,7 +128,7 @@ def main() -> None:
     run_script(options, "plot_timeseries.py")
 
     section_header(options, "Processing reservoirs storage data")
-
+    
     logging.info(f"Downloading reservoirs data...")
     run_script(options, "reservoirs_download.py")
 
@@ -140,7 +140,7 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked reservoirs data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Processing GRACE TWS data")
 
     logging.info("Call raster mask generator for GRACE TWS data...")
@@ -154,7 +154,7 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked GRACE data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Processing SNODAS snow water equivalent data")
 
     logging.info("Downloading snow water equivalent (SWE) data...")
@@ -162,13 +162,13 @@ def main() -> None:
 
     logging.info("Call raster mask generator for snow water equivalent (SWE) data...")
     run_script(options, "call_raster_mask_generator.py", flags=["--target_dataset", "swe"])
-
+    
     logging.info("Processing snow water equivalent (SWE) data into monthly anomalies...")
     run_script(options, "swe_monthly_anomaly.py")
 
     logging.info("Generate a time series plot of the masked snow water equivalent (SWE) data.")
     run_script(options, "plot_timeseries.py")
-
+    
     section_header(options, "Computing groundwater anomaly and plotting results")
 
     logging.info("Computing groundwater anomaly time series...")
@@ -176,7 +176,7 @@ def main() -> None:
 
     logging.info("Generating comparison plots of all water storage components...")
     run_script(options, "plot_timeseries.py", flags=["--groundwater"])
-
+    
     run_all_end_time = dt.datetime.now()
     logging.info(f"Finished {Path(__file__).name} at {run_all_end_time.isoformat()}.")
     total_duration = run_all_end_time - run_all_start_time
@@ -344,7 +344,7 @@ def rasterize_shapefile_to_mask(shapefile:   str | os.PathLike[str],
     filter_sort   = sel.get("filter_sort")
     layer_name    = sel.get("layer_name")
     default_field = (sel.get("field_name") or "name").strip()
-
+    
     chosen_index  = None
     for i, feat in enumerate(lyr):
         # Special-case: California by SORT
