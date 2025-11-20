@@ -12,7 +12,6 @@ input_data/snow_water_equivalent/SNODAS/monthly_data
 input_data/snow_water_equivalent/SNODAS/daily_data
 input_data/soil_moisture/NLDAS/data_monthly
 input_data/soil_moisture/NLDAS/data_concatenated
-input_data/masks
 input_data/reservoirs/CDEC/monthly_sums
 input_data/reservoirs/CDEC/monthly_sums/*.csv
 input_data/reservoirs/CDEC/monthly_sums/*.xlsx
