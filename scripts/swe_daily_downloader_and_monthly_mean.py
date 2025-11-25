@@ -294,21 +294,33 @@ def build_missing_suffix_inrange(first_day: int, last_day: int, available_days: 
 # ------------------ MAIN PIPELINE ------------------ #
 def snodas_monthly_pipeline(options: Options) -> None:
     """
-    End-to-end SNODAS SWE pipeline:
-      1. Downloads daily data (skipping existing)
-      2. Converts to GeoTIFF
-      3. Computes monthly mean
-      4. Optionally removes daily GeoTIFFs after each month
+    End-to-end SNODAS SWE pipeline with optimized "smart refill" logic.
+
+    The pipeline performs the following steps for each month in the date range:
+      1. Checks for an existing monthly mean GeoTIFF.
+      2. If a file exists but is marked as having "missing" days:
+         a. Attempts to download *only* those specific missing days.
+         b. If those days are still unavailable (404), skips the month to prevent 
+            infinite re-download loops of the rest of the month.
+         c. If new data IS retrieved, deletes the old monthly file and triggers a full
+            re-download of the month to compute an updated mean.
+      3. If no valid monthly file exists (or it was deleted in step 2c):
+         a. Downloads all daily data for the month (skipping files that exist locally).
+         b. Converts daily data to GeoTIFF.
+         c. Computes the monthly mean and saves it with a filename indicating the date range and missing days.
+      4. Optionally removes daily GeoTIFFs after processing (if cleanup_daily is True).
 
     Args:
         options: An Options instance with parsed command line arguments in options.args. Contains:
-            - start_date:  Start date (YYYY-MM-DD).
-            - end_date:    End date (YYYY-MM-DD).
-            - output_dir:  Directory to save files.
+            - start_date:    Start date (YYYY-MM-DD).
+            - end_date:      End date (YYYY-MM-DD).
+            - daily_dir:     Directory for intermediate daily files.
+            - monthly_dir:   Directory for output mean rasters.
+            - cleanup_daily: Boolean flag to remove daily files after computation.
 
     Returns:
         None. Downloads and processes files to the specified local directory.
-    
+
     Raises:
         None.
     """
