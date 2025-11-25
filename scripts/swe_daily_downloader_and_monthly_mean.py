@@ -301,10 +301,10 @@ def snodas_monthly_pipeline(options: Options) -> None:
       4. Optionally removes daily GeoTIFFs after each month
 
     Args:
-    options: An Options instance with parsed command line arguments in options.args. Contains:
-        - start_date:  Start date (YYYY-MM-DD).
-        - end_date:    End date (YYYY-MM-DD).
-        - output_dir:  Directory to save files.
+        options: An Options instance with parsed command line arguments in options.args. Contains:
+            - start_date:  Start date (YYYY-MM-DD).
+            - end_date:    End date (YYYY-MM-DD).
+            - output_dir:  Directory to save files.
 
     Returns:
         None. Downloads and processes files to the specified local directory.
@@ -312,7 +312,6 @@ def snodas_monthly_pipeline(options: Options) -> None:
     Raises:
         None.
     """
-
     start_date    = datetime.strptime(options.args.start_date, "%Y-%m-%d")
     end_date      = datetime.strptime(options.args.end_date,   "%Y-%m-%d")
     daily_dir     = options.args.daily_dir
@@ -343,132 +342,96 @@ def snodas_monthly_pipeline(options: Options) -> None:
 
     current = start_date.replace(day=1)
     while current <= end_date:
-        month_end = (current.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)  # "Last day of month"
+        month_end = (current.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
         if month_end > end_date:
             month_end = end_date
 
         logging.info(f"Processing month: {current.strftime('%Y-%m')}")
-
-        # Skip month if output already exists
         current_month_str = current.strftime('%Y%m')
 
-        # --- Check if a monthly file exists and whether it's complete; if not, try to fill it --- #
+        # --- Check if a monthly file exists and whether it's complete --- #
         existing_monthlies = sorted(monthly_dir.glob(f"monthly_mean_{current_month_str}_*.tif"))
+        should_skip_month = False
+
         if existing_monthlies:
-            # Prefer the most recent one by modification time (latest computation)
             existing_monthlies.sort(key=lambda p: p.stat().st_mtime, reverse=True)
             existing = existing_monthlies[0]
             parts = parse_monthly_mean_filename(existing)
-            if parts is None:
-                logging.warning(f"Found monthly file with unexpected name: {existing.name}. Will not skip month.")
-            else:
+            
+            if parts:
                 days_in_this_month = month_end.day
-                # What the *complete* set should be for this run window (1..month_end.day)
                 complete_set = set(range(1, days_in_this_month + 1))
-                used_set = set(parts["days_used"])
+                days_used_in_file = set(parts["days_used"])
+                
+                # Determine what days are mathematically missing from the EXISTING file
+                missing_from_mean = sorted(complete_set - days_used_in_file)
 
-                # Local daily files we already have (regardless of what the monthly file used)
-                local_daily = sorted([
-                    int(Path(f).stem.split("_")[1][-2:])
-                    for f in (daily_dir).glob(f"SNODAS_{current_month_str}*.tif")
-                ])
-                local_set = set(local_daily)
-
-                # If the monthly file used all required days for this run window, skip.
-                # Do NOT require local daily files to still be present (they may have been cleaned up).
-                if used_set == complete_set:
+                if not missing_from_mean:
+                    # The file uses every day required. It is perfect.
                     logging.info(f"Monthly file for {current_month_str} is already complete. Skipping.")
-                    current = (current.replace(day=28) + timedelta(days=4)).replace(day=1)  # "next month"
-                    continue
-
-                # Otherwise, try to download any missing days that are not local yet
-                needed_days = sorted(complete_set - local_set)
-                if needed_days:
-                    logging.info(f"Attempting to fill missing local daily files for {current_month_str}: {needed_days}")
-                    for dnum in needed_days:
-                        ddate = current.replace(day=dnum)
-                        download_and_process_day(options, ddate, daily_dir)
-
-                # Re-scan local dailies after attempted downloads
-                local_daily_after = sorted([
-                    int(Path(f).stem.split("_")[1][-2:])
-                    for f in (daily_dir).glob(f"SNODAS_{current_month_str}*.tif")
-                ])
-                local_set_after = set(local_daily_after)
-
-                # If nothing changed, keep existing and move on
-                if local_set_after == local_set:
-                    logging.info(f"No new daily files became available for {current_month_str}. Keeping existing monthly.")
-                    current = (current.replace(day=28) + timedelta(days=4)).replace(day=1)
-                    continue
-
-                # We have more daily files now; recompute monthly and replace the old one
-                monthly_files = sorted([
-                    str(f) for f in (daily_dir).glob(f"SNODAS_{current_month_str}*.tif")
-                    if f.is_file()
-                ])
-                if monthly_files:
-                    day_nums           = sorted(int(Path(f).stem.split("_")[1][-2:]) for f in monthly_files)
-                    first_day          = f"{min(day_nums):02d}"
-                    last_day           = f"{max(day_nums):02d}"
-                    missing_suffix     = build_missing_suffix_inrange(int(first_day), int(last_day), day_nums)
-                    new_output         = monthly_dir / f"monthly_mean_{current_month_str}_{first_day}_{last_day}{missing_suffix}.tif"
-
-                    logging.info(f"Recomputing monthly mean for {current_month_str} using {len(day_nums)} daily files.")
-                    compute_monthly_mean(monthly_files, str(new_output), scale_factor=scale_factor)
-
-                    try:
-                        existing.unlink()
-                        logging.info(f"Removed older monthly file: {existing.name}")
-                    except Exception as e:
-                        logging.warning(f"Could not remove older monthly file {existing.name}: {e}")
-
-                    # Cleanup for this month after recompute (DRY helper)
-                    cleanup_month_if_needed(current, current_month_str)
+                    should_skip_month = True
                 else:
-                    logging.warning(f"No daily GeoTIFFs found after attempted fill for {current_month_str}.")
-                # Advance to next month
-                current = (current.replace(day=28) + timedelta(days=4)).replace(day=1)
-                continue
+                    # The file has gaps (e.g., missing Day 25). 
+                    # OPTIMIZATION: Try to download *only* the missing days first.
+                    # If they are still broken (404), we don't need to re-download the rest of the month.
+                    
+                    logging.info(f"Existing file has missing days: {missing_from_mean}. Checking if they are available now...")
+                    found_new_data = False
+                    
+                    for d in missing_from_mean:
+                        ddate = current.replace(day=d)
+                        download_and_process_day(options, ddate, daily_dir)
+                        
+                        # Check if the file actually landed
+                        tif_check = Path(daily_dir) / f"SNODAS_{current_month_str}{d:02d}.tif"
+                        if tif_check.exists():
+                            found_new_data = True
+                            logging.info(f"Success! Retrieved previously missing day: {d}")
+
+                    if found_new_data:
+                        # We found missing pieces! 
+                        # NOW (and only now) we must re-download the rest of the month to compute the new mean.
+                        logging.info(f"New data found for {current_month_str}. Re-downloading full month to update mean.")
+                        try:
+                            existing.unlink()
+                            logging.info(f"Removed older partial monthly file: {existing.name}")
+                        except Exception as e:
+                            logging.warning(f"Could not remove older monthly file: {e}")
+                        should_skip_month = False
+                    else:
+                        # We checked the missing days, and they are still 404.
+                        logging.info(f"Missing days {missing_from_mean} still unavailable for {current_month_str}. Keeping existing partial file.")
+                        should_skip_month = True
+
+        if should_skip_month:
+            current = (current.replace(day=28) + timedelta(days=4)).replace(day=1)
+            continue
 
         # --- Step 1: Download daily data for this month ---
-        # Identify whether this is the final month and what its calendar last day is
         is_last_month = (current.year == end_date.year and current.month == end_date.month)
         cal_last_day = calendar.monthrange(current.year, current.month)[1]
         d = current
         while d <= month_end:
-            # TEST HOOK: skip the very last day's file for the final month
-            if (
-                TEST_SKIP_LAST_MONTH_LAST_DAY
-                and is_last_month
-                and d.day == cal_last_day
-            ):
-                logging.info("TEST ONLY: Skipping download of the last month's last day to simulate an incomplete month.")
+            if TEST_SKIP_LAST_MONTH_LAST_DAY and is_last_month and d.day == cal_last_day:
+                logging.info("TEST ONLY: Skipping download of the last month's last day.")
                 d += timedelta(days=1)
                 continue
-            download_and_process_day(options,d, daily_dir)
+            
+            download_and_process_day(options, d, daily_dir)
             d += timedelta(days=1)
 
         # --- Step 2: Compute monthly mean ---
-        # Filter the files by the date string in the filename
         monthly_files = sorted([
             str(f) for f in daily_dir.glob("SNODAS_*.tif")
             if f.is_file() and f.name.startswith(f"SNODAS_{current_month_str}")
         ])
 
         if monthly_files:
-            # Available day numbers from local daily GeoTIFFs for this month
             day_nums = sorted(int(Path(f).stem.split("_")[1][-2:]) for f in monthly_files)
-
-            # Determine month length respecting end_date (partial month allowed)
-            days_in_this_month = month_end.day  # 1..month_end.day
-
             first_day = f"{min(day_nums):02d}"
             last_day  = f"{max(day_nums):02d}"
-
-            # NEW: add suffix if any day in 1..month_end.day is missing locally
+            
             missing_suffix = build_missing_suffix_inrange(int(first_day), int(last_day), day_nums)
-
 
             output_path = monthly_dir / f"monthly_mean_{current_month_str}_{first_day}_{last_day}{missing_suffix}.tif"
             compute_monthly_mean(monthly_files, str(output_path), scale_factor=scale_factor)
@@ -478,7 +441,6 @@ def snodas_monthly_pipeline(options: Options) -> None:
         # --- Step 3: Cleanup ---
         cleanup_month_if_needed(current, current_month_str)
 
-        # Advance to next month
         current = (current.replace(day=28) + timedelta(days=4)).replace(day=1)
 
 
