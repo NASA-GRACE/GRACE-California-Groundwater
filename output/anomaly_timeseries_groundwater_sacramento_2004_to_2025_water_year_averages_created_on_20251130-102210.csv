@@ -1,0 +1,55 @@
+# === soil_moisture ===
+# shortname: ["NLDAS_VIC0125_M_2.0"]
+# title: ["NLDAS VIC Land Surface Model L4 Monthly 0.125 x 0.125 degree V2.0"]
+# version: ["2.0"]
+# doi: ["10.5067/NL7JTZYO2RVK"]
+# reference: ["Xia_etal_JGR_2012; doi:10.1029/2011JD016048"]
+# websites: ["https://ldas.gsfc.nasa.gov/nldas/ ; https://lis.gsfc.nasa.gov/"]
+# history: ["most recent created on date: 2025-11-06T00:50:44"]
+# source_global_attrs_merge: ["union across input files"]
+# mean_removal_baseline_start: ["2004-01-15"]
+# mean_removal_baseline_end: ["2009-12-31"]
+#
+# === snow_water_equivalent ===
+# https: ["https://noaadata.apps.nsidc.org/NOAA/G02158/masked"]
+# mean_removal_baseline_start: ["2004-01-15"]
+# mean_removal_baseline_end: ["2009-12-31"]
+#
+# === reservoirs ===
+# https: ["https://cdec.water.ca.gov/dynamicapp/req/CSVDataServlet?Stations=<station_id>&SensorNums=<storage or alt storage sensor>&dur_code=M&Start=YYYY-MM-DD&End=YYYY-MM-DD"]
+# mean_removal_baseline_start: ["2004-01-15"]
+# mean_removal_baseline_end: ["2009-12-31"]
+#
+# === grace ===
+# title: ["JPL GRACE and GRACE-FO MASCON RL06.3Mv04 CRI"]
+# product_version: ["v3.0"]
+# id: ["10.5067/TEMSC-3JC634"]
+# months_missing: ["2002-06;2002-07;2003-06;2011-01;2011-06;2012-05;2012-10;2013-03;2013-08;2013-09;2014-02;2014-07;2014-12;2015-06;2015-10;2015-11;2016-04;2016-09;2016-10;2017-02;2017-07;2017-08;2017-09;2017-10;2017-11;2017-12;2018-01;2018-02;2018-03;2018-04;2018-05;2018-08-2018-09"]
+# journal_reference: ["Watkins, M. M., D. N. Wiese, D.-N. Yuan, C. Boening, and F. W. Landerer (2015) Improved methods for observing Earth's time variable mass distribution with GRACE using spherical cap mascons, J. Geophys. Res., 120, doi:10.1002/2014JB011547. "]
+# date_created: ["2025-05-13T14:05:12Z"]
+# mean_removal_baseline_start: ["2004-01-15"]
+# mean_removal_baseline_end: ["2009-12-31"]
+#
+date,groundwater,error
+2004-03-30,1.4552814547238404,2.915997147446302
+2005-03-30,1.0773837305000094,2.884169035298525
+2006-03-30,5.8998283778056155,2.960413902765222
+2007-03-30,0.9658063149073217,2.6131557058633126
+2008-03-30,-1.2222663727827194,2.8264916301335283
+2009-03-30,-5.538881184915802,2.776138588165912
+2010-03-30,-6.95730228245842,2.940368251695266
+2011-03-30,-3.922350831246228,3.0164296764957887
+2012-03-30,-6.120293713787584,2.6246993799541003
+2013-03-30,-7.718295607818226,2.865239796659044
+2014-03-30,-11.350747777745886,2.35910547803607
+2015-03-30,-15.848531981043728,2.5883608618513523
+2016-03-30,-12.248890250189124,2.883608698638543
+2017-03-30,-7.199626001055415,4.129843895005322
+2018-03-30,-6.539233823859831,2.533579522352421
+2019-03-30,-6.685097266797499,2.7925302665523843
+2020-03-30,-9.86453508747295,2.5094815224939917
+2021-03-30,-14.209831451919484,2.360972592919734
+2022-03-30,-17.034407174239444,2.5697125752900134
+2023-03-30,-15.417292188440666,3.133055214905049
+2024-03-30,-11.394789660673165,2.9056444705432374
+2025-03-30,-14.081834186677828,5.187055727364113

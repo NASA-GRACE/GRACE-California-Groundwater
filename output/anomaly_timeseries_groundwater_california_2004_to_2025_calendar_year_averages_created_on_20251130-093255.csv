@@ -1,0 +1,55 @@
+# === soil_moisture ===
+# shortname: ["NLDAS_VIC0125_M_2.0"]
+# title: ["NLDAS VIC Land Surface Model L4 Monthly 0.125 x 0.125 degree V2.0"]
+# version: ["2.0"]
+# doi: ["10.5067/NL7JTZYO2RVK"]
+# reference: ["Xia_etal_JGR_2012; doi:10.1029/2011JD016048"]
+# websites: ["https://ldas.gsfc.nasa.gov/nldas/ ; https://lis.gsfc.nasa.gov/"]
+# history: ["most recent created on date: 2025-11-06T00:50:44"]
+# source_global_attrs_merge: ["union across input files"]
+# mean_removal_baseline_start: ["2004-01-15"]
+# mean_removal_baseline_end: ["2009-12-31"]
+#
+# === snow_water_equivalent ===
+# https: ["https://noaadata.apps.nsidc.org/NOAA/G02158/masked"]
+# mean_removal_baseline_start: ["2004-01-15"]
+# mean_removal_baseline_end: ["2009-12-31"]
+#
+# === reservoirs ===
+# https: ["https://cdec.water.ca.gov/dynamicapp/req/CSVDataServlet?Stations=<station_id>&SensorNums=<storage or alt storage sensor>&dur_code=M&Start=YYYY-MM-DD&End=YYYY-MM-DD"]
+# mean_removal_baseline_start: ["2004-01-15"]
+# mean_removal_baseline_end: ["2009-12-31"]
+#
+# === grace ===
+# title: ["JPL GRACE and GRACE-FO MASCON RL06.3Mv04 CRI"]
+# product_version: ["v3.0"]
+# id: ["10.5067/TEMSC-3JC634"]
+# months_missing: ["2002-06;2002-07;2003-06;2011-01;2011-06;2012-05;2012-10;2013-03;2013-08;2013-09;2014-02;2014-07;2014-12;2015-06;2015-10;2015-11;2016-04;2016-09;2016-10;2017-02;2017-07;2017-08;2017-09;2017-10;2017-11;2017-12;2018-01;2018-02;2018-03;2018-04;2018-05;2018-08-2018-09"]
+# journal_reference: ["Watkins, M. M., D. N. Wiese, D.-N. Yuan, C. Boening, and F. W. Landerer (2015) Improved methods for observing Earth's time variable mass distribution with GRACE using spherical cap mascons, J. Geophys. Res., 120, doi:10.1002/2014JB011547. "]
+# date_created: ["2025-05-13T14:05:12Z"]
+# mean_removal_baseline_start: ["2004-01-15"]
+# mean_removal_baseline_end: ["2009-12-31"]
+#
+date,groundwater,error
+2004-06-30,-0.6787447840940033,4.738776920651173
+2005-06-30,5.011583096768324,5.1761167377115385
+2006-06-30,9.75606961562251,5.020765769112898
+2007-06-30,1.4468055019610635,4.298342781366485
+2008-06-30,-4.386796201399143,4.648226515695531
+2009-06-30,-11.839386436542316,4.643846530379891
+2010-06-30,-13.248791118383906,4.994315282761484
+2011-06-30,-7.65865066883962,5.4525102207028935
+2012-06-30,-12.78423257281576,4.527425770302627
+2013-06-30,-14.272025409391246,4.4635173348355055
+2014-06-30,-27.716594592976122,3.704193309097063
+2015-06-30,-32.134653812636586,4.362810625485733
+2016-06-30,-30.004501646764457,5.158915033725277
+2017-06-30,-28.40142916508415,7.317610665072674
+2018-06-30,-26.726202867857815,4.121864167071328
+2019-06-30,-22.45876900151212,4.826813609116711
+2020-06-30,-26.675428634768455,4.177353002048024
+2021-06-30,-36.65601028736499,4.093955330641295
+2022-06-30,-42.22990902621175,4.267324797991939
+2023-06-30,-35.62529908358797,5.785984913485758
+2024-06-30,-26.446393534333243,5.170452964982464
+2025-06-30,-36.01613898304501,9.444742033537997
