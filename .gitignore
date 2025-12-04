@@ -22,3 +22,4 @@ input_data/snow_water_equivalent/SNODAS/monthly_data
 input_data/grace_tws/masks
 input_data/grace_tws/monthly_grace_anomaly
 input_data/grace_tws/monthly_interpolated_grace_anomaly
+output/
