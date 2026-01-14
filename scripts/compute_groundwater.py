@@ -42,6 +42,7 @@ class Options(ra.Options):
         self.default_swe_csv:           str = f"LATEST_{self.swe_model}_FOR_BASIN.csv"
         self.default_grace_csv:         str = "LATEST_GRACE_FOR_BASIN.csv"
         self.default_output_csv:        str = f"anomaly_timeseries_groundwater_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
+        self.default_output_gw_tws_csv: str = f"anomaly_timeseries_groundwater_and_tws_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
         self.timeseries_dir.mkdir(parents=True, exist_ok=True)  # Ensure the timeseries directory exists
 
 
@@ -99,6 +100,7 @@ def main() -> None:
         # Create a timestamp for the output filename
         timestamp = ra.parse_datetime("NOW", timezone="America/Los_Angeles").strftime("%Y%m%d-%H%M%S")
         options.args.output = options.output_dir / f"anomaly_timeseries_groundwater_{basin_title}_DATA_START_to_DATA_END_monthly_unsmoothed_created_on_{timestamp}.csv"
+        options.args.output_gw_tws = options.output_dir_gw_tws / f"anomaly_timeseries_groundwater_and_tws_{basin_title}_DATA_START_to_DATA_END_monthly_unsmoothed_created_on_{timestamp}.csv"
     else:
         logging.info(f"Output will be saved to {options.args.output}")
 
@@ -136,7 +138,8 @@ def main() -> None:
     }
 
     # Compute groundwater and error
-    sw = compute_groundwater(options, grace, swe, soil_moisture, reservoirs)
+    sw, tws = compute_groundwater(options, grace, swe, soil_moisture, reservoirs)
+    df_tws_gw = pd.concat([sw, tws], axis=1)
     logging.info(f"Computed groundwater series with {len(sw)} entries.")
 
     # Include the actual baseline period used for mean removal in each output header
@@ -159,6 +162,12 @@ def main() -> None:
         monthly_unsmoothed_output_path = monthly_unsmoothed_output_path.with_name(monthly_unsmoothed_output_path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
     _write_df_with_header(sw, monthly_unsmoothed_output_path, index_label="date", sections=header_sections)
     logging.info(f"Groundwater series (monthly, unsmoothed) written to {monthly_unsmoothed_output_path}")
+
+    # save groundwater and tws
+    monthly_unsmoothed_output_path_gw_tws = options.args.output_gw_tws
+    if "DATA_START_to_DATA_END" in monthly_unsmoothed_output_path_gw_tws.name:
+        monthly_unsmoothed_output_path_gw_tws = monthly_unsmoothed_output_path_gw_tws.with_name(monthly_unsmoothed_output_path_gw_tws.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
+    _write_df_with_header(df_tws_gw, monthly_unsmoothed_output_path_gw_tws, index_label="date", sections=header_sections)
 
     # Smooth the time series
     window_size = 3  # centered moving average of 3 months
@@ -421,7 +430,7 @@ def compute_groundwater(options:    Options,
     df["groundwater"] = (df["grace"] - (df["swe"] + df["soilm"] + df["reservoirs"]))
     df["error"] = np.sqrt(df["err_grace"]**2 + df["err_swe"]**2 + df["err_soilm"]**2 + df["err_reservoirs"]**2)
 
-    return df[["groundwater", "error"]]
+    return df[["groundwater", "error"]], df[["grace", "err_grace"]]
 
 
 def smooth_timeseries(sw: pd.DataFrame, window: int = 3) -> pd.DataFrame:

@@ -50,6 +50,7 @@ class Options:
         self.grace_dir:         Path = self.project_root / "input_data" / "grace_tws"
         self.timeseries_dir:    Path = self.project_root / "input_data" / "masked_timeseries"
         self.output_dir:        Path = self.project_root / "output"
+        self.output_dir_gw_tws: Path = self.project_root / "output_gw_tws"
         self.graphics_dir:      Path = self.project_root / "graphics"
         self.swe_dir.mkdir(          parents=True, exist_ok=True)
         self.soil_moisture_dir.mkdir(parents=True, exist_ok=True)
@@ -57,6 +58,7 @@ class Options:
         self.grace_dir.mkdir(        parents=True, exist_ok=True)
         self.timeseries_dir.mkdir(   parents=True, exist_ok=True)
         self.output_dir.mkdir(       parents=True, exist_ok=True)
+        self.output_dir_gw_tws.mkdir(parents=True, exist_ok=True)        
         self.graphics_dir.mkdir(     parents=True, exist_ok=True)
         self.swe_url_prefix:        str = "https://noaadata.apps.nsidc.org/NOAA/G02158/masked"
         self.reservoirs_base_url:   str = "https://cdec.water.ca.gov/dynamicapp/req/CSVDataServlet"  # CDEC base URL for CSV data
@@ -104,7 +106,7 @@ def main() -> None:
     logging.info(f"Starting {Path(__file__).name} at {run_all_start_time.isoformat()}")
 
     parse_arguments(options)
-
+    
     section_header(options, "Processing soil moisture data")
 
     logging.info("Download soil moisture data files.")
@@ -170,7 +172,7 @@ def main() -> None:
     run_script(options, "plot_timeseries.py")
 
     section_header(options, "Computing groundwater anomaly and plotting results")
-
+    
     logging.info("Computing groundwater anomaly time series...")
     run_script(options, "compute_groundwater.py")
 
