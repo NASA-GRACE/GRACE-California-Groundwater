@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Written in 2025 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
+Written in 2025/2026 at JPL by Emmy Killett (she/her), Munish Sikka (he/him), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
 
 
 Compute a "groundwater" time series by subtracting snow water equivalent mass,
@@ -78,10 +78,10 @@ def main() -> None:
     basin_title = ra.safestring(options.args.basin)
 
     if options.args.grace == options.default_grace_csv:  # If user-specified input GRACE file is the default placeholder
-        options.args.grace = (options.timeseries_dir / f"anomaly_timeseries_GRACE_{basin_title}_mask.csv").resolve()
+        options.args.grace      = (options.timeseries_dir / f"anomaly_timeseries_GRACE_{basin_title}_mask.csv").resolve()
         logging.info(f"Using GRACE data from {options.args.grace}")
     if options.args.swe == options.default_swe_csv:  # If user-specified input SWE file is the default placeholder
-        options.args.swe = (options.timeseries_dir / f"anomaly_timeseries_{options.swe_model}_{basin_title}_mask.csv").resolve()
+        options.args.swe        = (options.timeseries_dir / f"anomaly_timeseries_{options.swe_model}_{basin_title}_mask.csv").resolve()
         logging.info(f"Using {options.swe_model} data from {options.args.swe}")
     if options.args.reservoirs == options.default_reservoirs_csv:  # If user-specified input reservoirs file is the default placeholder
         options.args.reservoirs = (options.timeseries_dir / f"anomaly_timeseries_{options.reservoirs_model}_{basin_title}_mask.csv").resolve()
@@ -92,17 +92,18 @@ def main() -> None:
         if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Looking for soil moisture files with pattern: {glob_pattern}")
         soil_moisture_files = list(options.timeseries_dir.glob(glob_pattern))
         if soil_moisture_files:
-            options.args.soilm = max(soil_moisture_files, key=os.path.getctime)
+            options.args.soilm = max(soil_moisture_files, key=os.path.getmtime)
             logging.info(f"Using {options.soil_moisture_model} data from {options.args.soilm}")
         else:
             raise FileNotFoundError(f"No {options.soil_moisture_model} files found for {options.args.basin}.")
+    # Create a timestamp for the output filename
+    timestamp = ra.parse_datetime("NOW", timezone="America/Los_Angeles").strftime("%Y%m%d-%H%M%S")
     if options.args.output == options.default_output_csv:
-        # Create a timestamp for the output filename
-        timestamp = ra.parse_datetime("NOW", timezone="America/Los_Angeles").strftime("%Y%m%d-%H%M%S")
-        options.args.output = options.output_dir / f"anomaly_timeseries_groundwater_{basin_title}_DATA_START_to_DATA_END_monthly_unsmoothed_created_on_{timestamp}.csv"
-        options.args.output_gw_tws = options.output_dir_gw_tws / f"anomaly_timeseries_groundwater_and_tws_{basin_title}_DATA_START_to_DATA_END_monthly_unsmoothed_created_on_{timestamp}.csv"
-    else:
-        logging.info(f"Output will be saved to {options.args.output}")
+        options.args.output = options.output_dir / options.default_output_csv.replace("CURRENT_DATETIME", timestamp)
+    options.args.output = Path(options.args.output).expanduser().resolve()
+    options.args.output_gw_tws = options.output_dir_gw_tws / options.default_output_gw_tws_csv.replace("CURRENT_DATETIME", timestamp)
+    options.args.output_gw_tws = Path(options.args.output_gw_tws).expanduser().resolve()
+    logging.info(f"Output will be saved to {options.args.output}")
 
     # Load input series
 
@@ -149,22 +150,21 @@ def main() -> None:
         header_sections[_sec]["mean_removal_baseline_start"] = [baseline_start_str]
         header_sections[_sec]["mean_removal_baseline_end"]   = [baseline_end_str]
 
-    if "DATA_START_to_DATA_END" in options.args.output.name:
-        # Replace placeholders in each output filename with actual start and end dates of the combined time series:
-        data_start_monthly = sw.index.min().strftime("%Y-%m")
-        data_end_monthly   = sw.index.max().strftime("%Y-%m")
-        data_start_yearly  = sw.index.min().strftime("%Y")
-        data_end_yearly    = sw.index.max().strftime("%Y")
+    # Record actual start and end dates of the combined time series:
+    data_start_monthly = sw.index.min().strftime("%Y-%m")
+    data_end_monthly   = sw.index.max().strftime("%Y-%m")
+    data_start_yearly  = sw.index.min().strftime("%Y")
+    data_end_yearly    = sw.index.max().strftime("%Y")
 
     # Save results
-    monthly_unsmoothed_output_path = options.args.output
+    monthly_unsmoothed_output_path = _append_suffix_before_ext(options.args.output, "_monthly_unsmoothed")
     if "DATA_START_to_DATA_END" in monthly_unsmoothed_output_path.name:
         monthly_unsmoothed_output_path = monthly_unsmoothed_output_path.with_name(monthly_unsmoothed_output_path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
     _write_df_with_header(sw, monthly_unsmoothed_output_path, index_label="date", sections=header_sections)
     logging.info(f"Groundwater series (monthly, unsmoothed) written to {monthly_unsmoothed_output_path}")
 
-    # save groundwater and tws
-    monthly_unsmoothed_output_path_gw_tws = options.args.output_gw_tws
+    # Save separate CSV file for groundwater and tws
+    monthly_unsmoothed_output_path_gw_tws = _append_suffix_before_ext(options.args.output_gw_tws, "_monthly_unsmoothed")
     if "DATA_START_to_DATA_END" in monthly_unsmoothed_output_path_gw_tws.name:
         monthly_unsmoothed_output_path_gw_tws = monthly_unsmoothed_output_path_gw_tws.with_name(monthly_unsmoothed_output_path_gw_tws.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
     _write_df_with_header(df_tws_gw, monthly_unsmoothed_output_path_gw_tws, index_label="date", sections=header_sections)
@@ -173,7 +173,7 @@ def main() -> None:
     window_size = 3  # centered moving average of 3 months
     logging.info(f"Smoothing the groundwater series with a centered moving average of {window_size} months.")
     sw_smoothed = smooth_timeseries(sw, window=window_size)
-    smoothed_output_path = options.args.output.with_name(options.args.output.name.replace("monthly_unsmoothed", f"monthly_smoothed_{window_size}mo"))
+    smoothed_output_path = _append_suffix_before_ext(options.args.output, f"_monthly_smoothed_{window_size}mo")
     if "DATA_START_to_DATA_END" in smoothed_output_path.name:
         smoothed_output_path = smoothed_output_path.with_name(smoothed_output_path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
     _write_df_with_header(sw_smoothed, smoothed_output_path, index_label="date", sections=header_sections)
@@ -182,7 +182,7 @@ def main() -> None:
     # Compute calendar-year averages
     logging.info("Computing calendar-year averages of the groundwater series.")
     sw_cal_yr = average_timeseries(sw, year_type="calendar")
-    cal_yr_output_path = options.args.output.with_name(options.args.output.name.replace("monthly_unsmoothed", "calendar_year_averages"))
+    cal_yr_output_path = _append_suffix_before_ext(options.args.output, "_calendar_year_averages")
     if "DATA_START_to_DATA_END" in cal_yr_output_path.name:
         cal_yr_output_path = cal_yr_output_path.with_name(cal_yr_output_path.name.replace("DATA_START", data_start_yearly).replace("DATA_END", data_end_yearly))
     _write_df_with_header(sw_cal_yr, cal_yr_output_path, index_label="date", sections=header_sections)
@@ -191,7 +191,7 @@ def main() -> None:
     # Compute water-year averages
     logging.info("Computing water-year averages of the groundwater series.")
     sw_wat_yr = average_timeseries(sw, year_type="water")
-    wat_yr_output_path = options.args.output.with_name(options.args.output.name.replace("monthly_unsmoothed", "water_year_averages"))
+    wat_yr_output_path = _append_suffix_before_ext(options.args.output, "_water_year_averages")
     if "DATA_START_to_DATA_END" in wat_yr_output_path.name:
         wat_yr_output_path = wat_yr_output_path.with_name(wat_yr_output_path.name.replace("DATA_START", data_start_yearly).replace("DATA_END", data_end_yearly))
     _write_df_with_header(sw_wat_yr, wat_yr_output_path, index_label="date", sections=header_sections)
@@ -279,7 +279,7 @@ def _read_csv_header_attrs(path: str | os.PathLike[str]) -> dict[str, list[str]]
             # If the comment is a bare URL like "https://..." or "ftp://...", store as {scheme: [full_url]}
             m = re.match(r'^([A-Za-z][A-Za-z0-9+.\-]*)://.+$', text)
             if m:
-                header[m.group(1)] = [text]
+                header.setdefault(m.group(1), []).append(text)
                 continue
             if not text or ":" not in text:
                 continue
@@ -333,6 +333,21 @@ def _write_df_with_header(df: pd.DataFrame, out_path: os.PathLike[str] | str,
         df.to_csv(fh, index_label=index_label)
 
 
+def _append_suffix_before_ext(path: os.PathLike[str] | str, suffix: str) -> Path:
+    """
+    Append a suffix before the file extension in a given path.
+    
+    Args:
+        path:   The original file path.
+        suffix: The suffix to append before the file extension.
+    
+    Returns:
+        A Path object with the modified file name.
+    """
+    p = Path(path)
+    return p.with_name(f"{p.stem}{suffix}{p.suffix}")
+
+
 def remove_mean(series:         pd.Series,
                 baseline_start: pd.Timestamp | dt.datetime | str,
                 baseline_end:   pd.Timestamp | dt.datetime | str) -> pd.Series:
@@ -356,6 +371,9 @@ def remove_mean(series:         pd.Series,
 
     # extract the window, compute its mean
     window = series.loc[start:end]
+    if window.empty:
+        raise ValueError(f"Baseline window {start.date()} to {end.date()} contains no data for '{series.name}'.")
+
     μ = window.mean()
     logging.info(f"Removing mean {μ} from '{series.name}' over {baseline_start} to {baseline_end}")
 
@@ -367,7 +385,7 @@ def compute_groundwater(options:    Options,
                         grace:      pd.DataFrame,
                         swe:        pd.DataFrame,
                         soilm:      pd.DataFrame,
-                        reservoirs: pd.DataFrame) -> pd.DataFrame:
+                        reservoirs: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Aligns the four series on their shared dates, removes their respective
     long-term means over [start_time, end_time], subtracts snow water equivalent (SWE),
@@ -386,7 +404,9 @@ def compute_groundwater(options:    Options,
         reservoirs: DataFrame with reservoirs data, columns ["value","error"]
 
     Returns:
-        DataFrame with columns ["groundwater","error"].
+        A tuple of two DataFrames:
+            - groundwater DataFrame with columns ["groundwater", "error"]
+            - grace       DataFrame with columns ["grace",       "err_grace"]
 
     Raises:
         None.
@@ -409,6 +429,9 @@ def compute_groundwater(options:    Options,
     logging.info("Dropping any dates with missing data...")
     df = df.dropna()
 
+    if df.empty:
+        raise ValueError("No overlapping dates across all inputs after alignment (post-dropna). Check input coverage and masking.")
+
     if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"DataFrame overview after dropping missing dates:\n{df.describe()}")
 
     # Now that df has had missing dates dropped, extract start and end times
@@ -428,7 +451,7 @@ def compute_groundwater(options:    Options,
 
     # Compute groundwater anomaly and propagated error
     df["groundwater"] = (df["grace"] - (df["swe"] + df["soilm"] + df["reservoirs"]))
-    df["error"] = np.sqrt(df["err_grace"]**2 + df["err_swe"]**2 + df["err_soilm"]**2 + df["err_reservoirs"]**2)
+    df["error"]       = np.sqrt(df["err_grace"]**2 + df["err_swe"]**2 + df["err_soilm"]**2 + df["err_reservoirs"]**2)
 
     return df[["groundwater", "error"]], df[["grace", "err_grace"]]
 
@@ -451,9 +474,15 @@ def smooth_timeseries(sw: pd.DataFrame, window: int = 3) -> pd.DataFrame:
     """
     # make a copy so we don't overwrite the original
     sw_smoothed = sw.copy()
-    # apply centered rolling mean; use min_periods=1 so edges are handled gracefully
-    sw_smoothed['groundwater'] = (sw['groundwater'].rolling(window=window, center=True, min_periods=1).mean())
-    sw_smoothed['error']       = (sw['error'      ].rolling(window=window, center=True, min_periods=1).mean())
+
+    roll = sw['groundwater'].rolling(window=window, center=True, min_periods=1)
+    sw_smoothed['groundwater'] = roll.mean()
+
+    # Proper propagation for the mean under independence:
+    roll_var_sum = (sw['error']**2).rolling(window=window, center=True, min_periods=1).sum()
+    roll_n       = sw['error'].rolling(window=window, center=True, min_periods=1).count()
+    sw_smoothed['error'] = np.sqrt(roll_var_sum) / roll_n
+
     return sw_smoothed
 
 
@@ -482,7 +511,12 @@ def average_timeseries(sw: pd.DataFrame, year_type: str = "calendar") -> pd.Data
     if year_type == "calendar":
         # Resample by calendar year and take the mean
         # "A-DEC" means year-end frequency on Dec 31
-        yearly = sw.resample("YE-DEC").mean()
+        yearly_gw      = sw['groundwater'].resample("YE-DEC").mean()
+        # Proper propagation for the mean under independence:
+        yearly_var_sum = (sw['error']**2).resample("YE-DEC").sum()
+        yearly_n       = sw['error'].resample("YE-DEC").count()
+        yearly_err     = np.sqrt(yearly_var_sum) / yearly_n
+        yearly         = pd.DataFrame({"groundwater": yearly_gw, "error": yearly_err})
         # shift the Dec 31 index back by 6 months → mid‐year
         yearly.index = yearly.index - pd.DateOffset(months=6)
         yearly.index.name = "date"
@@ -495,8 +529,16 @@ def average_timeseries(sw: pd.DataFrame, year_type: str = "calendar") -> pd.Data
     water_year = df.index.to_series().apply(lambda d: d.year + 1 if d.month >= 10 else d.year)
     df['water_year'] = water_year
 
-    # group by water_year and average
-    yearly = (df.groupby('water_year')[['groundwater', 'error']].mean())
+    # group by water_year and average groundwater
+    grp = df.groupby('water_year')
+    yearly_gw = grp['groundwater'].mean()
+
+    # Proper propagation for the mean under independence:
+    yearly_var_sum = grp['error'].apply(lambda s: np.square(s).sum())
+    yearly_n       = grp['error'].count()
+    yearly_err     = np.sqrt(yearly_var_sum) / yearly_n
+
+    yearly = pd.DataFrame({"groundwater": yearly_gw, "error": yearly_err})
 
     # move Sep 30 back by 6 months → center of Oct 1–Sep 30
     yearly.index = pd.to_datetime(yearly.index.astype(str) + "-09-30") \

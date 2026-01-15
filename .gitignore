@@ -8,6 +8,7 @@ logs/
 scripts/logs/
 *.log
 *.png
+.ipynb_checkpoints/
 input_data/snow_water_equivalent/SNODAS/monthly_data
 input_data/snow_water_equivalent/SNODAS/daily_data
 input_data/soil_moisture/

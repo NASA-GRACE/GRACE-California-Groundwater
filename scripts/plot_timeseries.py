@@ -258,8 +258,8 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
                             color=fc, alpha=0.5, zorder=1)
             first = False
 
-    ax.set_title(title, fontsize=options.fsize + 4, color=options.text_color)
-    ax.set_ylabel(ylabel, fontsize=options.fsize, color=options.text_color)
+    ax.set_title(title,   fontsize=options.fsize + 4, color=options.text_color)
+    ax.set_ylabel(ylabel, fontsize=options.fsize,     color=options.text_color)
 
     date_fmt = mdates.DateFormatter("%Y")
     ax.xaxis.set_major_formatter(date_fmt)
