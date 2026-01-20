@@ -160,14 +160,21 @@ def main() -> None:
     monthly_unsmoothed_output_path = _append_suffix_before_ext(options.args.output, "_monthly_unsmoothed")
     if "DATA_START_to_DATA_END" in monthly_unsmoothed_output_path.name:
         monthly_unsmoothed_output_path = monthly_unsmoothed_output_path.with_name(monthly_unsmoothed_output_path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
-    _write_df_with_header(sw, monthly_unsmoothed_output_path, index_label="date", sections=header_sections)
+    _write_df_with_header(sw, monthly_unsmoothed_output_path, index_label="date",
+                          sections=header_sections, digits_after_decimal=options.digits_after_decimal)
     logging.info(f"Groundwater series (monthly, unsmoothed) written to {monthly_unsmoothed_output_path}")
 
     # Save separate CSV file for groundwater and tws
     monthly_unsmoothed_output_path_gw_tws = _append_suffix_before_ext(options.args.output_gw_tws, "_monthly_unsmoothed")
     if "DATA_START_to_DATA_END" in monthly_unsmoothed_output_path_gw_tws.name:
         monthly_unsmoothed_output_path_gw_tws = monthly_unsmoothed_output_path_gw_tws.with_name(monthly_unsmoothed_output_path_gw_tws.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
-    _write_df_with_header(df_tws_gw, monthly_unsmoothed_output_path_gw_tws, index_label="date", sections=header_sections)
+    df_tws_gw_for_disk = df_tws_gw.rename(columns={
+        "grace":     "total water storage",
+        "err_grace": "total water storage error",
+        "error":     "groundwater error",
+    })
+    _write_df_with_header(df_tws_gw_for_disk, monthly_unsmoothed_output_path_gw_tws, index_label="date",
+                          sections=header_sections, digits_after_decimal=options.digits_after_decimal)
 
     # Smooth the time series
     window_size = 3  # centered moving average of 3 months
@@ -176,7 +183,8 @@ def main() -> None:
     smoothed_output_path = _append_suffix_before_ext(options.args.output, f"_monthly_smoothed_{window_size}mo")
     if "DATA_START_to_DATA_END" in smoothed_output_path.name:
         smoothed_output_path = smoothed_output_path.with_name(smoothed_output_path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
-    _write_df_with_header(sw_smoothed, smoothed_output_path, index_label="date", sections=header_sections)
+    _write_df_with_header(sw_smoothed, smoothed_output_path, index_label="date",
+                          sections=header_sections, digits_after_decimal=options.digits_after_decimal)
     logging.info(f"Groundwater series (monthly, smoothed) written to {smoothed_output_path}")
 
     # Compute calendar-year averages
@@ -185,7 +193,8 @@ def main() -> None:
     cal_yr_output_path = _append_suffix_before_ext(options.args.output, "_calendar_year_averages")
     if "DATA_START_to_DATA_END" in cal_yr_output_path.name:
         cal_yr_output_path = cal_yr_output_path.with_name(cal_yr_output_path.name.replace("DATA_START", data_start_yearly).replace("DATA_END", data_end_yearly))
-    _write_df_with_header(sw_cal_yr, cal_yr_output_path, index_label="date", sections=header_sections)
+    _write_df_with_header(sw_cal_yr, cal_yr_output_path, index_label="date",
+                          sections=header_sections, digits_after_decimal=options.digits_after_decimal)
     logging.info(f"Groundwater series (calendar-year averages) written to {cal_yr_output_path}")
 
     # Compute water-year averages
@@ -194,7 +203,8 @@ def main() -> None:
     wat_yr_output_path = _append_suffix_before_ext(options.args.output, "_water_year_averages")
     if "DATA_START_to_DATA_END" in wat_yr_output_path.name:
         wat_yr_output_path = wat_yr_output_path.with_name(wat_yr_output_path.name.replace("DATA_START", data_start_yearly).replace("DATA_END", data_end_yearly))
-    _write_df_with_header(sw_wat_yr, wat_yr_output_path, index_label="date", sections=header_sections)
+    _write_df_with_header(sw_wat_yr, wat_yr_output_path, index_label="date",
+                          sections=header_sections, digits_after_decimal=options.digits_after_decimal)
     logging.info(f"Groundwater series (water-year averages) written to {wat_yr_output_path}")
 
 
@@ -314,12 +324,17 @@ def _read_csv_header_attrs(path: str | os.PathLike[str]) -> dict[str, list[str]]
 
 def _write_df_with_header(df: pd.DataFrame, out_path: os.PathLike[str] | str,
                           index_label: str = "date",
-                          sections: dict[str, dict[str, list[str]]] | None = None) -> None:
+                          sections: dict[str, dict[str, list[str]]] | None = None,
+                          digits_after_decimal: int | None = None) -> None:
     """
     Write a multi-section commented header followed by the CSV body.
     sections: {"soil_moisture": {...}, "snow_water_equivalent": {...}, ...}
               Each inner dict maps key -> list[str].
     """
+    float_format = None
+    if digits_after_decimal is not None:
+        float_format = f"%.{digits_after_decimal}f"
+
     with open(out_path, "w", newline="", encoding="utf-8") as fh:
         if sections:
             # Emit sections in a stable, readable order if present
@@ -330,7 +345,7 @@ def _write_df_with_header(df: pd.DataFrame, out_path: os.PathLike[str] | str,
                 for k, vlist in attrs.items():
                     fh.write(f"# {k}: {json.dumps(list(vlist), ensure_ascii=False)}\n")
                 fh.write("#\n")
-        df.to_csv(fh, index_label=index_label)
+        df.to_csv(fh, index_label=index_label, float_format=float_format)
 
 
 def _append_suffix_before_ext(path: os.PathLike[str] | str, suffix: str) -> Path:

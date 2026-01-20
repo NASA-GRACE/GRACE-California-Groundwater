@@ -44,6 +44,8 @@ class Options:
 
         self.keep_these_soil_moisture_vars: list[str] = ['SoilM_0_100cm']  # leave [] to keep everything
 
+        self.digits_after_decimal:                int = 3  # Number of digits after decimal point in output CSV files
+
         self.swe_dir:           Path = self.project_root / "input_data" / "snow_water_equivalent" / self.swe_model
         self.soil_moisture_dir: Path = self.project_root / "input_data" / "soil_moisture"         / self.soil_moisture_model
         self.reservoirs_dir:    Path = self.project_root / "input_data" / "reservoirs"            / self.reservoirs_model
