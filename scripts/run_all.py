@@ -147,6 +147,9 @@ def main() -> None:
 
     section_header(options, "Processing GRACE TWS data")
 
+    logging.info("Downloading GRACE/GRACE-FO Mascon TWS data from PO.DAAC...")
+    run_script(options, "grace_download.py")
+
     logging.info("Call raster mask generator for GRACE TWS data...")
     run_script(options, "call_raster_mask_generator.py")
 
