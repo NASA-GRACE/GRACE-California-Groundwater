@@ -237,7 +237,7 @@ def mask_timeseries_for_NLDAS(options: Options) -> None:
     for var in var_list:
         fieldnames.append(var)
         fieldnames.append(f"{var}_error")
-    output_csv(options, options.args.output_csv, fieldnames, ds.time.data, anomalies_dict, global_attrs=global_attrs)
+    output_csv(options, options.args.output_csv, fieldnames, ds.time.data, anomalies_dict, global_attrs=global_attrs, total_area_m2=sum(areas))
     output_nc(options,  options.args.output_nc,  ds, total_interest, interest_lon, interest_lat,
               time_steps, var_list, avg_dict, t_var=t_var, x_var=x_var, y_var=y_var)
 
@@ -450,7 +450,8 @@ def compute_anomaly_timeseries(var: np.ndarray, var_factor: float, avg: list[flo
 
 def output_csv(options: Options, output_file: str | os.PathLike[str], fieldnames: list[str],
                times: np.ndarray, anomalies_dict: dict[str, list[float]],
-               global_attrs: dict[str, list[str]] | None = None) -> None:
+               global_attrs: dict[str, list[str]] | None = None,
+               total_area_m2: float | None = None) -> None:
 
     """
     Write the anomaly timeseries to a CSV file.
@@ -462,6 +463,7 @@ def output_csv(options: Options, output_file: str | os.PathLike[str], fieldnames
         times:          Array of time values.
         anomalies_dict: Dictionary mapping each variable to its anomaly timeseries.
         global_attrs:   Optional dictionary of global attributes to include as comments.
+        total_area_m2:  Optional total area in m² to include in the global attributes.
 
     Returns:
         None. The CSV file is created.
@@ -477,6 +479,8 @@ def output_csv(options: Options, output_file: str | os.PathLike[str], fieldnames
                 csvfile.write(f"# {k}: {json.dumps(vals, ensure_ascii=False)}\n")
             # blank line for readability (optional)
             csvfile.write("#\n")
+        if total_area_m2 is not None:
+            csvfile.write(f"# total_area_m2_soil_moisture: {total_area_m2}\n")
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, dialect="excel")
         writer.writeheader()
         for i, date in enumerate(times):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Written by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), and GitHub Copilot (it/its).
+# Written in 2025/2026 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), GitHub Copilot (it/its), and Claude Opus 4.6 extended.
 from __future__ import annotations  # For Python 3.7+ compatibility with type annotations
 
 import os
@@ -42,15 +42,15 @@ class Options:
         self.valid_basins:                  list[str] = ["California", "Sacramento", "San Joaquin", "Tulare-Buena Vista Lakes"]
         self.default_basin:                       str = self.valid_basins[0]
 
-        self.keep_these_soil_moisture_vars: list[str] = ['SoilM_0_100cm']  # leave [] to keep everything
+        self.keep_these_soil_moisture_vars: list[str] = ["SoilM_0_100cm"]  # if you want to keep all soil moisture vars, this should be []
 
         self.digits_after_decimal:                int = 3  # Number of digits after decimal point in output CSV files
 
-        self.swe_dir:           Path = self.project_root / "input_data" / "snow_water_equivalent" / self.swe_model
-        self.soil_moisture_dir: Path = self.project_root / "input_data" / "soil_moisture"         / self.soil_moisture_model
-        self.reservoirs_dir:    Path = self.project_root / "input_data" / "reservoirs"            / self.reservoirs_model
-        self.grace_dir:         Path = self.project_root / "input_data" / "grace_tws"
-        self.timeseries_dir:    Path = self.project_root / "input_data" / "masked_timeseries"
+        self.swe_dir:           Path = self.project_root / "input_data"    / "snow_water_equivalent" / self.swe_model
+        self.soil_moisture_dir: Path = self.project_root / "input_data"    / "soil_moisture"         / self.soil_moisture_model
+        self.reservoirs_dir:    Path = self.project_root / "input_data"    / "reservoirs"            / self.reservoirs_model
+        self.grace_dir:         Path = self.project_root / "input_data"    / "grace_tws"
+        self.timeseries_dir:    Path = self.project_root / "input_data"    / "masked_timeseries"
         self.output_dir:        Path = self.project_root / "output"
         self.output_dir_gw_tws: Path = self.project_root / "output_gw_tws"
         self.graphics_dir:      Path = self.project_root / "graphics"
@@ -70,7 +70,7 @@ class Options:
         self.reservoirs_url_prefix: str = f"{self.reservoirs_base_url}?Stations=<station_id>&SensorNums=<storage or alt storage sensor>&dur_code=M&Start=YYYY-MM-DD&End=YYYY-MM-DD"
 
         self.log_mode:              int = logging.INFO  # Use the --debug command line argument to change to DEBUG.
-        self.separator_line:        str = "-" * 60  # A line of dashes for logging separation
+        self.separator_line:        str = "-" * 60      # A line of dashes for logging separation
 
         # Generate safe names for basins (no spaces or special characters) and dictionaries for mapping between them.
         self.basin_safenames:           list[str] = [safestring(title) for title in self.valid_basins]
@@ -108,7 +108,7 @@ def main() -> None:
     logging.info(f"Starting {Path(__file__).name} at {run_all_start_time.isoformat()}")
 
     parse_arguments(options)
-    
+
     section_header(options, "Processing soil moisture data")
 
     logging.info("Download soil moisture data files.")
@@ -485,6 +485,469 @@ class PlotOptions(Options):
             self.lightcolors = list(self._base_lightcolors)
 
 
+def read_total_areas_m2_from_csv(path: str | os.PathLike[str]) -> dict[str, float]:
+    """
+    Read total_area_m2* values from commented CSV header.
+
+    Matches lines like:
+      # total_area_m2_GRACE: ["152682342836.82553"]
+
+    Returns dict of {key: float_value}.
+    """
+    import os
+    import re
+    import json
+
+    areas: dict[str, float] = {}
+    with open(os.fspath(path), "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.startswith("#"):
+                break
+            # capture: key and JSON array/value
+            m = re.match(r"^\s*#\s*(total_area_m2[^:]*?)\s*:\s*(\[[^\]]*\]|\"[^\"]*\"|[0-9eE+\-\.]+)\s*$", line)
+            if not m:
+                continue
+            key = m.group(1).strip()
+            raw = m.group(2).strip()
+            try:
+                val = json.loads(raw)
+            except Exception:
+                val = raw
+
+            # normalize to float
+            if isinstance(val, list) and val:
+                areas[key] = float(val[0])
+            else:
+                areas[key] = float(val)
+    return areas
+
+
+def mean_total_area_m2_and_warn(
+    areas: dict[str, float],
+    *,
+    area_diff_max: float = 0.01,
+    context: str = "") -> float | None:
+    """
+    Compute mean area and warn if any abs((Ai-mean)/mean) > area_diff_max.
+    Returns mean, or None if areas is empty.
+    """
+    import logging
+
+    if not areas:
+        logging.warning(f"{context}: no total_area_m2* entries found in CSV header.")
+        return None
+
+    vals = list(areas.values())
+    mean = float(sum(vals) / len(vals))
+
+    if len(vals) < 3:
+        logging.warning(
+            f"{context}: expected 3 total_area_m2* values (SWE/soil_moisture/GRACE) "
+            f"but found {len(vals)}: {sorted(areas.keys())}"
+        )
+
+    for k, v in areas.items():
+        rel = (float(v) - mean) / mean
+        if abs(rel) > float(area_diff_max):
+            logging.warning(
+                f"{context}: {k}={v:.6g} m^2 differs from mean={mean:.6g} m^2 by {rel:+.3%} "
+                f"(limit={area_diff_max:.3%})"
+            )
+    return mean
+
+
+def km3_to_mm_factor(mean_area_m2: float) -> float:
+    """
+    Convert km^3 volume to mm equivalent water height using area (m^2).
+
+    mm = km^3 * (1e9 m^3/km^3) / area_m2 * (1000 mm/m) = km^3 * 1e12 / area_m2
+    """
+    return 1.0e12 / float(mean_area_m2)
+
+
+def load_plot_timeseries(
+    path: str | os.PathLike[str],
+    *,
+    date_col: str | int = 0,
+    align_monthly_day: int | None = None,
+    comment: str = "#",
+) -> pd.DataFrame:
+    """
+    Load a time-series CSV for plotting.
+
+    - Parses dates
+    - Ignores commented header lines
+    - Keeps extra columns (e.g., n_months_used)
+    - If align_monthly_day is set, resamples to monthly-start and shifts to that day
+      (for notebook component inputs like GRACE/SWE/soil/reservoirs)
+    """
+    import pandas as pd
+    df = pd.read_csv(path, comment=comment, skip_blank_lines=True)
+
+    # Resolve date column
+    if isinstance(date_col, int):
+        date_name = df.columns[date_col]
+    else:
+        date_name = date_col
+
+    df[date_name] = pd.to_datetime(df[date_name])
+    df = df.set_index(date_name).sort_index()
+
+    if align_monthly_day is not None:
+        df = df.resample("MS").first()
+        df.index = df.index + pd.DateOffset(days=align_monthly_day - 1)
+
+    return df
+
+
+def segment_timeseries(
+    df: pd.DataFrame,
+    *,
+    discontinuities: list[pd.Timestamp] | None = None,
+    gap_threshold:         pd.Timedelta | None = None) -> list[pd.DataFrame]:
+    """
+    Split a DataFrame (DatetimeIndex) into contiguous plotting segments.
+
+    Splits on:
+    - explicit discontinuity dates
+    - gaps larger than gap_threshold
+    """
+    import pandas as pd
+    import numpy as np
+    if df.empty:
+        return []
+
+    out = [df.sort_index()]
+
+    # Split on explicit discontinuities
+    if discontinuities:
+        discs = sorted(pd.to_datetime(discontinuities))
+        tmp = []
+        for part in out:
+            start = part.index.min()
+            for d in discs:
+                seg = part[(part.index >= start) & (part.index < d)]
+                if not seg.empty:
+                    tmp.append(seg)
+                start = d
+            seg = part[part.index >= start]
+            if not seg.empty:
+                tmp.append(seg)
+        out = tmp
+
+    # Split on large gaps
+    if gap_threshold is not None:
+        tmp = []
+        for part in out:
+            idx = part.index.sort_values()
+            diffs = idx.to_series().diff()
+            break_idx = np.where(diffs > gap_threshold)[0]
+            boundaries = list(break_idx) + [len(idx)]
+            start = 0
+            for stop in boundaries:
+                seg_idx = idx[start:stop]
+                if len(seg_idx):
+                    tmp.append(part.loc[seg_idx])
+                start = stop
+        out = tmp
+
+    return out
+
+
+def _rolling_sigma(series: pd.Series) -> float:
+    """Helper function to compute rolling sigma for the error band."""
+    import math
+    s = series.dropna()
+    n = len(s)
+    if n == 0:
+        return float("nan")
+    return math.sqrt(float((s * s).sum())) / n
+
+
+def smooth_value_error(
+    df: pd.DataFrame,
+    value_col: str,
+    error_col: str,
+    *,
+    window: int = 3) -> pd.DataFrame:
+    """Apply a rolling mean to the value column and a custom rolling sigma to the error column."""
+    import pandas as pd
+    out = df.copy()
+    out[value_col] = out[value_col].rolling(window=window, center=True, min_periods=1).mean()
+    out[error_col] = out[error_col].rolling(window=window, center=True, min_periods=1).apply(_rolling_sigma, raw=False)
+    return out
+
+
+def average_timeseries(
+    df: pd.DataFrame,
+    *,
+    year_type: str = "calendar",
+    value_col: str = "groundwater",
+    error_col: str = "error") -> pd.DataFrame:
+    """
+    Aggregate a monthly series into yearly averages with propagated uncertainty.
+
+    Propagate monthly 1σ via:
+        σ_year = sqrt(Σ σ_i^2) / n
+    Returns columns:
+        [value_col, error_col, "n_months_used"]
+
+    year_type:
+      - "calendar": Jan–Dec, labeled at ~mid-year (Dec 31 - 6 months)
+      - "water":    Oct–Sep, labeled at ~Apr (Sep 30 - 6 months), using WY where Oct..Dec count toward next year
+    """
+    import pandas as pd
+    import numpy as np
+    if year_type not in ("calendar", "water"):
+        raise ValueError(f"year_type must be 'calendar' or 'water', got '{year_type}'")
+
+    if value_col not in df.columns or error_col not in df.columns:
+        raise ValueError(f"Expected columns '{value_col}' and '{error_col}' in df; got {list(df.columns)}")
+
+    records: list[tuple[pd.Timestamp, float, float, int]] = []
+
+    if year_type == "calendar":
+        grouped = df.groupby(df.index.year)
+        for year, df_y in grouped:
+            d = df_y[[value_col, error_col]].dropna()
+            n = len(d)
+            if n == 0:
+                continue
+            mean_val = float(d[value_col].mean())
+            sigma_year = float(np.sqrt((d[error_col] ** 2).sum()) / n)
+            date_label = pd.Timestamp(year=year, month=12, day=31) - pd.DateOffset(months=6)
+            records.append((date_label, mean_val, sigma_year, n))
+    else:
+        tmp = df[[value_col, error_col]].copy()
+        tmp["water_year"] = tmp.index.to_series().apply(lambda d: d.year + 1 if d.month >= 10 else d.year)
+
+        grouped = tmp.groupby("water_year")
+        for wy, df_y in grouped:
+            d = df_y[[value_col, error_col]].dropna()
+            n = len(d)
+            if n == 0:
+                continue
+            mean_val = float(d[value_col].mean())
+            sigma_year = float(np.sqrt((d[error_col] ** 2).sum()) / n)
+            date_label = pd.to_datetime(f"{wy}-09-30") - pd.DateOffset(months=6)
+            records.append((date_label, mean_val, sigma_year, n))
+
+    yearly = (
+        pd.DataFrame(records, columns=["date", value_col, error_col, "n_months_used"])
+        .set_index("date")
+        .sort_index()
+    )
+    yearly.index.name = "date"
+    return yearly
+
+
+def plot_with_uncertainty(
+    ax: plt.Axes,
+    df: pd.DataFrame,
+    value_col: str,
+    error_col: str,
+    label:                          str | None = None,
+    color:                          str | None = None,
+    marker:                         str | None = None,
+    linestyle:                             str = "-",
+    gap_threshold:         pd.Timedelta | None = None,
+    discontinuities: list[pd.Timestamp] | None = None,
+    shift_to_zero:                        bool = False,
+    smooth_window:                  int | None = None,
+    alpha_band:                          float = 0.2) -> None:
+    """
+    Generic line + ±1σ band plotter.
+    Handles optional smoothing, rebasing, and line splitting.
+    """
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    if df is None or df.empty:
+        return None
+
+    cols = [c for c in [value_col, error_col] if c in df.columns]
+    if len(cols) < 2:
+        return None
+
+    d = df[[value_col, error_col]].dropna().copy()
+    if d.empty:
+        return None
+
+    if shift_to_zero:
+        d[value_col] = d[value_col] - float(d[value_col].min())
+
+    if smooth_window is not None:
+        d = smooth_value_error(d, value_col=value_col, error_col=error_col, window=smooth_window)
+
+    segments = segment_timeseries(d, discontinuities=discontinuities, gap_threshold=gap_threshold)
+
+    first = True
+    chosen_color = color
+    line_obj = None
+    for seg in segments:
+        line_obj = ax.plot(
+            seg.index,
+            seg[value_col],
+            label=label if first else None,
+            color=chosen_color,
+            marker=marker,
+            linestyle=linestyle,
+        )[0]
+        c = chosen_color if chosen_color is not None else line_obj.get_color()
+        if chosen_color is None:
+            chosen_color = c
+
+        ax.fill_between(
+            seg.index,
+            seg[value_col] - seg[error_col],
+            seg[value_col] + seg[error_col],
+            color=c,
+            alpha=alpha_band,
+            label=None,
+        )
+        first = False
+
+    return line_obj
+
+
+def plot_prepped_with_uncertainty(
+    ax: plt.Axes,
+    df: pd.DataFrame,
+    *,
+    label:                          str | None = None,
+    value_col:                      str | None = None,
+    error_col:                             str = "error",
+    color:                          str | None = None,
+    marker:                         str | None = None,
+    linestyle:                             str = "-",
+    gap_threshold:         pd.Timedelta | None = None,
+    discontinuities: list[pd.Timestamp] | None = None,
+    shift_to_zero:                        bool = False,
+    smooth_window:                  int | None = None,
+    rebase_to_first_point:                bool = False,
+    alpha_band:                          float = 0.2,
+    unit_factor:                         float = 1.0) -> None:
+    """
+    DRY helper for plots like the notebook's component plots.
+
+    Order of operations matches notebook intent:
+      1) optional shift_to_zero (subtract min)
+      2) optional smoothing (value rolling mean, error via sigma propagation)
+      3) optional rebasing to first point (AFTER smoothing)
+      4) plot line + ±1σ band, splitting at discontinuities/gaps
+
+    Args:
+      - label: the label for the line plot.
+      - value_col: if None, choose "groundwater" (if present) else "value" (if present)
+                  else first numeric column.
+      - error_col: the name of the column containing the error values for the uncertainty band.
+      - color: the color of the line plot.
+      - marker: the marker style for the line plot.
+      - linestyle: the style of the line plot.
+      - smooth_window: if not None, smoothing is applied BEFORE rebasing.
+      - rebase_to_first_point: subtract first value after smoothing if True.
+      - gap_threshold and discontinuities are passed to plot_with_uncertainty to split lines.
+      - unit_factor is applied to the value and error columns before plotting.
+    """
+    import pandas as pd
+
+    if df is None or df.empty:
+        return None
+
+    # Choose value_col if not provided
+    cols = list(df.columns)
+    if value_col is None:
+        if "groundwater" in cols:
+            value_col = "groundwater"
+        elif "value" in cols:
+            value_col = "value"
+        else:
+            num_cols = [c for c in cols if pd.api.types.is_numeric_dtype(df[c])]
+            if not num_cols:
+                return None
+            value_col = num_cols[0]
+
+    if error_col not in df.columns:
+        # can't plot uncertainty band without error
+        return None
+
+    d = df[[value_col, error_col]].dropna().copy()
+    if d.empty:
+        return None
+    # Unit scaling (e.g., km^3 -> mm). Error scales identically.
+    if unit_factor != 1.0:
+        d[value_col] = d[value_col] * float(unit_factor)
+        d[error_col] = d[error_col] * float(unit_factor)
+
+    # 1) shift-to-zero (min -> 0), used for SWE in notebook
+    if shift_to_zero:
+        d[value_col] = d[value_col] - float(d[value_col].min())
+
+    # 2) smoothing (if requested)
+    if smooth_window is not None:
+        d = smooth_value_error(d, value_col=value_col, error_col=error_col, window=int(smooth_window))
+
+    # 3) rebase AFTER smoothing (notebook behavior) but only if we're not shifting to zero
+    if rebase_to_first_point and not shift_to_zero and not d.empty:
+        d[value_col] = d[value_col] - d[value_col].iloc[0]
+
+    # 4) plot — call plot_with_uncertainty with NO additional smoothing/shift
+    plot_with_uncertainty(
+        ax,
+        d,
+        value_col=value_col,
+        error_col=error_col,
+        label=label,
+        color=color,
+        marker=marker,
+        linestyle=linestyle,
+        gap_threshold=gap_threshold,
+        discontinuities=discontinuities,
+        shift_to_zero=False,     # already applied if requested
+        smooth_window=None,      # already applied if requested
+        alpha_band=alpha_band,
+    )
+
+
+def load_component_series(options, component: str, basin_name: str) -> pd.DataFrame | None:
+    """Load the time series for a given component and basin, if it exists."""
+    basin_safe = options.basin_safename_map.get(basin_name)
+    if basin_safe is None:
+        return None
+
+    if component == "swe":
+        path = options.timeseries_dir / f"anomaly_timeseries_{options.swe_model}_{basin_safe}_mask.csv"
+    elif component == "reservoirs":
+        path = options.timeseries_dir / f"anomaly_timeseries_{options.reservoirs_model}_{basin_safe}_mask.csv"
+    elif component == "groundwater":
+        pattern = f"anomaly_timeseries_groundwater_{basin_safe}_*_monthly_unsmoothed*.csv"
+        candidates = list(options.output_dir.glob(pattern))
+        if not candidates:
+            return None
+        path = max(candidates, key=os.path.getmtime)
+    else:
+        raise ValueError(f"Unknown component: {component}")
+
+    if not path.is_file():
+        return None
+
+    df = load_plot_timeseries(path, date_col="date", align_monthly_day=15)
+    df.attrs["source_path"] = os.fspath(path)
+
+    # Normalize column names: rename <component>/<component>_error → value/error
+    # so downstream plotting code can use consistent names.
+    cols = list(df.columns)
+    # Find the value column (e.g., "swe", "groundwater", or just "value")
+    val_candidates = [c for c in cols if c == component or c == "value"]
+    err_candidates = [c for c in cols if c == f"{component}_error" or c == "error"]
+    if val_candidates and val_candidates[0] != "value":
+        df = df.rename(columns={val_candidates[0]: "value"})
+    if err_candidates and err_candidates[0] != "error":
+        df = df.rename(columns={err_candidates[0]: "error"})
+
+    return df
+
+
 def fallback_logging_config(log_level: int | str = 'INFO', rawlog: bool = False) -> None:
     """
     Configure the root logger with a basic configuration if no handlers are set.
@@ -668,54 +1131,54 @@ def find_ffmpeg() -> str | None:
 
 # Mapping of unit aliases (all in lowercase) to their equivalent in seconds
 _UNIT_SECONDS = {
-    **dict.fromkeys(['year', 'years', 'yr', 'yrs', 'calendar year', 'calendar years'],    31_556_952),  # Average calender year = 365.2425 days (accounting for leap years)
-    **dict.fromkeys(['solar year', 'solar years', 'tropical year', 'tropical years'],     31_556_925.216),  # Average solar/tropical year = 365.24219 solar days = time for Earth to orbit the Sun once relative to the Sun/equinoxes
-    **dict.fromkeys(['sidereal year', 'sidereal years'],                                  31_558_149.54),  # Sidereal year = 365.25636 days = time for Earth to orbit the Sun once relative to the "fixed" stars
-    **dict.fromkeys(['month', 'months', 'mo', 'mos', 'calendar month', 'calendar months'], 2_629_746.0),  # Average calendar month = 30.436875 solar days
-    **dict.fromkeys(['lunar month', 'lunar months', 'synodic month', 'synodic months'],    2_551_442.9),  # Average lunar month (synodic month) = 29.53 solar days
-    **dict.fromkeys(['week', 'weeks', 'wk', 'wks'],                                          604_800.0),  # 7 solar days
-    **dict.fromkeys(['day', 'days', 'd', 'solar day', 'solar days', 'ephemeris day', 'ephemeris days'], 86_400),  # 24 hours = time for Earth to rotate once relative to the Sun
-    **dict.fromkeys(['sidereal day', 'sidereal days'],                                                  86_164.0905),  # 23 hours, 56 minutes, 4.1 seconds = time for Earth to rotate once relative to the "fixed" stars
-    **dict.fromkeys(['hour',         'hours',   'hr',  'hrs'],          3600),
-    **dict.fromkeys(['minute',       'minutes', 'min', 'mins'],           60),
-    **dict.fromkeys(['second',       'seconds', 'sec', 'secs', 's'],    1.00),
-    **dict.fromkeys(['decisecond',   'deciseconds',  'ds'],            1E-01),
-    **dict.fromkeys(['centisecond',  'centiseconds', 'cs'],            1E-02),
-    **dict.fromkeys(['millisecond',  'milliseconds', 'ms'],            1E-03),
-    **dict.fromkeys(['microsecond',  'microseconds', 'us', 'μs'],      1E-06),
-    **dict.fromkeys(['nanosecond',   'nanoseconds',  'ns'],            1E-09),
-    **dict.fromkeys(['picosecond',   'picoseconds',  'ps'],            1E-12),
-    **dict.fromkeys(['femtosecond',  'femtoseconds', 'fs'],            1E-15),
-    **dict.fromkeys(['attosecond',   'attoseconds',  'as'],            1E-18),
-    **dict.fromkeys(['zeptosecond',  'zeptoseconds', 'zs'],            1E-21),
-    **dict.fromkeys(['yoctosecond',  'yoctoseconds', 'ys'],            1E-24),
-    **dict.fromkeys(['planck time',  'planck times', 'planck', 'plancks', 'pt'], 5.391_247E-44),  # Planck time
-    **dict.fromkeys(['decade',       'decades'],                                315_569_252.16),  #   10 solar years
-    **dict.fromkeys(['century',      'centuries'],                            3_155_692_521.60),  #  100 solar years
-    **dict.fromkeys(['millennium',   'millennia'],                           31_556_925_216.00),  # 1000 solar years
-    **dict.fromkeys(['megayear',     'megayears', 'mya', 'myr'],         31_556_925_216_000.00),  # 1E06 solar years
-    **dict.fromkeys(['gigayear',     'gigayears', 'gya', 'gyr'],     31_556_925_216_000_000.00),  # 1E09 solar years
-    **dict.fromkeys(['terayear',     'terayears', 'tya', 'tyr'], 31_556_925_216_000_000_000.00),  # 1E12 solar years
-    **dict.fromkeys(['fortnight',    'fortnights'],                               1_209_600.00),  # 2 weeks = 604_800 * 2 seconds
-    **dict.fromkeys(['decasecond',   'decaseconds',   'das'], 1E01),
-    **dict.fromkeys(['hectosecond',  'hectoseconds',  'hs'],  1E02),
-    **dict.fromkeys(['kilosecond',   'kiloseconds',   'ks'],  1E03),
-    **dict.fromkeys(['megasecond',   'megaseconds'],          1E06),  # no Ms because .lower() would convert it to ms
-    **dict.fromkeys(['gigasecond',   'gigaseconds',   'gs'],  1E09),
-    **dict.fromkeys(['terasecond',   'teraseconds',   'ts'],  1E12),
-    **dict.fromkeys(['petasecond',   'petaseconds'],          1E15),  # no Ps because .lower() would convert it to ps
-    **dict.fromkeys(['exasecond',    'exaseconds',    'es'],  1E18),
-    **dict.fromkeys(['zettasecond',  'zettaseconds'],         1E21),  # no Zs because .lower() would convert it to zs
-    **dict.fromkeys(['yottasecond',  'yottaseconds'],         1E24),  # no Ys because .lower() would convert it to ys
-    **dict.fromkeys(['ronnasecond',  'ronnaseconds',  'rs'],  1E27),
-    **dict.fromkeys(['quettasecond', 'quettaseconds', 'qs'],  1E30),
+    **dict.fromkeys(["year", "years", "yr", "yrs", "calendar year", "calendar years"],    31_556_952),  # Average calender year = 365.2425 days (accounting for leap years)
+    **dict.fromkeys(["solar year", "solar years", "tropical year", "tropical years"],     31_556_925.216),  # Average solar/tropical year = 365.24219 solar days = time for Earth to orbit the Sun once relative to the Sun/equinoxes
+    **dict.fromkeys(["sidereal year", "sidereal years"],                                  31_558_149.54),  # Sidereal year = 365.25636 days = time for Earth to orbit the Sun once relative to the "fixed" stars
+    **dict.fromkeys(["month", "months", "mo", "mos", "calendar month", "calendar months"], 2_629_746.0),  # Average calendar month = 30.436875 solar days
+    **dict.fromkeys(["lunar month", "lunar months", "synodic month", "synodic months"],    2_551_442.9),  # Average lunar month (synodic month) = 29.53 solar days
+    **dict.fromkeys(["week", "weeks", "wk", "wks"],                                          604_800.0),  # 7 solar days
+    **dict.fromkeys(["day", "days", "d", "solar day", "solar days", "ephemeris day", "ephemeris days"], 86_400),  # 24 hours = time for Earth to rotate once relative to the Sun
+    **dict.fromkeys(["sidereal day", "sidereal days"],                                                  86_164.0905),  # 23 hours, 56 minutes, 4.1 seconds = time for Earth to rotate once relative to the "fixed" stars
+    **dict.fromkeys(["hour",         "hours",   "hr",  "hrs"],          3600),
+    **dict.fromkeys(["minute",       "minutes", "min", "mins"],           60),
+    **dict.fromkeys(["second",       "seconds", "sec", "secs", "s"],    1.00),
+    **dict.fromkeys(["decisecond",   "deciseconds",  "ds"],            1E-01),
+    **dict.fromkeys(["centisecond",  "centiseconds", "cs"],            1E-02),
+    **dict.fromkeys(["millisecond",  "milliseconds", "ms"],            1E-03),
+    **dict.fromkeys(["microsecond",  "microseconds", "us", "μs"],      1E-06),
+    **dict.fromkeys(["nanosecond",   "nanoseconds",  "ns"],            1E-09),
+    **dict.fromkeys(["picosecond",   "picoseconds",  "ps"],            1E-12),
+    **dict.fromkeys(["femtosecond",  "femtoseconds", "fs"],            1E-15),
+    **dict.fromkeys(["attosecond",   "attoseconds",  "as"],            1E-18),
+    **dict.fromkeys(["zeptosecond",  "zeptoseconds", "zs"],            1E-21),
+    **dict.fromkeys(["yoctosecond",  "yoctoseconds", "ys"],            1E-24),
+    **dict.fromkeys(["planck time",  "planck times", "planck", "plancks", "pt"], 5.391_247E-44),  # Planck time
+    **dict.fromkeys(["decade",       "decades"],                                315_569_252.16),  #   10 solar years
+    **dict.fromkeys(["century",      "centuries"],                            3_155_692_521.60),  #  100 solar years
+    **dict.fromkeys(["millennium",   "millennia"],                           31_556_925_216.00),  # 1000 solar years
+    **dict.fromkeys(["megayear",     "megayears", "mya", "myr"],         31_556_925_216_000.00),  # 1E06 solar years
+    **dict.fromkeys(["gigayear",     "gigayears", "gya", "gyr"],     31_556_925_216_000_000.00),  # 1E09 solar years
+    **dict.fromkeys(["terayear",     "terayears", "tya", "tyr"], 31_556_925_216_000_000_000.00),  # 1E12 solar years
+    **dict.fromkeys(["fortnight",    "fortnights"],                               1_209_600.00),  # 2 weeks = 604_800 * 2 seconds
+    **dict.fromkeys(["decasecond",   "decaseconds",   "das"], 1E01),
+    **dict.fromkeys(["hectosecond",  "hectoseconds",  "hs"],  1E02),
+    **dict.fromkeys(["kilosecond",   "kiloseconds",   "ks"],  1E03),
+    **dict.fromkeys(["megasecond",   "megaseconds"],          1E06),  # no Ms because .casefold() would convert it to ms
+    **dict.fromkeys(["gigasecond",   "gigaseconds",   "gs"],  1E09),
+    **dict.fromkeys(["terasecond",   "teraseconds",   "ts"],  1E12),
+    **dict.fromkeys(["petasecond",   "petaseconds"],          1E15),  # no Ps because .casefold() would convert it to ps
+    **dict.fromkeys(["exasecond",    "exaseconds",    "es"],  1E18),
+    **dict.fromkeys(["zettasecond",  "zettaseconds"],         1E21),  # no Zs because .casefold() would convert it to zs
+    **dict.fromkeys(["yottasecond",  "yottaseconds"],         1E24),  # no Ys because .casefold() would convert it to ys
+    **dict.fromkeys(["ronnasecond",  "ronnaseconds",  "rs"],  1E27),
+    **dict.fromkeys(["quettasecond", "quettaseconds", "qs"],  1E30),
 }
 
 
 def seconds_in_unit(unit: str) -> float:
     """Return the number of seconds in a given time unit."""
     try:
-        return _UNIT_SECONDS[unit.lower()]
+        return _UNIT_SECONDS[unit.casefold()]
     except KeyError:
         raise ValueError(f"Unknown time unit: {unit!r}")
 
@@ -800,6 +1263,7 @@ def parse_timezone(tz_arg: str | dt.tzinfo | None = None) -> dt.tzinfo | str:
     Raises:
         ValueError if the string cannot be converted to a valid timezone.
     """
+
     # If tz_arg is None, return UTC timezone
     if tz_arg is None:
         return dt.timezone.utc
@@ -818,35 +1282,35 @@ def parse_timezone(tz_arg: str | dt.tzinfo | None = None) -> dt.tzinfo | str:
             return tz_arg
 
         # Bare UTC/GMT/Z
-        if up in ('Z', 'UTC', 'GMT') and len(s) <= 3:
+        if up in ("Z", "UTC", "GMT") and len(s) <= 3:
             return dt.timezone.utc
 
         # Strip leading "UTC" or "GMT" prefix
-        if up.startswith(('UTC', 'GMT')):
+        if up.startswith(("UTC", "GMT")):
             rest = s[3:].strip()
-            if rest == '':
+            if rest == "":
                 return dt.timezone.utc
             s = rest  # now s begins with + or -
 
         # Try fixed-offset patterns
         m = _TZ_OFFSET_RE.fullmatch(s)
         if m:
-            sign = 1 if m.group('sign') == '+' else -1
+            sign = 1 if m.group("sign") == "+" else -1
 
-            if m.group('hours1') is not None:
-                hours = int(m.group('hours1'))
-                minutes = int(m.group('mins1'))
-            elif m.group('hours1_only') is not None:
-                hours = int(m.group('hours1_only'))
+            if m.group("hours1") is not None:
+                hours   = int(m.group("hours1"))
+                minutes = int(m.group("mins1"))
+            elif m.group("hours1_only") is not None:
+                hours   = int(m.group("hours1_only"))
                 minutes = 0
-            elif m.group('hours2') is not None:
-                hours = int(m.group('hours2'))
-                minutes = int(m.group('mins2'))
-            elif m.group('hours3') is not None:
-                hours = int(m.group('hours3'))
-                minutes = int(m.group('mins3'))
+            elif m.group("hours2") is not None:
+                hours   = int(m.group("hours2"))
+                minutes = int(m.group("mins2"))
+            elif m.group("hours3") is not None:
+                hours   = int(m.group("hours3"))
+                minutes = int(m.group("mins3"))
             else:
-                hours = int(m.group('hours4'))
+                hours   = int(m.group("hours4"))
                 minutes = 0
 
             offset = dt.timedelta(hours=hours, minutes=minutes) * sign
@@ -883,7 +1347,7 @@ def decimal_year_to_datetime(dec: float, use_astropy: bool = False) -> dt.dateti
             from astropy.time import Time
         except ImportError as e:
             raise ValueError(f"'use_astropy=True' requires the astropy package: {e}") from e
-        t = Time(dec, format='jyear', scale='utc')
+        t = Time(dec, format="jyear", scale="utc")
         return t.to_datetime().replace(tzinfo=dt.timezone.utc)
 
     try:
@@ -904,7 +1368,7 @@ def _parse_iso(given_date: str) -> dt.datetime:
     try:
         return isoparse(given_date)
     except ParserError as e:
-        raise ValueError(f"Invalid ISO8601 date '{given_date}': {e}") from e
+        raise ValueError(f"Invalid ISO8601 date '{given_date}'") from e
 
 
 def is_float(s: str) -> bool:
@@ -924,6 +1388,9 @@ _JD_MJD_CAPTURE_RE: re.Pattern = re.compile(r"\s*(?P<prefix>JD|MJD)?\s*(?P<value
 # This regex is used to check if a string has an explicit offset or Z at the end (indicating that the date should be converted by shifting the clock):
 _OFFSET_IN_STR_RE: re.Pattern  = re.compile(r"(Z|[+-]\d{2}:\d{2}|[+-]\d{4})$")
 
+# Julian Date at 1970-01-01T00:00:00 UTC
+_JD_UNIX_EPOCH: float = 2_440_587.5
+
 # Enclose the type alias annotation in quotes because not all of these types have been imported yet.
 AnyDateTimeType: TypeAlias = "str | float | int | np.datetime64 | pd.Timestamp | dt.datetime"
 
@@ -933,46 +1400,66 @@ def _should_convert(given_date: AnyDateTimeType, format_str: str | None = None) 
 
     # 1) Numbers, JD/MJD, decimal years, special keywords
     if isinstance(given_date, (int, float)) and not isinstance(given_date, bool):
-        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date is a number: {given_date}, so it will be converted by shifting the clock")
+        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Given date is a number: %s, so it will be converted by shifting the clock", given_date)
         return True
     if isinstance(given_date, str):
         u = given_date.strip().upper()
-        if u in ('J2000', 'UNIX', 'NOW'):
-            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date is a special keyword: {u}, so it will be converted by shifting the clock")
+        if u in ("J2000", "UNIX", "NOW"):
+            if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Given date is a special keyword: %s, so it will be converted by shifting the clock", u)
             return True
-        if format_str and format_str.upper() in ('JD', 'MJD'):
-            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date has a format_str: {format_str}, so it will be converted by shifting the clock")
+        if format_str and format_str.upper() in ("JD", "MJD"):
+            if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Given date has a format_str: %s, so it will be converted by shifting the clock", format_str)
             return True
         if _JD_MJD_SIMPLE_RE.fullmatch(given_date):
-            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date is a JD/MJD: {given_date}, so it will be converted by shifting the clock")
+            if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Given date is a JD/MJD: %s, so it will be converted by shifting the clock", given_date)
             return True
         # explicit offset or Z
         if _OFFSET_IN_STR_RE.search(given_date):
-            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date has an explicit offset or Z: {given_date}, so it will be converted by shifting the clock")
+            if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Given date has an explicit offset or Z: %s, so it will be converted by shifting the clock", given_date)
             return True
     # 2) Any datetime/timestamp already aware
     if isinstance(given_date, dt.datetime) and given_date.tzinfo is not None:
-        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date is an aware datetime: {given_date}, so it will be converted by shifting the clock")
+        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Given date is an aware datetime: %s, so it will be converted by shifting the clock", given_date)
         return True
 
     # Otherwise treat it as local‐time → attach only
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Given date is not a number, JD/MJD, or aware datetime: {given_date}, so the timezone will be attached without shifting the clock")
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Given date is not a number, JD/MJD, or aware datetime: %s, so the timezone will be attached without shifting the clock", given_date)
     return False
 
 
 def _finalize_datetime(parsed_dt: dt.datetime, original_input: AnyDateTimeType,
                        format_str: str | None, tz_arg: str | dt.tzinfo | None,
                        should_convert: bool | None = None) -> dt.datetime:
-    """Finalize the datetime object by either converting it to the target timezone or just attaching the timezone without shifting the clock. The boolean argument 'should_convert' can override the default behavior, which is determined by the function _should_convert()."""
-    if isinstance(tz_arg, str) and tz_arg.strip().upper() == 'NAIVE':
-        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Naive timezone requested, returning datetime {parsed_dt} without any timezone info")
+    """
+    Finalize the datetime object by either converting it to the target timezone or just attaching the timezone without shifting the clock. The boolean argument 'should_convert' can override the default behavior, which is determined by the function _should_convert().
+
+    Args:
+        parsed_dt:      The datetime object that has been parsed from the original input.
+        original_input: The original input that was used to parse the datetime.
+        format_str:     The format string used to parse the datetime, if any.
+        tz_arg:         The timezone argument, which can be a string or a datetime.tzinfo object.
+        should_convert: A boolean indicating whether to convert the datetime to the specified timezone by shifting the clock (True) or just attaching the timezone without shifting (False). If None, the function will determine this based on the type of original_input and format_str.
+
+    Returns:
+        A datetime.datetime object in the specified timezone.
+        If tz_arg is "Naive", the datetime will be returned without any timezone info.
+        If should_convert is True, the datetime will be converted to the specified timezone by shifting the clock.
+        If should_convert is False, the timezone will be attached to the datetime without shifting the clock.
+        If should_convert is None, the function will determine whether to convert or not based on the type of original_input and format_str.
+
+    Raises:
+        ValueError: If the tz_arg is not a valid timezone string or tzinfo object.
+        TypeError:  If the parsed_dt is not a datetime.datetime object.
+    """
+    if isinstance(tz_arg, str) and tz_arg.strip().upper() == "NAIVE":
+        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Naive timezone requested, returning datetime %s without any timezone info", parsed_dt)
         return parsed_dt.replace(tzinfo=None)
     target_tz = parse_timezone(tz_arg)
     if should_convert is not False and (_should_convert(original_input, format_str) or should_convert is True):
-        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Converting datetime {parsed_dt} to timezone {target_tz} by shifting the clock")
+        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Converting datetime %s to timezone %s by shifting the clock", parsed_dt, target_tz)
         return parsed_dt.astimezone(target_tz)
     else:
-        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Attaching timezone {target_tz} to datetime {parsed_dt} without shifting the clock")
+        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Attaching timezone %s to datetime %s without shifting the clock", target_tz, parsed_dt)
         return parsed_dt.replace(tzinfo=target_tz)
 
 
@@ -1011,12 +1498,16 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
         datetime.datetime objects (e.g. datetime.datetime(2002, 10, 18, 7, 0, 0))
 
     Args:
-        given_date:     The date to parse, which can be a string, float, int, numpy.datetime64, pandas.Timestamp, or datetime.datetime object.
-        timezone:       A string or datetime.tzinfo object representing the timezone to convert the datetime to. If None, defaults to UTC.
-        format_str:     A string indicating the format of the date. If None, the function will try to infer the format from the given_date.
-        should_convert: A boolean indicating whether to convert the datetime to the specified timezone by shifting the clock (True) or
-                        just attaching the timezone without shifting (False). If None, the function will determine this based on the type of
-                        given_date and format_str.
+        given_date:     The date to parse, which can be a string, float, int, numpy.datetime64,
+                        pandas.Timestamp, or datetime.datetime object.
+        timezone:       A string or datetime.tzinfo object representing the timezone to convert
+                        the datetime to. If None, defaults to UTC.
+        format_str:     A string indicating the format of the date. If None, the function will
+                        try to infer the format from the given_date.
+        should_convert: A boolean indicating whether to convert the datetime to the specified
+                        timezone by shifting the clock (True) or just attaching the timezone
+                        without shifting (False). If None, the function will determine this
+                        based on the type of given_date and format_str.
 
     Returns:
         datetime.datetime object in the specified timezone.
@@ -1027,7 +1518,6 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
     Raises:
         ValueError:  If the given_date cannot be parsed into a datetime object, or if the timezone is invalid.
         TypeError:   If the given_date is not a string, float, int, numpy.datetime64, pandas.Timestamp, or datetime.datetime object.
-        ImportError: If the 'jdcal' library is not installed and the given_date is a Julian Date or Modified Julian Date.
     """
     fallback_logging_config()  # Ensure logging is configured
 
@@ -1037,57 +1527,44 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
 
     # Handle special cases:
     if isinstance(given_date, str):
-        if given_date.strip().upper() == 'J2000':
+        if given_date.strip().upper() == "J2000":
             # J2000 is January 1, 2000, 11:58:55.816 UTC
             parsed_dt = dt.datetime(2000, 1, 1, 11, 58, 55, 816_000, tzinfo=dt.timezone.utc)
-        if given_date.strip().upper() == 'UNIX':
+        if given_date.strip().upper() == "UNIX":
             # UNIX epoch is January 1, 1970, 00:00:00 UTC
             parsed_dt = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
         if given_date.strip().upper() == "NOW":
             parsed_dt = dt.datetime.now(tz=dt.timezone.utc)
 
     # Handle forced or explicit Julian Date (JD) or Modified Julian Date (MJD)
-    m = None
-    prefix = None
+    m: re.Match | None = None
+    prefix: str | None = None
     if parsed_dt is None and isinstance(given_date, str):
         m = _JD_MJD_CAPTURE_RE.fullmatch(given_date)
         if m:
-            prefix = m.group('prefix')
+            prefix = m.group("prefix")
 
     # Trigger JD/MJD branch only if format_str equals "JD" or "MJD", or prefix was provided
-    if parsed_dt is None and (prefix is not None or (format_str and (format_str.upper() == 'JD' or format_str.upper() == 'MJD'))):
-
-        try:
-            import jdcal
-        except ImportError:
-            raise ImportError("The jdcal python library is required to parse Julian/MJD dates")
-
+    if parsed_dt is None and (prefix is not None or (format_str and (format_str.upper() == "JD" or format_str.upper() == "MJD"))):
         # Determine raw value
         if isinstance(given_date, (int, float)):
             value = float(given_date)
         else:
-            value = float(m.group('value'))
+            if m is not None:
+                value = float(m.group("value"))
+            else:
+                try:
+                    value = float(given_date.strip())
+                except ValueError as e:
+                    raise ValueError(f"Expected a JD/MJD numeric value, got {given_date!r}") from e
 
         # Determine if MJD conversion needed
-        use_mjd = bool((format_str and format_str.upper() == 'MJD') or (prefix and prefix.upper() == 'MJD'))
+        use_mjd = bool((format_str and format_str.upper() == "MJD") or (prefix and prefix.upper() == "MJD"))
 
-        # Convert MJD to JD if necessary
-        jd_val = value + (2_400_000.5 if use_mjd else 0.0)
-
-        # Split into integer day and fraction
-        int_part = int(jd_val)
-        frac_part = jd_val - int_part
-        year, month, day, day_frac = jdcal.jd2gcal(int_part, frac_part)
-
-        # Convert day fraction to hours, minutes, seconds, microseconds
-        day_int = int(day)
-        frac_of_day = (day + day_frac) - day_int
-        hours = int(frac_of_day * 24)
-        mins = int((frac_of_day * 24 - hours) * 60)
-        secs_frac = (frac_of_day * 24 - hours) * 60 - mins
-        secs = int(secs_frac * 60)
-        micros = int((secs_frac * 60 - secs) * 1e6)
-        parsed_dt = dt.datetime(year, month, day_int, hours, mins, secs, micros, tzinfo=dt.timezone.utc)
+        # Convert MJD to JD if necessary, then to datetime via timedelta from Unix epoch
+        jd_val    = value + (2_400_000.5 if use_mjd else 0.0)
+        unix_secs = (jd_val - _JD_UNIX_EPOCH) * 86_400
+        parsed_dt = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc) + dt.timedelta(seconds=unix_secs)
 
     # Check if the given_date is a string that can be parsed as a float
     if parsed_dt is None and isinstance(given_date, str) and is_float(given_date):
@@ -1104,12 +1581,12 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
             # Make sure the format string is a valid example of "units (optionally: since/after epoch)"
             # Try to split by since or after, whichever works:
             format_parts = re.split(r'\s+(since|after)\s+', format_str, maxsplit=1)
-            logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Parsing date with format string: '{format_str}' split into parts: {format_parts}")
+            if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Parsing date with format string: '%s' split into parts: %s", format_str, format_parts)
             if len(format_parts) > 3:
                 raise ValueError(f"Invalid format string: '{format_str}'. Expected at most three parts: 'units', 'since/after', and 'epoch'.")
             # The first part should be acceptable by seconds_in_unit():
             try:
-                units = format_parts[0].strip()
+                units      = format_parts[0].strip()
                 multiplier = seconds_in_unit(units)  # This will raise ValueError if the unit is unknown
             except ValueError as e:
                 raise ValueError(f"Invalid time unit '{units}' in format string '{format_str}': {e}") from e
@@ -1117,7 +1594,7 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
             if len(format_parts) == 1:
                 # If the format_parts list has only one part, it means the format is just "units" (e.g. "days", "weeks", etc.)
                 # In this case, we assume the epoch is the Unix epoch (1970-01-01T00:00:00Z).
-                epoch_str = '1970-01-01T00:00:00Z'
+                epoch_str = "1970-01-01T00:00:00Z"
             else:
                 # If the format_parts list has three parts, the third part is the epoch.
                 epoch_str = format_parts[2].strip()
@@ -1139,8 +1616,11 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
         except ImportError:
             np = None
         if np is not None and isinstance(given_date, np.datetime64):
-            ts_ns = given_date.astype('datetime64[ns]').astype('int64')
-            parsed_dt = dt.datetime.fromtimestamp(ts_ns/1e9, tz=parsed_tz)
+            ts_ns     = given_date.astype("datetime64[ns]").astype("int64")
+            parsed_dt = dt.datetime.fromtimestamp(
+                ts_ns / 1e9,
+                tz=parsed_tz if isinstance(parsed_tz, dt.tzinfo) else None,
+            )
 
     if parsed_dt is None:
         try:
@@ -1150,42 +1630,50 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
         if pd is not None and isinstance(given_date, pd.Timestamp):
             parsed_dt = given_date.to_pydatetime()
 
-    error_message = f"The date '{given_date}' is type {type(given_date).__name__!r} in an unknown format. Please use NOW, YYYY, YYYY-MM, YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, other ISO8601 strings, or a decimal year like 2002.291. Datetimes in pandas.Timestamp, numpy.datetime64, or datetime.datetime formats are also accepted and will be converted to datetime.datetime objects in the specified timezone ({parsed_tz})."
+    error_message: str = f"The date '{given_date}' is type {type(given_date).__name__!r} in an unknown format. Please use NOW, YYYY, YYYY-MM, YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, other ISO8601 strings, or a decimal year like 2002.291. Datetimes in pandas.Timestamp, numpy.datetime64, or datetime.datetime formats are also accepted and will be converted to datetime.datetime objects in the specified timezone ({parsed_tz})."
 
     if parsed_dt is None and not isinstance(given_date, str):
         raise TypeError(error_message)
 
+    if parsed_dt is not None:
+        # Finalize the datetime object by converting it to the target timezone or just attaching the timezone without shifting the clock
+        return _finalize_datetime(parsed_dt, given_date, format_str, parsed_tz, should_convert)
+
+    # From here on, we know it's a str (we raised or otherwise handled non-str types above)
+    assert isinstance(given_date, str)
+    given_string = given_date
+
     if parsed_dt is None and format_str is not None:
         try:
-            parsed_dt = dt.datetime.strptime(given_date, format_str)
+            parsed_dt = dt.datetime.strptime(given_string, format_str)
         except ValueError as e:
-            raise ValueError(f"Invalid date format '{given_date}' with specified format '{format_str}': {e}") from e
+            raise ValueError(f"Invalid date format '{given_string}' with specified format '{format_str}': {e}") from e
 
     # Try parsing the date string in various formats
     # Start with RFC 2822 format, then ISO8601, then free-form strings
     # Store any errors encountered in a list to provide feedback if all parsing attempts fail.
-    errors = []
+    errors: list[str] = []
 
     if parsed_dt is None:
         import email.utils
         try:
             # parses "Tue, 25 Jun 2025 14:00:00 GMT"
-            parsed_dt = email.utils.parsedate_to_datetime(given_date)
+            parsed_dt = email.utils.parsedate_to_datetime(given_string)
         except (TypeError, ValueError) as e:
-            errors.append(f"Failed to parse '{given_date}' as an RFC 2822 date: {e}")
+            errors.append(f"Failed to parse '{given_string}' as an RFC 2822 date: {e}")
 
     if parsed_dt is None:
         try:
-            parsed_dt = _parse_iso(given_date)
+            parsed_dt = _parse_iso(given_string)
         except ValueError as e:
-            errors.append(f"Failed to parse '{given_date}' as an ISO8601 date: {e}")
+            errors.append(f"Failed to parse '{given_string}' as an ISO8601 date: {e}")
 
     if parsed_dt is None:
         try:
             from dateutil.parser import parse as parse_fuzzy
-            parsed_dt = parse_fuzzy(given_date, default=dt.datetime(1900, 1, 1))
+            parsed_dt = parse_fuzzy(given_string, default=dt.datetime(1900, 1, 1))
         except ValueError as e:
-            errors.append(f"Failed to parse '{given_date}' as a free-form date string: {e}")
+            errors.append(f"Failed to parse '{given_string}' as a free-form date string: {e}")
 
     if parsed_dt is None:
         if np is None:
@@ -1194,9 +1682,9 @@ def parse_datetime(given_date: AnyDateTimeType, timezone: str | dt.tzinfo | None
             errors.append("The pandas package is not installed, so pandas.Timestamp objects cannot be parsed.")
     else:
         # Finalize the datetime object by converting it to the target timezone or just attaching the timezone without shifting the clock
-        return _finalize_datetime(parsed_dt, given_date, format_str, parsed_tz, should_convert)
+        return _finalize_datetime(parsed_dt, given_string, format_str, parsed_tz, should_convert)
 
-    raise ValueError(error_message + "\n".join(errors) + "\nPlease check the input format and try again.")
+    raise ValueError(error_message + "\n".join(map(str, errors)) + "\nPlease check the input format and try again.")
 
 
 if __name__ == "__main__":

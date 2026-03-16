@@ -131,7 +131,7 @@ def map_fields_for_NLDAS(options: Options) -> None:
     #     Path(frames_dir / png).unlink(missing_ok=True)
 
 
-def plot_nc_var(options: Options, data2d: np.ndarray, thevar: str, lons: np.ndarray, lats: np.ndarray, out_png: str | os.PathLike[str], *,
+def plot_nc_var(options: Options, data2d: np.ndarray, thevar: str, lons: np.ndarray, lats: np.ndarray, out_png: str | os.PathLike[str],
                 ds_units: str, title: str, vmin: float = None, vmax: float = None, extent: list = None) -> None:
     """
     Generic 2D plotting routine.
@@ -217,7 +217,7 @@ def plot_mean_nc_var(options: Options, nc_path: str | os.PathLike[str], thevar: 
                 ds_units=units, title=title, vmin=vmin, vmax=vmax, extent=extent)
 
 
-def plot_nc_var_at_time(options: Options, nc_path: str | os.PathLike[str], thevar: str, out_png: str | os.PathLike[str], *,
+def plot_nc_var_at_time(options: Options, nc_path: str | os.PathLike[str], thevar: str, out_png: str | os.PathLike[str],
                         time_index: int, vmin: float = None, vmax: float = None, extent: list = None) -> None:
     """
     Plot thevar at a single time slice by index.
@@ -312,27 +312,26 @@ def make_nc_var_movie(options: Options, nc_path: str | os.PathLike[str], thevar:
     else:
         vmin_all, vmax_all = vmin, vmax
 
-
     for tidx in range(nt):
         png = frames_dir / f"frame_{tidx:03d}.png"
         plot_nc_var_at_time(options, nc_path, thevar, png, time_index=tidx, vmin=vmin_all, vmax=vmax_all, extent=extent)
         logging.info(f"Saved frame {tidx+1}/{nt} to {png}")
 
     # Assemble movie (only if ffmpeg is available)
-    ffmpeg_path = ra.find_ffmpeg()
-    if not ffmpeg_path:
+    ffmpeg_path_str = ra.find_ffmpeg()
+    if not ffmpeg_path_str:
         logging.warning("ffmpeg not found (PATH/env/common locations). Skipping movie creation. "
                         f"Frames are in {frames_dir}")
         return
     cmd = [
-        ffmpeg_path,
+        ffmpeg_path_str,
         "-y",
         "-framerate", str(fps),
         "-start_number", "0",
-        "-i", str(frames_dir / "frame_%03d.png"),
+        "-i", os.fspath(frames_dir / "frame_%03d.png"),
         "-c:v", "libx264",
         "-pix_fmt", "yuv420p",
-        str(movie_path),
+        os.fspath(movie_path),
     ]
     subprocess.run(cmd, check=True)
     logging.info(f"Movie saved to {movie_path}")
