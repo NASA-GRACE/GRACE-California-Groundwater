@@ -14,7 +14,6 @@ import re
 import run_all as ra
 
 
-
 class Options(ra.PlotOptions):
     """Options for plotting time series data."""
 
@@ -56,14 +55,13 @@ class Options(ra.PlotOptions):
         # If True, rebase all component series to zero at their first point (notebook-like behavior); if False, plot the raw values.
         self.rebase_components_to_first_point:           bool = bool(1)
 
-        self.area_diff_max:               float = 0.05     # For comparing areas across CSV files, set to None to disable the warning
-        self.plot_mm:                      bool = bool(0)  # If True, plot mm water equivalent height. If False, plot volume (km³).
+        self.area_diff_max:        float | None = 0.05     # For comparing areas across CSV files, set to None to disable the warning
+        self.plot_thickness:               bool = bool(1)  # If True, plot water equivalent height if basin area is available. Otherwise, plot volume.
 
         # Dates at which to break the plotted lines (list of datetime.datetime)
         # self.discontinuities: list[dt.datetime] = []  # Uncomment this line to have no discontinuities
         self.discontinuities: list[dt.datetime] = [ra.parse_datetime(d, timezone='naive') for d in ['2018-05-01']]
         self.estimate_trends:               int =  1  # 1 = estimate trends, 0 = do not estimate
-        self.units:                         str = "mm" if self.plot_mm else "km³"
         self.title_font:                    int = 16
         self.subtitle_font:                 int = 14
         self.legend_font:                   int =  9
@@ -209,6 +207,28 @@ def _apply_axes_theme(options: Options, ax: plt.Axes) -> None:
         spine.set_color(options.text_color)
 
 
+def _resolve_unit_factor(options: Options, path: str | os.PathLike[str],
+                         context: str = "") -> tuple[float, str]:
+    """
+    If plot_thickness is True, attempt to read basin area from the CSV header and
+    compute the options.volume_units -> options.thickness_units conversion factor.
+    When area metadata is absent, fall back to (1.0, options.volume_units).
+
+    Returns:
+        (unit_factor, effective_units) — e.g. (6.547, "mm") or (1.0, "km³").
+    """
+    if not options.plot_thickness:
+        return 1.0, options.volume_units
+    areas        = ra.read_total_areas_m2_from_csv(path)
+    mean_area_m2 = ra.mean_total_area_m2_and_warn(
+        areas, area_diff_max=options.area_diff_max,
+        context=context,
+    )
+    if mean_area_m2 is not None:
+        return ra.volume_to_thickness_factor(mean_area_m2), options.thickness_units
+    return 1.0, options.volume_units
+
+
 def make_groundwater_yearly_panels(options: Options) -> None:
     """
     Create a figure with two panels showing groundwater anomalies for the default basin,
@@ -221,21 +241,16 @@ def make_groundwater_yearly_panels(options: Options) -> None:
         cal_path = _latest_matching(options.output_dir, f"*groundwater_{basin_safe}_*calendar_year_averages*.csv")
         wat_path = _latest_matching(options.output_dir, f"*groundwater_{basin_safe}_*water_year_averages*.csv")
 
-        areas        = ra.read_total_areas_m2_from_csv(cal_path)
-        mean_area_m2 = ra.mean_total_area_m2_and_warn(
-            areas, area_diff_max=options.area_diff_max,
-            context=f"{basin_title} yearly groundwater ({cal_path.name})"
-        )
-        unit_factor = 1.0
-        if options.plot_mm:
-            if mean_area_m2 is None:
-                raise ValueError("plot_mm=True but no total_area_m2* entries found in yearly groundwater CSV header.")
-            unit_factor = ra.km3_to_mm_factor(mean_area_m2)
+        unit_factor, effective_units = _resolve_unit_factor(
+            options, cal_path,
+            context=f"{basin_title} yearly groundwater ({cal_path.name})")
+        if options.plot_thickness and effective_units != options.thickness_units:
+            raise ValueError(f"plot_thickness=True but no total_area_m2* entries found in yearly groundwater CSV header for {basin_title}.")
 
         cal = ra.load_plot_timeseries(cal_path, date_col="date")
         wat = ra.load_plot_timeseries(wat_path, date_col="date")
 
-        if unit_factor != 1.0:
+        if options.plot_thickness:
             cal                 = cal.copy()
             wat                 = wat.copy()
             cal["groundwater"] *= unit_factor
@@ -260,7 +275,7 @@ def make_groundwater_yearly_panels(options: Options) -> None:
             gap_threshold=getattr(options, "gap_threshold_years", None),
         )
         axes[0].set_title(f"Calendar-year groundwater anomalies – {basin_title}", fontsize=options.title_font)
-        axes[0].set_ylabel(f"Groundwater anomaly ({options.units}, yearly mean)")
+        axes[0].set_ylabel(f"Groundwater anomaly ({effective_units}, yearly mean)")
         axes[0].legend()
         axes[0].grid(True)
 
@@ -272,7 +287,7 @@ def make_groundwater_yearly_panels(options: Options) -> None:
         )
         axes[1].set_title(f"Water-year groundwater anomalies – {basin_title}", fontsize=options.title_font)
         axes[1].set_xlabel("Year (centered)")
-        axes[1].set_ylabel(f"Groundwater anomaly ({options.units}, yearly mean)")
+        axes[1].set_ylabel(f"Groundwater anomaly ({effective_units}, yearly mean)")
         axes[1].legend()
         axes[1].grid(True)
 
@@ -289,10 +304,11 @@ def make_components_all_basins_plot(options: Options) -> None:
     Create a figure with three panels showing SWE, reservoir anomaly, and groundwater anomaly across all basins.
     """
     with plt.rc_context(options.rc_plot_multipanel):
+        effective_units = options.thickness_units if options.plot_thickness else options.volume_units
         components = [
-            ("swe",         "Snow water equivalent (SWE)", f"SWE ({options.units})"),
-            ("reservoirs",  "Reservoir storage anomaly",   f"Reservoir anomaly ({options.units})"),
-            ("groundwater", "Groundwater anomaly",         f"Groundwater anomaly ({options.units})"),
+            ("swe",         "Snow water equivalent (SWE)", f"SWE ({effective_units})"),
+            ("reservoirs",  "Reservoir storage anomaly",   f"Reservoir anomaly ({effective_units})"),
+            ("groundwater", "Groundwater anomaly",         f"Groundwater anomaly ({effective_units})"),
         ]
 
         series_by_component = {c[0]: {} for c in components}
@@ -305,23 +321,18 @@ def make_components_all_basins_plot(options: Options) -> None:
                     series_by_component[comp][basin] = df
                     basins_with_any_data.add(basin)
 
-        basin_mean_area_m2: dict[str, float] = {}
-        basin_unit_factor:  dict[str, float] = {}
+        basin_unit_factor: dict[str, float] = {}
 
-        if options.plot_mm:
-            # Prefer groundwater file (it should contain all three total_area_m2* keys in its multi-section header)
+        if options.plot_thickness:
             for basin, gw_df in series_by_component.get("groundwater", {}).items():
                 src = gw_df.attrs.get("source_path")
                 if not src:
                     continue
-                areas = ra.read_total_areas_m2_from_csv(src)
-                mean_area = ra.mean_total_area_m2_and_warn(
-                    areas, area_diff_max=options.area_diff_max,
-                    context=f"{basin} component plot ({Path(src).name})"
-                )
-                if mean_area is not None:
-                    basin_mean_area_m2[basin] = mean_area
-                    basin_unit_factor[basin] = ra.km3_to_mm_factor(mean_area)
+                uf, eu = _resolve_unit_factor(
+                    options, src,
+                    context=f"{basin} component plot ({Path(src).name})")
+                if eu == options.thickness_units:
+                    basin_unit_factor[basin] = uf
 
         if not basins_with_any_data:
             logging.warning("No multi-basin component data found.")
@@ -344,9 +355,9 @@ def make_components_all_basins_plot(options: Options) -> None:
                 continue
 
             for basin, df in comp_dict.items():
+                if options.plot_thickness and basin not in basin_unit_factor:
+                    raise ValueError(f"{basin}: plot_thickness=True but could not compute mean area.")
                 unit_factor = basin_unit_factor.get(basin, 1.0)
-                if options.plot_mm and unit_factor == 1.0:
-                    logging.warning(f"{basin}: plot_mm=True but could not compute mean area; leaving this basin in km^3.")
 
                 ra.plot_prepped_with_uncertainty(
                     ax,
@@ -391,24 +402,27 @@ def make_components_one_basin_plot(options: Options, basin_name: str) -> None:
         _apply_axes_theme(options, ax)
         found_any = False
 
+        unit_factor     = 1.0
+        effective_units = options.volume_units
+        gw_df           = ra.load_component_series(options, "groundwater", basin_name)
+        if options.plot_thickness:
+            src = gw_df.attrs.get("source_path") if gw_df is not None else None
+            if src is not None:
+                unit_factor, effective_units = _resolve_unit_factor(
+                    options, src,
+                    context=f"{basin_name} one-basin component plot ({Path(src).name})")
+                if effective_units != options.thickness_units:
+                    raise ValueError(f"{basin_name}: plot_thickness=True but could not compute mean area.")
+            else:
+                raise ValueError(f"{basin_name}: plot_thickness=True but groundwater data not available for area lookup.")
+
         for comp, pretty in components:
-            df = ra.load_component_series(options, comp, basin_name)
+            if comp == "groundwater":
+                df = gw_df
+            else:
+                df = ra.load_component_series(options, comp, basin_name)
             if df is None or df.empty:
                 continue
-            mean_area_m2 = None
-            if options.plot_mm:
-                gw_df = ra.load_component_series(options, "groundwater", basin_name)
-                if gw_df is not None:
-                    src = gw_df.attrs.get("source_path")
-                    if src:
-                        areas        = ra.read_total_areas_m2_from_csv(src)
-                        mean_area_m2 = ra.mean_total_area_m2_and_warn(
-                            areas, area_diff_max=options.area_diff_max,
-                            context=f"{basin_name} one-basin component plot ({Path(src).name})"
-                        )
-            unit_factor = ra.km3_to_mm_factor(mean_area_m2) if (options.plot_mm and mean_area_m2 is not None) else 1.0
-            if options.plot_mm and unit_factor == 1.0:
-                logging.warning(f"{basin_name}: plot_mm=True but could not compute mean area; plotting in km^3.")
             found_any = True
             ra.plot_prepped_with_uncertainty(
                 ax,
@@ -428,10 +442,10 @@ def make_components_one_basin_plot(options: Options, basin_name: str) -> None:
             return
 
         ax.set_title(f"Snow water equivalent, reservoirs anomaly, and groundwater anomaly – {basin_name}", fontsize=options.title_font)
-        if options.plot_mm:
-            ax.set_ylabel(f"Water height ({options.units})")
+        if options.plot_thickness:
+            ax.set_ylabel(f"Water height ({effective_units})")
         else:
-            ax.set_ylabel(f"Water volume ({options.units})")
+            ax.set_ylabel(f"Water volume ({effective_units})")
         if ax.get_legend_handles_labels()[0]:
             ax.legend(loc="upper left", fontsize=options.legend_font)
         plt.tight_layout()
@@ -498,15 +512,21 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
         FileNotFoundError: If any of the CSV files do not exist (raised when pandas tries to read them).
     """
     with plt.rc_context(options.rc_plot):
+        # Determine effective units: options.thickness_units if area metadata is available, options.volume_units otherwise.
+        # All files in one make_plot call share the same datatype, so the first file
+        # is representative.
+        _, effective_units = _resolve_unit_factor(
+            options, csv_paths[0],
+            context=f"make_plot units check ({csv_paths[0].name})")
         if len(csv_paths) == 1:
             title  = plot_title or f"{datatype} anomaly in {basin_titles[0]}"
-            ylabel = y_label    or f"{datatype} anomaly ({options.units})"
+            ylabel = y_label    or f"{datatype} anomaly ({effective_units})"
         else:
             if len(set(basin_titles)) == 1:
                 title = plot_title or f"{datatype} anomalies – {basin_titles[0]}"
             else:
                 title = plot_title or f"{datatype} anomalies"
-            ylabel = y_label or f"{datatype} anomaly ({options.units})"
+            ylabel = y_label or f"{datatype} anomaly ({effective_units})"
 
         fig, ax = plt.subplots(figsize=options.myfigsize, facecolor=options.background_color)
         _apply_axes_theme(options, ax)
@@ -544,6 +564,13 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
 
             df = df[[val_col, err_col]].dropna()
 
+            # Unit scaling from volume to thickness (e.g., km³ -> mm water equivalent height). Error scales identically.
+            unit_factor, _ = _resolve_unit_factor(
+                options, path,
+                context=f"{basin} make_plot ({path.name})")
+            df[val_col] *= unit_factor
+            df[err_col] *= unit_factor
+
             m  = options.markers        [idx % len(options.markers)]
             ls = options.linestyles     [idx % len(options.linestyles)]
             if options.dark_mode:
@@ -564,8 +591,8 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
                 slope, intercept = np.polyfit(x, df[val_col], 1)
                 # convert slope to units per year (≈365.25 days)
                 trend_per_year = slope * 365.25
-                # format it as "+0.23 km³/yr"
-                the_label += f", {trend_per_year:+.2f} {options.units}/yr"
+                # format it as "+0.23 km³/yr" or "+1.5 mm/yr" depending on effective_units
+                the_label += f", {trend_per_year:+.2f} {effective_units}/yr"
 
             # Build a temporary frame with standardized names for plotting
             plot_df = df[[val_col, err_col]].rename(columns={val_col: "value", err_col: "error"})

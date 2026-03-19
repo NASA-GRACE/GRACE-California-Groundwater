@@ -46,6 +46,9 @@ class Options:
 
         self.digits_after_decimal:                int = 3  # Number of digits after decimal point in output CSV files
 
+        self.volume_units:       str = "km³"  # Units for volume    in output CSV files and plots
+        self.thickness_units:    str = "mm"   # Units for thickness in output CSV files and plots
+
         self.swe_dir:           Path = self.project_root / "input_data"    / "snow_water_equivalent" / self.swe_model
         self.soil_moisture_dir: Path = self.project_root / "input_data"    / "soil_moisture"         / self.soil_moisture_model
         self.reservoirs_dir:    Path = self.project_root / "input_data"    / "reservoirs"            / self.reservoirs_model
@@ -522,13 +525,12 @@ def read_total_areas_m2_from_csv(path: str | os.PathLike[str]) -> dict[str, floa
     return areas
 
 
-def mean_total_area_m2_and_warn(
-    areas: dict[str, float],
-    *,
-    area_diff_max: float = 0.01,
-    context: str = "") -> float | None:
+def mean_total_area_m2_and_warn(areas: dict[str, float],
+                                *,
+                                area_diff_max: float | None = 0.05,
+                                context:                str = "") -> float | None:
     """
-    Compute mean area and warn if any abs((Ai-mean)/mean) > area_diff_max.
+    Compute mean area and warn if area_diff_max is not None and any abs((Ai-mean)/mean) > area_diff_max.
     Returns mean, or None if areas is empty.
     """
     import logging
@@ -546,32 +548,32 @@ def mean_total_area_m2_and_warn(
             f"but found {len(vals)}: {sorted(areas.keys())}"
         )
 
-    for k, v in areas.items():
-        rel = (float(v) - mean) / mean
-        if abs(rel) > float(area_diff_max):
-            logging.warning(
-                f"{context}: {k}={v:.6g} m^2 differs from mean={mean:.6g} m^2 by {rel:+.3%} "
-                f"(limit={area_diff_max:.3%})"
-            )
+    if area_diff_max is not None:
+        for k, v in areas.items():
+            rel = (float(v) - mean) / mean
+            if abs(rel) > float(area_diff_max):
+                logging.warning(f"{context}: {k}={v:.6g} m^2 differs from mean={mean:.6g} m^2 by {rel:+.3%} "
+                                f"(limit={area_diff_max:.3%})")
+
     return mean
 
 
-def km3_to_mm_factor(mean_area_m2: float) -> float:
+def volume_to_thickness_factor(mean_area_m2: float) -> float:
     """
-    Convert km^3 volume to mm equivalent water height using area (m^2).
+    Convert volume to equivalent water height using area.
+
+    For example, suppose we have a volume in km^3 and want to convert to mm of water equivalent height over an area in m^2:
 
     mm = km^3 * (1e9 m^3/km^3) / area_m2 * (1000 mm/m) = km^3 * 1e12 / area_m2
     """
     return 1.0e12 / float(mean_area_m2)
 
 
-def load_plot_timeseries(
-    path: str | os.PathLike[str],
-    *,
-    date_col: str | int = 0,
-    align_monthly_day: int | None = None,
-    comment: str = "#",
-) -> pd.DataFrame:
+def load_plot_timeseries(path: str | os.PathLike[str],
+                         *,
+                         date_col:           str | int = 0,
+                         align_monthly_day: int | None = None,
+                         comment:                  str = "#") -> pd.DataFrame:
     """
     Load a time-series CSV for plotting.
 
@@ -600,11 +602,10 @@ def load_plot_timeseries(
     return df
 
 
-def segment_timeseries(
-    df: pd.DataFrame,
-    *,
-    discontinuities: list[pd.Timestamp] | None = None,
-    gap_threshold:         pd.Timedelta | None = None) -> list[pd.DataFrame]:
+def segment_timeseries(df: pd.DataFrame,
+                       *,
+                       discontinuities: list[pd.Timestamp] | None = None,
+                       gap_threshold:         pd.Timedelta | None = None) -> list[pd.DataFrame]:
     """
     Split a DataFrame (DatetimeIndex) into contiguous plotting segments.
 
@@ -664,12 +665,11 @@ def _rolling_sigma(series: pd.Series) -> float:
     return math.sqrt(float((s * s).sum())) / n
 
 
-def smooth_value_error(
-    df: pd.DataFrame,
-    value_col: str,
-    error_col: str,
-    *,
-    window: int = 3) -> pd.DataFrame:
+def smooth_value_error(df: pd.DataFrame,
+                       value_col: str,
+                       error_col: str,
+                       *,
+                       window: int = 3) -> pd.DataFrame:
     """Apply a rolling mean to the value column and a custom rolling sigma to the error column."""
     import pandas as pd
     out = df.copy()
@@ -678,12 +678,11 @@ def smooth_value_error(
     return out
 
 
-def average_timeseries(
-    df: pd.DataFrame,
-    *,
-    year_type: str = "calendar",
-    value_col: str = "groundwater",
-    error_col: str = "error") -> pd.DataFrame:
+def average_timeseries(df: pd.DataFrame,
+                       *,
+                       year_type: str = "calendar",
+                       value_col: str = "groundwater",
+                       error_col: str = "error") -> pd.DataFrame:
     """
     Aggregate a monthly series into yearly averages with propagated uncertainty.
 
@@ -741,20 +740,19 @@ def average_timeseries(
     return yearly
 
 
-def plot_with_uncertainty(
-    ax: plt.Axes,
-    df: pd.DataFrame,
-    value_col: str,
-    error_col: str,
-    label:                          str | None = None,
-    color:                          str | None = None,
-    marker:                         str | None = None,
-    linestyle:                             str = "-",
-    gap_threshold:         pd.Timedelta | None = None,
-    discontinuities: list[pd.Timestamp] | None = None,
-    shift_to_zero:                        bool = False,
-    smooth_window:                  int | None = None,
-    alpha_band:                          float = 0.2) -> None:
+def plot_with_uncertainty(ax: plt.Axes,
+                          df: pd.DataFrame,
+                          value_col: str,
+                          error_col: str,
+                          label:                          str | None = None,
+                          color:                          str | None = None,
+                          marker:                         str | None = None,
+                          linestyle:                             str = "-",
+                          gap_threshold:         pd.Timedelta | None = None,
+                          discontinuities: list[pd.Timestamp] | None = None,
+                          shift_to_zero:                        bool = False,
+                          smooth_window:                  int | None = None,
+                          alpha_band:                          float = 0.2) -> None:
     """
     Generic line + ±1σ band plotter.
     Handles optional smoothing, rebasing, and line splitting.
@@ -810,23 +808,22 @@ def plot_with_uncertainty(
     return line_obj
 
 
-def plot_prepped_with_uncertainty(
-    ax: plt.Axes,
-    df: pd.DataFrame,
-    *,
-    label:                          str | None = None,
-    value_col:                      str | None = None,
-    error_col:                             str = "error",
-    color:                          str | None = None,
-    marker:                         str | None = None,
-    linestyle:                             str = "-",
-    gap_threshold:         pd.Timedelta | None = None,
-    discontinuities: list[pd.Timestamp] | None = None,
-    shift_to_zero:                        bool = False,
-    smooth_window:                  int | None = None,
-    rebase_to_first_point:                bool = False,
-    alpha_band:                          float = 0.2,
-    unit_factor:                         float = 1.0) -> None:
+def plot_prepped_with_uncertainty(ax: plt.Axes,
+                                  df: pd.DataFrame,
+                                  *,
+                                  label:                          str | None = None,
+                                  value_col:                      str | None = None,
+                                  error_col:                             str = "error",
+                                  color:                          str | None = None,
+                                  marker:                         str | None = None,
+                                  linestyle:                             str = "-",
+                                  gap_threshold:         pd.Timedelta | None = None,
+                                  discontinuities: list[pd.Timestamp] | None = None,
+                                  shift_to_zero:                        bool = False,
+                                  smooth_window:                  int | None = None,
+                                  rebase_to_first_point:                bool = False,
+                                  alpha_band:                          float = 0.2,
+                                  unit_factor:                         float = 1.0) -> None:
     """
     DRY helper for plots like the notebook's component plots.
 
@@ -874,7 +871,7 @@ def plot_prepped_with_uncertainty(
     d = df[[value_col, error_col]].dropna().copy()
     if d.empty:
         return None
-    # Unit scaling (e.g., km^3 -> mm). Error scales identically.
+    # Unit scaling from volume to thickness (e.g., km^3 -> mm water equivalent height). Error scales identically.
     if unit_factor != 1.0:
         d[value_col] = d[value_col] * float(unit_factor)
         d[error_col] = d[error_col] * float(unit_factor)
@@ -1099,9 +1096,9 @@ def find_ffmpeg() -> str | None:
     # 3) Typical Conda/Miniconda/Mambaforge locations
     sp = Path(sys.prefix)  # current Python env prefix
     candidates = [
-        sp / "bin" / "ffmpeg",                 # Unix-like
+        sp / "bin" / "ffmpeg",                  # Unix-like
         sp / "Library" / "bin" / "ffmpeg.exe",  # Windows (Conda)
-        sp / "Scripts" / "ffmpeg.exe",         # Windows (alt)
+        sp / "Scripts" / "ffmpeg.exe",          # Windows (alt)
     ]
 
     # 4) Common Windows installs (adjust or extend as you like)
