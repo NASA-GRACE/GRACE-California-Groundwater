@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Written in 2025/2026 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), GitHub Copilot (it/its), and Claude Opus 4.6 extended.
+# Written in 2025/2026 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), GitHub Copilot (it/its), and Claude Opus 4.6 extended (it/its).
 from __future__ import annotations  # For Python 3.7+ compatibility with type annotations
 
 import os
@@ -46,8 +46,10 @@ class Options:
 
         self.digits_after_decimal:                int = 3  # Number of digits after decimal point in output CSV files
 
-        self.volume_units:       str = "km³"  # Units for volume    in output CSV files and plots
-        self.thickness_units:    str = "mm"   # Units for thickness in output CSV files and plots
+        self.volume_units:          str = "km³"                                                # Units for volume    in output CSV files and plots
+        self.volume_description:    str = f"water volume ({self.volume_units})"                # Description for volume in plot labels
+        self.thickness_units:       str = "mm"                                                 # Units for thickness in output CSV files and plots
+        self.thickness_description: str = f"water equivalent height ({self.thickness_units})"  # Description for thickness in plot labels
 
         self.swe_dir:           Path = self.project_root / "input_data"    / "snow_water_equivalent" / self.swe_model
         self.soil_moisture_dir: Path = self.project_root / "input_data"    / "soil_moisture"         / self.soil_moisture_model

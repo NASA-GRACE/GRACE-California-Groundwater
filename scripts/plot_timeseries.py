@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Written in 2025/2026 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), GitHub Copilot (it/its), and Claude Opus 4.6 extended.
+# Written in 2025/2026 at JPL by Emmy Killett (she/her), ChatGPT o4-mini-high (it/its), ChatGPT 5 (it/its), GitHub Copilot (it/its), and Claude Opus 4.6 extended (it/its).
 import os
 from pathlib import Path
 import argparse
