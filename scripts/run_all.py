@@ -46,10 +46,11 @@ class Options:
 
         self.digits_after_decimal:                int = 3  # Number of digits after decimal point in output CSV files
 
-        self.volume_units:          str = "km³"                                                # Units for volume    in output CSV files and plots
-        self.volume_description:    str = f"water volume ({self.volume_units})"                # Description for volume in plot labels
+        self.volume_units_text:     str = "km^3"                                               # Units for volume in output CSV files
+        self.volume_units_pretty:   str = "km³"                                                # Units for volume in plots
+        self.volume_description:    str = f"water volume ({self.volume_units_text})"           # Description for volume in output CSV files
         self.thickness_units:       str = "mm"                                                 # Units for thickness in output CSV files and plots
-        self.thickness_description: str = f"water equivalent height ({self.thickness_units})"  # Description for thickness in plot labels
+        self.thickness_description: str = f"water equivalent height ({self.thickness_units})"  # Description for thickness in output CSV files and plots
 
         self.swe_dir:           Path = self.project_root / "input_data"    / "snow_water_equivalent" / self.swe_model
         self.soil_moisture_dir: Path = self.project_root / "input_data"    / "soil_moisture"         / self.soil_moisture_model
@@ -569,6 +570,28 @@ def volume_to_thickness_factor(mean_area_m2: float) -> float:
     mm = km^3 * (1e9 m^3/km^3) / area_m2 * (1000 mm/m) = km^3 * 1e12 / area_m2
     """
     return 1.0e12 / float(mean_area_m2)
+
+
+def resolve_unit_factor(*paths: str | os.PathLike[str],
+                        area_diff_max: float | None = 0.05,
+                        context: str = "") -> tuple[float | None, float]:
+    """
+    Read basin area from one or more CSV headers and compute the
+    volume → thickness conversion factor.
+
+    Returns:
+        (mean_area_m2, unit_factor) — mean_area_m2 is None when no
+        total_area_m2 entries are found in any of the given files.
+    """
+    all_areas: dict[str, float] = {}
+    for p in paths:
+        all_areas.update(read_total_areas_m2_from_csv(p))
+    mean_area_m2 = mean_total_area_m2_and_warn(
+        all_areas, area_diff_max=area_diff_max, context=context,
+    )
+    if mean_area_m2 is not None:
+        return mean_area_m2, volume_to_thickness_factor(mean_area_m2)
+    return None, 1.0
 
 
 def load_plot_timeseries(path: str | os.PathLike[str],

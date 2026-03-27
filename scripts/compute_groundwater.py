@@ -142,8 +142,15 @@ def main() -> None:
         "grace":                 grace_header_attrs,
     }
 
+    # Resolve basin area and volume→thickness conversion factor from input CSV headers
+    mean_area_m2, unit_factor = ra.resolve_unit_factor(
+        options.args.grace, options.args.swe, options.args.soilm,
+        area_diff_max=0.05, context=basin_title,
+    )
+    options.mean_area_m2 = mean_area_m2  # used by _write_df_with_header
+
     # Compute groundwater and error
-    sw, tws = compute_groundwater(options, grace, swe, soil_moisture, reservoirs)
+    sw, tws   = compute_groundwater(options, grace, swe, soil_moisture, reservoirs)
     df_tws_gw = pd.concat([sw, tws], axis=1)
     logging.info(f"Computed groundwater series with {len(sw)} entries.")
 
@@ -364,7 +371,12 @@ def _write_df_with_header(options: Options, df: pd.DataFrame,
         float_format = f"%.{digits_after_decimal}f"
 
     with open(out_path, "w", newline="", encoding="utf-8") as fh:
-        fh.write(f"# Values are in units of {options.volume_description}\n")
+        fh.write(f"# Values are in units of {options.volume_description}.\n")
+        mean_area_m2 = getattr(options, "mean_area_m2", None)
+        if mean_area_m2 is not None:
+            fh.write(f"# Average area of the {options.args.basin} basin using these datasets: {mean_area_m2} m^2\n")
+            fh.write(f"# Multiply these values by {ra.volume_to_thickness_factor(mean_area_m2):.4f}"
+                     f" to convert from {options.volume_description} to {options.thickness_description}.\n")
         if description:
             fh.write(f"# {description}\n#\n")
         if sections:

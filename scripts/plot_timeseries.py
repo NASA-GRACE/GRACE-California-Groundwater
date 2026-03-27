@@ -211,22 +211,20 @@ def _resolve_unit_factor(options: Options, path: str | os.PathLike[str],
                          context: str = "") -> tuple[float, str]:
     """
     If plot_thickness is True, attempt to read basin area from the CSV header and
-    compute the options.volume_units -> options.thickness_units conversion factor.
-    When area metadata is absent, fall back to (1.0, options.volume_units).
+    compute the options.volume_units_pretty -> options.thickness_units conversion factor.
+    When area metadata is absent, fall back to (1.0, options.volume_units_pretty).
 
     Returns:
         (unit_factor, effective_units) — e.g. (6.547, "mm") or (1.0, "km³").
     """
     if not options.plot_thickness:
-        return 1.0, options.volume_units
-    areas        = ra.read_total_areas_m2_from_csv(path)
-    mean_area_m2 = ra.mean_total_area_m2_and_warn(
-        areas, area_diff_max=options.area_diff_max,
-        context=context,
+        return 1.0, options.volume_units_pretty
+    mean_area_m2, unit_factor = ra.resolve_unit_factor(
+        path, area_diff_max=options.area_diff_max, context=context,
     )
     if mean_area_m2 is not None:
-        return ra.volume_to_thickness_factor(mean_area_m2), options.thickness_units
-    return 1.0, options.volume_units
+        return unit_factor, options.thickness_units
+    return 1.0, options.volume_units_pretty
 
 
 def make_groundwater_yearly_panels(options: Options) -> None:
@@ -304,7 +302,7 @@ def make_components_all_basins_plot(options: Options) -> None:
     Create a figure with three panels showing SWE, reservoir anomaly, and groundwater anomaly across all basins.
     """
     with plt.rc_context(options.rc_plot_multipanel):
-        effective_units = options.thickness_units if options.plot_thickness else options.volume_units
+        effective_units = options.thickness_units if options.plot_thickness else options.volume_units_pretty
         components = [
             ("swe",         "Snow water equivalent (SWE)", f"SWE ({effective_units})"),
             ("reservoirs",  "Reservoir storage anomaly",   f"Reservoir anomaly ({effective_units})"),
@@ -403,7 +401,7 @@ def make_components_one_basin_plot(options: Options, basin_name: str) -> None:
         found_any = False
 
         unit_factor     = 1.0
-        effective_units = options.volume_units
+        effective_units = options.volume_units_pretty
         gw_df           = ra.load_component_series(options, "groundwater", basin_name)
         if options.plot_thickness:
             src = gw_df.attrs.get("source_path") if gw_df is not None else None
@@ -512,7 +510,7 @@ def make_plot(options: Options, csv_paths: list[Path], datatype: str, basin_titl
         FileNotFoundError: If any of the CSV files do not exist (raised when pandas tries to read them).
     """
     with plt.rc_context(options.rc_plot):
-        # Determine effective units: options.thickness_units if area metadata is available, options.volume_units otherwise.
+        # Determine effective units: options.thickness_units if area metadata is available, options.volume_units_pretty otherwise.
         # All files in one make_plot call share the same datatype, so the first file
         # is representative.
         _, effective_units = _resolve_unit_factor(
