@@ -43,6 +43,7 @@ class Options(ra.Options):
         self.default_grace_csv:         str = "LATEST_GRACE_FOR_BASIN.csv"
         self.default_output_csv:        str = f"anomaly_timeseries_groundwater_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
         self.default_output_gw_tws_csv: str = f"anomaly_timeseries_groundwater_and_tws_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
+        self.default_all_output_csv:    str = f"anomaly_timeseries_all_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
         self.default_window_size:       int = 3  # default window size for the moving average used in smoothing the output
         self.timeseries_dir.mkdir(parents=True, exist_ok=True)  # Ensure the timeseries directory exists
 
@@ -107,6 +108,8 @@ def main() -> None:
     options.args.output        = Path(options.args.output).expanduser().resolve()
     options.args.output_gw_tws = options.output_dir_gw_tws / options.default_output_gw_tws_csv.replace("CURRENT_DATETIME", timestamp)
     options.args.output_gw_tws = Path(options.args.output_gw_tws).expanduser().resolve()
+    options.args.output_all    = options.output_dir_gw_tws / options.default_all_output_csv.replace("CURRENT_DATETIME", timestamp)
+    options.args.output_all    = Path(options.args.output_all).expanduser().resolve()
     logging.info(f"Output will be saved to {options.args.output}")
 
     # Load input series
@@ -150,7 +153,7 @@ def main() -> None:
     options.mean_area_m2 = mean_area_m2  # used by _write_df_with_header
 
     # Compute groundwater and error
-    sw, tws   = compute_groundwater(options, grace, swe, soil_moisture, reservoirs)
+    sw, tws, df_all_components = compute_groundwater(options, grace, swe, soil_moisture, reservoirs)
     df_tws_gw = pd.concat([sw, tws], axis=1)
     logging.info(f"Computed groundwater series with {len(sw)} entries.")
 
@@ -205,6 +208,47 @@ def main() -> None:
                           sections=header_sections, digits_after_decimal=options.digits_after_decimal,
                           description=desc_monthly_smoothed)
     logging.info(f"Groundwater-and-TWS series (monthly, smoothed) written to {smoothed_output_path_gw_tws}")
+
+# Save CSV with all components (TWS, SWE, soil moisture, reservoirs, groundwater)
+    ALL_COLUMN_PAIRS = [
+        ("total water storage",    "total water storage error"),
+        ("snow water equivalent",  "snow water equivalent error"),
+        ("soil moisture",          "soil moisture error"),
+        ("reservoirs",             "reservoirs error"),
+        ("groundwater estimate",   "groundwater estimate error"),
+    ]
+    # The "reservoirs" column doesn't need renaming (the internal name already matches the desired output name),
+    # so it's intentionally absent from the rename dict.
+    df_all = df_all_components.rename(columns={
+        "grace":          "total water storage",
+        "err_grace":      "total water storage error",
+        "swe":            "snow water equivalent",
+        "err_swe":        "snow water equivalent error",
+        "soilm":          "soil moisture",
+        "err_soilm":      "soil moisture error",
+        "err_reservoirs": "reservoirs error",
+        "groundwater":    "groundwater estimate",
+        "error":          "groundwater estimate error",
+    })[[col for pair in ALL_COLUMN_PAIRS for col in pair]]
+
+    monthly_unsmoothed_output_path_all = _append_suffix_before_ext(options.args.output_all, "_monthly_unsmoothed")
+    if "DATA_START_to_DATA_END" in monthly_unsmoothed_output_path_all.name:
+        monthly_unsmoothed_output_path_all = monthly_unsmoothed_output_path_all.with_name(monthly_unsmoothed_output_path_all.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
+    _write_df_with_header(options, df_all, monthly_unsmoothed_output_path_all, index_label="date",
+                          sections=header_sections, digits_after_decimal=options.digits_after_decimal,
+                          description=desc_monthly_unsmoothed)
+    logging.info(f"All-component series (monthly, unsmoothed) written to {monthly_unsmoothed_output_path_all}")
+
+    smoothed_all = df_all.copy()
+    for val_col, err_col in ALL_COLUMN_PAIRS:
+        smoothed_all = ra.smooth_value_error(smoothed_all, value_col=val_col, error_col=err_col, window=window_size)
+    smoothed_output_path_all = _append_suffix_before_ext(options.args.output_all, f"_monthly_smoothed_{window_size}mo")
+    if "DATA_START_to_DATA_END" in smoothed_output_path_all.name:
+        smoothed_output_path_all = smoothed_output_path_all.with_name(smoothed_output_path_all.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
+    _write_df_with_header(options, smoothed_all, smoothed_output_path_all, index_label="date",
+                          sections=header_sections, digits_after_decimal=options.digits_after_decimal,
+                          description=desc_monthly_smoothed)
+    logging.info(f"All-component series (monthly, smoothed) written to {smoothed_output_path_all}")
 
     # Smooth the time series
     logging.info(f"Smoothing the groundwater series with a centered moving average of {window_size} months.")
@@ -462,9 +506,10 @@ def compute_groundwater(options:    Options,
         reservoirs: DataFrame with reservoirs data, columns ["value","error"]
 
     Returns:
-        A tuple of two DataFrames:
-            - groundwater DataFrame with columns ["groundwater", "error"]
-            - grace       DataFrame with columns ["grace",       "err_grace"]
+        A tuple of three DataFrames:
+            - groundwater  DataFrame with columns ["groundwater", "error"]
+            - grace        DataFrame with columns ["grace",       "err_grace"]
+            - full aligned DataFrame with all component columns and error columns
 
     Raises:
         None.
@@ -511,7 +556,7 @@ def compute_groundwater(options:    Options,
     df["groundwater"] = (df["grace"] - (df["swe"] + df["soilm"] + df["reservoirs"]))
     df["error"]       = np.sqrt(df["err_grace"]**2 + df["err_swe"]**2 + df["err_soilm"]**2 + df["err_reservoirs"]**2)
 
-    return df[["groundwater", "error"]], df[["grace", "err_grace"]]
+    return df[["groundwater", "error"]], df[["grace", "err_grace"]], df
 
 
 if __name__ == "__main__":
