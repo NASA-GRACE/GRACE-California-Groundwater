@@ -51,6 +51,10 @@ class Options:
         self.volume_description:    str = f"water volume ({self.volume_units_text})"           # Description for volume in output CSV files
         self.thickness_units:       str = "mm"                                                 # Units for thickness in output CSV files and plots
         self.thickness_description: str = f"water equivalent height ({self.thickness_units})"  # Description for thickness in output CSV files and plots
+        self.area_units_text:       str = "km^2"                                               # Units for area in output CSV files
+        self.area_units_pretty:     str = "km²"                                                # Units for area in plots
+        self.area_description:      str = f"area ({self.area_units_text})"                     # Description for area in output CSV files
+        self.area_m2_scale:       float = 1.0e-6                                               # Use 1.0 for m^2, 1e-6 for km^2, etc.
 
         self.swe_dir:           Path = self.project_root / "input_data"    / "snow_water_equivalent" / self.swe_model
         self.soil_moisture_dir: Path = self.project_root / "input_data"    / "soil_moisture"         / self.soil_moisture_model
@@ -491,12 +495,12 @@ class PlotOptions(Options):
             self.lightcolors = list(self._base_lightcolors)
 
 
-def read_total_areas_m2_from_csv(path: str | os.PathLike[str]) -> dict[str, float]:
+def read_total_areas_from_csv(path: str | os.PathLike[str]) -> dict[str, float]:
     """
-    Read total_area_m2* values from commented CSV header.
+    Read total_area_* values from commented CSV header.
 
     Matches lines like:
-      # total_area_m2_GRACE: ["152682342836.82553"]
+      # total_area_GRACE: 152682342836.82553
 
     Returns dict of {key: float_value}.
     """
@@ -509,8 +513,8 @@ def read_total_areas_m2_from_csv(path: str | os.PathLike[str]) -> dict[str, floa
         for line in f:
             if not line.startswith("#"):
                 break
-            # capture: key and JSON array/value
-            m = re.match(r"^\s*#\s*(total_area_m2[^:]*?)\s*:\s*(\[[^\]]*\]|\"[^\"]*\"|[0-9eE+\-\.]+)\s*$", line)
+            # capture: key and JSON array/value, but exclude keys that end with "_units" to avoid confusion with total_area_units
+            m = re.match(r"^\s*#\s*(total_area(?!_units)[^:]*?)\s*:\s*(\[[^\]]*\]|\"[^\"]*\"|[0-9eE+\-\.]+)\s*$", line)
             if not m:
                 continue
             key = m.group(1).strip()
@@ -528,10 +532,27 @@ def read_total_areas_m2_from_csv(path: str | os.PathLike[str]) -> dict[str, floa
     return areas
 
 
-def mean_total_area_m2_and_warn(areas: dict[str, float],
-                                *,
-                                area_diff_max: float | None = 0.05,
-                                context:                str = "") -> float | None:
+def read_area_units_from_csv(path: str | os.PathLike[str]) -> str | None:
+    """
+    Read the total_area_units value from a commented CSV header.
+
+    Returns the units string, or None if not found.
+    """
+    with open(os.fspath(path), "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.startswith("#"):
+                break
+            m = re.match(r"^\s*#\s*total_area_units\s*:\s*(.+?)\s*$", line)
+            if m:
+                return m.group(1)
+    return None
+
+
+def mean_total_area_and_warn(options: "Options",
+                             areas: dict[str, float],
+                             *,
+                             area_diff_max: float | None = 0.05,
+                             context:                str = "") -> float | None:
     """
     Compute mean area and warn if area_diff_max is not None and any abs((Ai-mean)/mean) > area_diff_max.
     Returns mean, or None if areas is empty.
@@ -539,7 +560,7 @@ def mean_total_area_m2_and_warn(areas: dict[str, float],
     import logging
 
     if not areas:
-        logging.warning(f"{context}: no total_area_m2* entries found in CSV header.")
+        logging.warning(f"{context}: no total_area* entries found in CSV header.")
         return None
 
     vals = list(areas.values())
@@ -547,7 +568,7 @@ def mean_total_area_m2_and_warn(areas: dict[str, float],
 
     if len(vals) < 3:
         logging.warning(
-            f"{context}: expected 3 total_area_m2* values (SWE/soil_moisture/GRACE) "
+            f"{context}: expected 3 total_area* values (SWE/soil_moisture/GRACE) "
             f"but found {len(vals)}: {sorted(areas.keys())}"
         )
 
@@ -555,24 +576,26 @@ def mean_total_area_m2_and_warn(areas: dict[str, float],
         for k, v in areas.items():
             rel = (float(v) - mean) / mean
             if abs(rel) > float(area_diff_max):
-                logging.warning(f"{context}: {k}={v:.6g} m^2 differs from mean={mean:.6g} m^2 by {rel:+.3%} "
-                                f"(limit={area_diff_max:.3%})")
-
+                logging.warning(f"{context}: {k}={v:.6g} {options.area_units_text} differs from mean="
+                                f"{mean:.6g} {options.area_units_text} by {rel:+.3%} (limit={area_diff_max:.3%})")
     return mean
 
 
-def volume_to_thickness_factor(mean_area_m2: float) -> float:
+def volume_to_thickness_factor(options: "Options", mean_area: float) -> float:
     """
     Convert volume to equivalent water height using area.
 
-    For example, suppose we have a volume in km^3 and want to convert to mm of water equivalent height over an area in m^2:
+    *mean_area* is in whatever units options.area_units_text specifies.
+    We convert back to m² via options.area_m2_scale before applying the formula:
 
     mm = km^3 * (1e9 m^3/km^3) / area_m2 * (1000 mm/m) = km^3 * 1e12 / area_m2
     """
-    return 1.0e12 / float(mean_area_m2)
+    area_m2 = float(mean_area) / options.area_m2_scale
+    return 1.0e12 / area_m2
 
 
-def resolve_unit_factor(*paths: str | os.PathLike[str],
+def resolve_unit_factor(options: "Options",
+                        *paths: str | os.PathLike[str],
                         area_diff_max: float | None = 0.05,
                         context: str = "") -> tuple[float | None, float]:
     """
@@ -580,17 +603,32 @@ def resolve_unit_factor(*paths: str | os.PathLike[str],
     volume → thickness conversion factor.
 
     Returns:
-        (mean_area_m2, unit_factor) — mean_area_m2 is None when no
-        total_area_m2 entries are found in any of the given files.
+        (mean_area, unit_factor) — mean_area is None when no
+        total_area entries are found in any of the given files.
     """
+    # Validate that all CSV files record the same area units, and that they match options.
+    file_units: dict[str, str | None] = {}
+    for p in paths:
+        file_units[str(p)] = read_area_units_from_csv(p)
+    found_units = {u for u in file_units.values() if u is not None}
+    if len(found_units) > 1:
+        detail = ", ".join(f"{p}: {u}" for p, u in file_units.items())
+        raise ValueError(f"Inconsistent area units across CSV files: {detail}")
+    if found_units and (sole := found_units.pop()) != options.area_units_text:
+        raise ValueError(
+            f"Area units in CSV files ({sole!r}) do not match "
+            f"options.area_units_text ({options.area_units_text!r}). "
+            f"Combining these would produce incorrect results."
+        )
+
     all_areas: dict[str, float] = {}
     for p in paths:
-        all_areas.update(read_total_areas_m2_from_csv(p))
-    mean_area_m2 = mean_total_area_m2_and_warn(
-        all_areas, area_diff_max=area_diff_max, context=context,
+        all_areas.update(read_total_areas_from_csv(p))
+    mean_area = mean_total_area_and_warn(
+        options, all_areas, area_diff_max=area_diff_max, context=context
     )
-    if mean_area_m2 is not None:
-        return mean_area_m2, volume_to_thickness_factor(mean_area_m2)
+    if mean_area is not None:
+        return mean_area, volume_to_thickness_factor(options, mean_area)
     return None, 1.0
 
 

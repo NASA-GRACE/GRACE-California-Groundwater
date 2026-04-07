@@ -332,13 +332,14 @@ def save_results(options, output_csv: str, dates: np.ndarray, tws: np.ndarray, b
     os.makedirs(os.path.dirname(output_csv), exist_ok=True)  # create folder if it doesn't exist
     # --- Write metadata and data together ---
     print(global_attrs)
-    total_area_m2 = float(np.sum(ma))
+    total_area = float(np.sum(ma)) * options.area_m2_scale
     with open(output_csv, "w", encoding="utf-8") as csvfile:
         if global_attrs:
             for k, vals in global_attrs.items():
                 # Write JSON-encoded values as comments (reliable to parse later)
                 csvfile.write(f"# {k}: {json.dumps(vals, ensure_ascii=False)}\n")
-            csvfile.write(f"# total_area_m2_GRACE: {total_area_m2}\n")
+            csvfile.write(f"# total_area_GRACE: {total_area}\n")
+            csvfile.write(f"# total_area_units: {options.area_units_text}\n")
             # Optional blank line separator
             csvfile.write("#\n")
     

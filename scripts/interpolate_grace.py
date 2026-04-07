@@ -61,8 +61,12 @@ def main() -> None:
             if not line:
                 continue
             key, value = line.split(":", 1)
-            metadata[key.strip()] = json.loads(value.strip())
-    
+            raw = value.strip()
+            try:
+                metadata[key.strip()] = json.loads(raw)
+            except (json.JSONDecodeError, ValueError):
+                metadata[key.strip()] = raw
+
     # --- Step 2: Read data ---
     df = pd.read_csv(
         options.args.input_file,
@@ -85,7 +89,7 @@ def main() -> None:
     # --- Write output file with same metadata ---
     with open(outpath, "w", encoding="utf-8") as csvfile:
         for k, v in metadata.items():
-            csvfile.write(f"# {k}: {json.dumps(v, ensure_ascii=False)}\n")
+            csvfile.write(f"# {k}: {v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)}\n")
         csvfile.write("#\n")
 
     # append processed dataframe

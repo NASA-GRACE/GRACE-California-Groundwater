@@ -219,10 +219,10 @@ def _resolve_unit_factor(options: Options, path: str | os.PathLike[str],
     """
     if not options.plot_thickness:
         return 1.0, options.volume_units_pretty
-    mean_area_m2, unit_factor = ra.resolve_unit_factor(
+    mean_area, unit_factor = ra.resolve_unit_factor(options,
         path, area_diff_max=options.area_diff_max, context=context,
     )
-    if mean_area_m2 is not None:
+    if mean_area is not None:
         return unit_factor, options.thickness_units
     return 1.0, options.volume_units_pretty
 
@@ -243,7 +243,7 @@ def make_groundwater_yearly_panels(options: Options) -> None:
             options, cal_path,
             context=f"{basin_title} yearly groundwater ({cal_path.name})")
         if options.plot_thickness and effective_units != options.thickness_units:
-            raise ValueError(f"plot_thickness=True but no total_area_m2* entries found in yearly groundwater CSV header for {basin_title}.")
+            raise ValueError(f"plot_thickness=True but no total_area* entries found in yearly groundwater CSV header for {basin_title}.")
 
         cal = ra.load_plot_timeseries(cal_path, date_col="date")
         wat = ra.load_plot_timeseries(wat_path, date_col="date")

@@ -254,7 +254,7 @@ def compute_means(options: Options, file_list: list, region_masks: dict,
         header_lines = options.swe_url_prefix
         if isinstance(header_lines, str):
             header_lines = [header_lines]
-        total_area_m2 = float(np.sum(area_weights[region_masks[i]]))
+        total_area = float(np.sum(area_weights[region_masks[i]])) * options.area_m2_scale
         with open(csv_file, "w", encoding="utf-8") as f:
             for line in header_lines:
                 # Automatically prefix with "# " if not already
@@ -262,7 +262,8 @@ def compute_means(options: Options, file_list: list, region_masks: dict,
                     f.write(f"# {line}\n")
                 else:
                     f.write(line + "\n")
-            f.write(f"# total_area_m2_SWE: {total_area_m2}\n")
+            f.write(f"# total_area_SWE: {total_area}\n")
+            f.write(f"# total_area_units: {options.area_units_text}\n")
         # Optional blank line for readability
             f.write("#\n")
         # --- Step 2: Append the dataframe ---
