@@ -418,7 +418,7 @@ def _write_df_with_header(options: Options, df: pd.DataFrame,
         fh.write(f"# Values are in units of {options.volume_description}.\n")
         mean_area = getattr(options, "mean_area", None)
         if mean_area is not None:
-            fh.write(f"# Average area of the {options.args.basin} basin using these datasets: {mean_area} {options.area_units_text}\n")
+            fh.write(f"# Average area of the {options.args.basin} basin using these datasets: {options.format_area(mean_area)} {options.area_units_text}\n")
             fh.write(f"# Multiply these values by {ra.volume_to_thickness_factor(options, mean_area):.4f}"
                      f" to convert from {options.volume_description} to {options.thickness_description}.\n")
         if description:

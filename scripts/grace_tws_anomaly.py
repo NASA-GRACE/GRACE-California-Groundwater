@@ -338,7 +338,7 @@ def save_results(options, output_csv: str, dates: np.ndarray, tws: np.ndarray, b
             for k, vals in global_attrs.items():
                 # Write JSON-encoded values as comments (reliable to parse later)
                 csvfile.write(f"# {k}: {json.dumps(vals, ensure_ascii=False)}\n")
-            csvfile.write(f"# total_area_GRACE: {total_area}\n")
+            csvfile.write(f"# total_area_GRACE: {options.format_area(total_area)}\n")
             csvfile.write(f"# total_area_units: {options.area_units_text}\n")
             # Optional blank line separator
             csvfile.write("#\n")

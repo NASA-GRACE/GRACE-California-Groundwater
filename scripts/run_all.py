@@ -40,7 +40,7 @@ class Options:
                                               "Groundwater"]
 
         self.valid_basins:                  list[str] = ["California", "Sacramento", "San Joaquin", "Tulare-Buena Vista Lakes"]
-        self.default_basin:                       str = self.valid_basins[0]
+        self.default_basin:                       str = self.valid_basins[3]
 
         self.keep_these_soil_moisture_vars: list[str] = ["SoilM_0_100cm"]  # if you want to keep all soil moisture vars, this should be []
 
@@ -93,6 +93,10 @@ class Options:
             raise ValueError(f"In {Path(__file__).name}, default basin '{self.default_basin}' specified in Options.__init__() is not in the list of valid basins: {self.valid_basins}")
 
         self.default_basin_safename = self.basin_safename_map[self.default_basin]
+
+    def format_area(self, value: float) -> str:
+            """Format an area value with precision appropriate to the current units."""
+            return f"{value:.0f}" if self.area_units_text == "m^2" else f"{value:.3f}"
 
 
 def parse_arguments(options: Options) -> None:
@@ -538,13 +542,23 @@ def read_area_units_from_csv(path: str | os.PathLike[str]) -> str | None:
 
     Returns the units string, or None if not found.
     """
+    import json
     with open(os.fspath(path), "r", encoding="utf-8") as f:
         for line in f:
             if not line.startswith("#"):
                 break
             m = re.match(r"^\s*#\s*total_area_units\s*:\s*(.+?)\s*$", line)
             if m:
-                return m.group(1)
+                raw = m.group(1)
+                try:
+                    parsed = json.loads(raw)
+                    if isinstance(parsed, list) and len(parsed) == 1:
+                        return str(parsed[0])
+                    if isinstance(parsed, str):
+                        return parsed
+                except (json.JSONDecodeError, ValueError):
+                    pass
+                return raw
     return None
 
 
@@ -615,11 +629,9 @@ def resolve_unit_factor(options: "Options",
         detail = ", ".join(f"{p}: {u}" for p, u in file_units.items())
         raise ValueError(f"Inconsistent area units across CSV files: {detail}")
     if found_units and (sole := found_units.pop()) != options.area_units_text:
-        raise ValueError(
-            f"Area units in CSV files ({sole!r}) do not match "
-            f"options.area_units_text ({options.area_units_text!r}). "
-            f"Combining these would produce incorrect results."
-        )
+        raise ValueError(f"Area units in CSV files ({sole!r}) do not match "
+                         f"options.area_units_text ({options.area_units_text!r}). "
+                         f"Combining these would produce incorrect results.")
 
     all_areas: dict[str, float] = {}
     for p in paths:

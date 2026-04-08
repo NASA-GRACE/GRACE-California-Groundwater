@@ -481,7 +481,8 @@ def output_csv(options: Options, output_file: str | os.PathLike[str], fieldnames
             # blank line for readability (optional)
             csvfile.write("#\n")
         if total_area is not None:
-            csvfile.write(f"# total_area_soil_moisture: {total_area}\n")
+            csvfile.write(f"# total_area_soil_moisture: {options.format_area(total_area)}\n")
+            csvfile.write(f"# total_area_units: {options.area_units_text}\n")
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, dialect="excel")
         writer.writeheader()
         for i, date in enumerate(times):

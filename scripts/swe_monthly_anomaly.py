@@ -262,7 +262,7 @@ def compute_means(options: Options, file_list: list, region_masks: dict,
                     f.write(f"# {line}\n")
                 else:
                     f.write(line + "\n")
-            f.write(f"# total_area_SWE: {total_area}\n")
+            f.write(f"# total_area_SWE: {options.format_area(total_area)}\n")
             f.write(f"# total_area_units: {options.area_units_text}\n")
         # Optional blank line for readability
             f.write("#\n")
