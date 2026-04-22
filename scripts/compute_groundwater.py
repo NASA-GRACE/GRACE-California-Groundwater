@@ -152,10 +152,9 @@ def main() -> None:
     )
     options.mean_area = mean_area  # used by _write_df_with_header
 
-    # Compute groundwater and error
-    sw, tws, df_all_components = compute_groundwater(options, grace, swe, soil_moisture, reservoirs)
-    df_tws_gw = pd.concat([sw, tws], axis=1)
-    logging.info(f"Computed groundwater series with {len(sw)} entries.")
+    # Compute groundwater without dropping missing dates initially to preserve the full record for 'all' output
+    df_groundwater, df_grace, df_all_components = compute_groundwater(options, grace, swe, soil_moisture, reservoirs,
+                                                                      drop_missing=False)
 
     # Include the actual baseline period used for mean removal in each output header
     baseline_start_str = options.actual_baseline_start.strftime("%Y-%m-%d")
@@ -165,24 +164,51 @@ def main() -> None:
         header_sections[_sec]["mean_removal_baseline_end"]   = [baseline_end_str]
 
     # Record actual start and end dates of the combined time series:
-    data_start_monthly = sw.index.min().strftime("%Y-%m")
-    data_end_monthly   = sw.index.max().strftime("%Y-%m")
-    data_start_yearly  = sw.index.min().strftime("%Y")
-    data_end_yearly    = sw.index.max().strftime("%Y")
+    data_start_monthly = df_groundwater.index.min().strftime("%Y-%m")
+    data_end_monthly   = df_groundwater.index.max().strftime("%Y-%m")
+    data_start_yearly  = df_groundwater.index.min().strftime("%Y")
+    data_end_yearly    = df_groundwater.index.max().strftime("%Y")
 
-    desc_monthly_unsmoothed    =  "Monthly unsmoothed values. No temporal smoothing has been applied."
-    desc_monthly_smoothed      = f"Monthly values smoothed with a {window_size}-month centered moving average. Errors are propagated through the same moving window."
-    desc_cal_year_averages     = "Calendar-year averages. Each value represents the average of all months in that calendar year."
-    desc_water_year_averages   = "Water-year averages. Each value represents the average of all months in that water year (starting in October of the previous calendar year and ending in September of the calendar year)."
+    desc_monthly_unsmoothed  =  "Monthly unsmoothed values. No temporal smoothing has been applied."
+    desc_monthly_smoothed    = f"Monthly values smoothed with a {window_size}-month centered moving average. Errors are propagated through the same moving window."
+    desc_cal_year_averages   = "Calendar-year averages. Each value represents the average of all months in that calendar year."
+    desc_water_year_averages = "Water-year averages. Each value represents the average of all months in that water year (starting in October of the previous calendar year and ending in September of the calendar year)."
 
-    # Save results
+    # 1. Save "All Components" (Full Record with NaNs)
+    _save_all_components_files(options, df_all_components, header_sections, window_size, 
+                               data_start_monthly, data_end_monthly, 
+                               desc_monthly_unsmoothed, desc_monthly_smoothed, label="full_record")
+
+    # 2. Drop missing dates to find the common overlap
+    df_all_components = df_all_components.dropna()
+    if df_all_components.empty:
+        raise ValueError("No overlapping dates across all inputs after dropna.")
+
+    # Update date strings for the 'overlap_only' and specific filenames
+    data_start_monthly = df_all_components.index.min().strftime("%Y-%m")
+    data_end_monthly   = df_all_components.index.max().strftime("%Y-%m")
+    data_start_yearly  = df_all_components.index.min().strftime("%Y")
+    data_end_yearly    = df_all_components.index.max().strftime("%Y")
+
+    # 3. Save "All Components" (Overlap Only - No NaNs)
+    _save_all_components_files(options, df_all_components, header_sections, window_size, 
+                               data_start_monthly, data_end_monthly, 
+                               desc_monthly_unsmoothed, desc_monthly_smoothed, label="overlap_only")
+    
+    # Re-derive the specific series from the cleaned full DataFrame
+    df_groundwater = df_all_components[["groundwater", "error"]]
+    df_grace       = df_all_components[["grace", "err_grace"]]
+    df_tws_gw      = pd.concat([df_groundwater, df_grace], axis=1)
+    
+    logging.info(f"Proceeding with filtered groundwater series ({len(df_groundwater)} entries) spanning {data_start_monthly} to {data_end_monthly}.")
+
+    # 3. Save the specific Groundwater Unsmoothed file
     monthly_unsmoothed_output_path = _append_suffix_before_ext(options.args.output, "_monthly_unsmoothed")
     if "DATA_START_to_DATA_END" in monthly_unsmoothed_output_path.name:
         monthly_unsmoothed_output_path = monthly_unsmoothed_output_path.with_name(monthly_unsmoothed_output_path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
-    _write_df_with_header(options, sw, monthly_unsmoothed_output_path, index_label="date",
+    _write_df_with_header(options, df_groundwater, monthly_unsmoothed_output_path, index_label="date",
                           sections=header_sections, digits_after_decimal=options.digits_after_decimal,
                           description=desc_monthly_unsmoothed)
-    logging.info(f"Groundwater series (monthly, unsmoothed) written to {monthly_unsmoothed_output_path}")
 
     # Save separate CSV file for groundwater and tws
     monthly_unsmoothed_output_path_gw_tws = _append_suffix_before_ext(options.args.output_gw_tws, "_monthly_unsmoothed")
@@ -209,50 +235,9 @@ def main() -> None:
                           description=desc_monthly_smoothed)
     logging.info(f"Groundwater-and-TWS series (monthly, smoothed) written to {smoothed_output_path_gw_tws}")
 
-# Save CSV with all components (TWS, SWE, soil moisture, reservoirs, groundwater)
-    ALL_COLUMN_PAIRS = [
-        ("total water storage",    "total water storage error"),
-        ("snow water equivalent",  "snow water equivalent error"),
-        ("soil moisture",          "soil moisture error"),
-        ("reservoirs",             "reservoirs error"),
-        ("groundwater estimate",   "groundwater estimate error"),
-    ]
-    # The "reservoirs" column doesn't need renaming (the internal name already matches the desired output name),
-    # so it's intentionally absent from the rename dict.
-    df_all = df_all_components.rename(columns={
-        "grace":          "total water storage",
-        "err_grace":      "total water storage error",
-        "swe":            "snow water equivalent",
-        "err_swe":        "snow water equivalent error",
-        "soilm":          "soil moisture",
-        "err_soilm":      "soil moisture error",
-        "err_reservoirs": "reservoirs error",
-        "groundwater":    "groundwater estimate",
-        "error":          "groundwater estimate error",
-    })[[col for pair in ALL_COLUMN_PAIRS for col in pair]]
-
-    monthly_unsmoothed_output_path_all = _append_suffix_before_ext(options.args.output_all, "_monthly_unsmoothed")
-    if "DATA_START_to_DATA_END" in monthly_unsmoothed_output_path_all.name:
-        monthly_unsmoothed_output_path_all = monthly_unsmoothed_output_path_all.with_name(monthly_unsmoothed_output_path_all.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
-    _write_df_with_header(options, df_all, monthly_unsmoothed_output_path_all, index_label="date",
-                          sections=header_sections, digits_after_decimal=options.digits_after_decimal,
-                          description=desc_monthly_unsmoothed)
-    logging.info(f"All-component series (monthly, unsmoothed) written to {monthly_unsmoothed_output_path_all}")
-
-    smoothed_all = df_all.copy()
-    for val_col, err_col in ALL_COLUMN_PAIRS:
-        smoothed_all = ra.smooth_value_error(smoothed_all, value_col=val_col, error_col=err_col, window=window_size)
-    smoothed_output_path_all = _append_suffix_before_ext(options.args.output_all, f"_monthly_smoothed_{window_size}mo")
-    if "DATA_START_to_DATA_END" in smoothed_output_path_all.name:
-        smoothed_output_path_all = smoothed_output_path_all.with_name(smoothed_output_path_all.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
-    _write_df_with_header(options, smoothed_all, smoothed_output_path_all, index_label="date",
-                          sections=header_sections, digits_after_decimal=options.digits_after_decimal,
-                          description=desc_monthly_smoothed)
-    logging.info(f"All-component series (monthly, smoothed) written to {smoothed_output_path_all}")
-
     # Smooth the time series
     logging.info(f"Smoothing the groundwater series with a centered moving average of {window_size} months.")
-    sw_smoothed = ra.smooth_value_error(sw, value_col="groundwater", error_col="error", window=window_size)
+    sw_smoothed = ra.smooth_value_error(df_groundwater, value_col="groundwater", error_col="error", window=window_size)
     smoothed_output_path = _append_suffix_before_ext(options.args.output, f"_monthly_smoothed_{window_size}mo")
     if "DATA_START_to_DATA_END" in smoothed_output_path.name:
         smoothed_output_path = smoothed_output_path.with_name(smoothed_output_path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
@@ -263,7 +248,7 @@ def main() -> None:
 
     # Compute calendar-year averages
     logging.info("Computing calendar-year averages of the groundwater series.")
-    sw_cal_yr = ra.average_timeseries(sw, year_type="calendar", value_col="groundwater", error_col="error")
+    sw_cal_yr = ra.average_timeseries(df_groundwater, year_type="calendar", value_col="groundwater", error_col="error")
     cal_yr_output_path = _append_suffix_before_ext(options.args.output, "_calendar_year_averages")
     if "DATA_START_to_DATA_END" in cal_yr_output_path.name:
         cal_yr_output_path = cal_yr_output_path.with_name(cal_yr_output_path.name.replace("DATA_START", data_start_yearly).replace("DATA_END", data_end_yearly))
@@ -274,7 +259,7 @@ def main() -> None:
 
     # Compute water-year averages
     logging.info("Computing water-year averages of the groundwater series.")
-    sw_wat_yr = ra.average_timeseries(sw, year_type="water", value_col="groundwater", error_col="error")
+    sw_wat_yr = ra.average_timeseries(df_groundwater, year_type="water", value_col="groundwater", error_col="error")
     wat_yr_output_path = _append_suffix_before_ext(options.args.output, "_water_year_averages")
     if "DATA_START_to_DATA_END" in wat_yr_output_path.name:
         wat_yr_output_path = wat_yr_output_path.with_name(wat_yr_output_path.name.replace("DATA_START", data_start_yearly).replace("DATA_END", data_end_yearly))
@@ -282,6 +267,56 @@ def main() -> None:
                           sections=header_sections, digits_after_decimal=options.digits_after_decimal,
                           description=desc_water_year_averages)
     logging.info(f"Groundwater series (water-year averages) written to {wat_yr_output_path}")
+
+def _save_all_components_files(options, df_raw, header_sections, window_size, 
+                               data_start_monthly, data_end_monthly, 
+                               desc_unsmoothed, desc_smoothed, label: str):
+    """
+    Renames, smooths, and writes the 'all components' CSV files.
+    
+    Args:
+        options:            Global options including output paths and formatting.
+        df_raw:             The raw DataFrame containing all components and their errors.
+        header_sections:    The multi-section header information to include in the output CSV.
+        window_size:        The window size for smoothing the time series.
+        data_start_monthly: The start date of the data in YYYY-MM format, used for filename formatting.
+        data_end_monthly:   The end date of the data in YYYY-MM format, used for filename formatting.
+        desc_unsmoothed:    Description text for the unsmoothed output file.
+        desc_smoothed:      Description text for the smoothed output file.
+        label:              A label to distinguish the output files (e.g., "full_record" vs "overlap_only").
+
+    Returns:
+        None. Writes two CSV files to disk: one unsmoothed and one smoothed version of the all-components DataFrame.
+    """
+    column_pairs = [
+        ("total water storage",    "total water storage error"),
+        ("snow water equivalent",  "snow water equivalent error"),
+        ("soil moisture",          "soil moisture error"),
+        ("reservoirs",             "reservoirs error"),
+        ("groundwater estimate",   "groundwater estimate error"),
+    ]
+    
+    df_all = df_raw.rename(columns={
+        "grace": "total water storage", "err_grace": "total water storage error",
+        "swe": "snow water equivalent", "err_swe": "snow water equivalent error",
+        "soilm": "soil moisture", "err_soilm": "soil moisture error",
+        "err_reservoirs": "reservoirs error",
+        "groundwater": "groundwater estimate", "error": "groundwater estimate error",
+    })[[col for pair in column_pairs for col in pair]]
+
+    for suffix, desc, is_smoothed in [("_monthly_unsmoothed", desc_unsmoothed, False), 
+                                      (f"_monthly_smoothed_{window_size}mo", desc_smoothed, True)]:
+        out_df = df_all.copy()
+        if is_smoothed:
+            for val_col, err_col in column_pairs:
+                out_df = ra.smooth_value_error(out_df, value_col=val_col, error_col=err_col, window=window_size)
+        path = _append_suffix_before_ext(options.args.output_all, f"_{label}{suffix}")
+        path = path.with_name(path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
+        
+        _write_df_with_header(options, out_df, path, index_label="date",
+                              sections=header_sections, digits_after_decimal=options.digits_after_decimal,
+                              description=desc)
+        logging.info(f"All-component series ({label}) {suffix} written to {path}")
 
 
 def load_series(path: str | os.PathLike[str], date_col: str = "date", target_day_of_month: int = 15) -> pd.DataFrame:
@@ -487,7 +522,8 @@ def compute_groundwater(options:    Options,
                         grace:      pd.DataFrame,
                         swe:        pd.DataFrame,
                         soilm:      pd.DataFrame,
-                        reservoirs: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+                        reservoirs: pd.DataFrame,
+                        drop_missing: bool = True) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Aligns the four series on their shared dates, removes their respective
     long-term means over [start_time, end_time], subtracts snow water equivalent (SWE),
@@ -529,11 +565,12 @@ def compute_groundwater(options:    Options,
 
     if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"DataFrame overview before dropping dates with missing data:\n{df.describe()}")
 
-    logging.info("Dropping any dates with missing data...")
-    df = df.dropna()
+    if drop_missing:
+        logging.info("Dropping any dates with missing data...")
+        df = df.dropna()
 
-    if df.empty:
-        raise ValueError("No overlapping dates across all inputs after alignment (post-dropna). Check input coverage and masking.")
+        if df.empty:
+            raise ValueError("No overlapping dates across all inputs after alignment (post-dropna). Check input coverage and masking.")
 
     if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"DataFrame overview after dropping missing dates:\n{df.describe()}")
 

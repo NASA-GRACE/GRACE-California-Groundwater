@@ -40,7 +40,7 @@ class Options:
                                               "Groundwater"]
 
         self.valid_basins:                  list[str] = ["California", "Sacramento", "San Joaquin", "Tulare-Buena Vista Lakes"]
-        self.default_basin:                       str = self.valid_basins[3]
+        self.default_basin:                       str = self.valid_basins[0]
 
         self.keep_these_soil_moisture_vars: list[str] = ["SoilM_0_100cm"]  # if you want to keep all soil moisture vars, this should be []
 
