@@ -170,7 +170,10 @@ def main() -> None:
     data_end_yearly    = df_groundwater.index.max().strftime("%Y")
 
     desc_monthly_unsmoothed  =  "Monthly unsmoothed values. No temporal smoothing has been applied."
-    desc_monthly_smoothed    = f"Monthly values smoothed with a {window_size}-month centered moving average. Errors are propagated through the same moving window."
+    desc_monthly_smoothed    = (
+        f"Monthly values. Only the groundwater estimate and its error have been smoothed with a "
+        f"{window_size}-month centered moving average; all other components remain unsmoothed."
+    )
     desc_cal_year_averages   = "Calendar-year averages. Each value represents the average of all months in that calendar year."
     desc_water_year_averages = "Water-year averages. Each value represents the average of all months in that water year (starting in October of the previous calendar year and ending in September of the calendar year)."
 
@@ -225,8 +228,8 @@ def main() -> None:
 
     # Save smoothed version of the groundwater and tws CSV
     smoothed_gw_tws = df_tws_gw_for_disk.copy()
-    smoothed_gw_tws = ra.smooth_value_error(smoothed_gw_tws, value_col="groundwater",         error_col="groundwater error",         window=window_size)
-    smoothed_gw_tws = ra.smooth_value_error(smoothed_gw_tws, value_col="total water storage", error_col="total water storage error", window=window_size)
+    # Only smooth the groundwater component
+    smoothed_gw_tws = ra.smooth_value_error(smoothed_gw_tws, value_col="groundwater", error_col="groundwater error", window=window_size)
     smoothed_output_path_gw_tws = _append_suffix_before_ext(options.args.output_gw_tws, f"_monthly_smoothed_{window_size}mo")
     if "DATA_START_to_DATA_END" in smoothed_output_path_gw_tws.name:
         smoothed_output_path_gw_tws = smoothed_output_path_gw_tws.with_name(smoothed_output_path_gw_tws.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
@@ -268,6 +271,7 @@ def main() -> None:
                           description=desc_water_year_averages)
     logging.info(f"Groundwater series (water-year averages) written to {wat_yr_output_path}")
 
+
 def _save_all_components_files(options, df_raw, header_sections, window_size, 
                                data_start_monthly, data_end_monthly, 
                                desc_unsmoothed, desc_smoothed, label: str):
@@ -308,8 +312,11 @@ def _save_all_components_files(options, df_raw, header_sections, window_size,
                                       (f"_monthly_smoothed_{window_size}mo", desc_smoothed, True)]:
         out_df = df_all.copy()
         if is_smoothed:
-            for val_col, err_col in column_pairs:
-                out_df = ra.smooth_value_error(out_df, value_col=val_col, error_col=err_col, window=window_size)
+            # Only apply smoothing to the final groundwater estimate
+            out_df = ra.smooth_value_error(out_df, 
+                                           value_col="groundwater estimate", 
+                                           error_col="groundwater estimate error", 
+                                           window=window_size)
         path = _append_suffix_before_ext(options.args.output_all, f"_{label}{suffix}")
         path = path.with_name(path.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
         
