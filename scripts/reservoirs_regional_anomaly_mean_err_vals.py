@@ -26,8 +26,6 @@ class Options(ra.Options):
         super().__init__()  # Defines script_dir, project_root, etc.
         self.my_name:                  str = Path(__file__).stem  # The name of this script without the .py extension
         self.default_csv_files: list[Path] = [self.reservoirs_dir / "monthly_sums" / f"{self.default_basin_safename}_monthly_km3.csv"]
-        self.default_baseline_start:   str = "2005-01-01" #"2004-01-01"
-        self.default_baseline_end:     str = "2005-03-31" #"2009-12-31"
         self.default_err_val:        float = 0.05  # Default error coefficient (5%)
 
 
@@ -38,10 +36,6 @@ def parse_arguments(options: Options) -> None:
                         help=f"List of CSV files (default: {', '.join(map(os.fspath, options.default_csv_files))})")
     parser.add_argument("--output_dir", default=options.timeseries_dir,
                         help=f"Directory to save anomaly CSVs (default: {os.fspath(options.timeseries_dir)})")
-    parser.add_argument("--start_date", default=options.default_baseline_start,
-                        help=f"Baseline start date (default: {options.default_baseline_start})")
-    parser.add_argument("--end_date", default=options.default_baseline_end,
-                        help=f"Baseline end date (default: {options.default_baseline_end})")
     parser.add_argument("--err_val", type=float, default=options.default_err_val,
                         help=f"Error coefficient (e.g., {options.default_err_val} for {options.default_err_val * 100}%)")
     parser.add_argument("--full", action="store_true", help=argparse.SUPPRESS)
@@ -73,8 +67,6 @@ def calculate_anomaly_and_errors_for_CDEC(options: Options) -> None:
         options: An Options instance with parsed command line arguments in options.args. Contains:
            - csv_files:   List of CSV files (e.g., a_monthly_km3.csv b_monthly_km3.csv).
            - output_dir:  Directory to save anomaly CSVs.
-           - start_date:  Baseline start date (YYYY-MM-DD).
-           - end_date:    Baseline end date (YYYY-MM-DD).
            - err_val:     Error coefficient (e.g., 0.05 for 5%).
     
     Returns:
@@ -84,10 +76,10 @@ def calculate_anomaly_and_errors_for_CDEC(options: Options) -> None:
         None.
     """
     for csv_file in options.args.csv_files:
-        process_csv(options, csv_file, options.args.output_dir, options.args.start_date, options.args.end_date, options.args.err_val)
+        process_csv(options, csv_file, options.args.output_dir, options.args.err_val)
 
 
-def process_csv(options: Options, file_path: str, output_dir: str, start_date: str, end_date: str, err_val: float) -> None:
+def process_csv(options: Options, file_path: str, output_dir: str, err_val: float) -> None:
     """
     Reads a region CSV, computes error, baseline mean, and anomaly, 
     then saves the output as a new CSV.
@@ -95,8 +87,6 @@ def process_csv(options: Options, file_path: str, output_dir: str, start_date: s
     Args:
         file_path:   Path to the input CSV file.
         output_dir:  Directory to save the output CSV.
-        start_date:  Baseline start date (YYYY-MM-DD).
-        end_date:    Baseline end date (YYYY-MM-DD).
         err_val:     Error coefficient (e.g., 0.05 for 5%).
     
     Returns:
@@ -167,12 +157,3 @@ def process_csv(options: Options, file_path: str, output_dir: str, start_date: s
 
 if __name__ == "__main__":
     main()
-
-r'''
-Example usage
-python reservoirs_regional_anomaly_mean_err_vals.py --csv_files "C:\output\a_monthly_km3.csv" "C:\output\b_monthly_km3.csv" --output_dir "C:\output\anomalies" --start_date 2004-01-01 --end_date 2009-12-31 --err_val 0.05
-  
-will create in output dir
-    anomaly_timeseries_{reservoirs_model}_a_mask.csv
-    anomaly_timeseries_{reservoirs_model}_b_mask.csv
-'''
