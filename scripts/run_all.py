@@ -122,7 +122,7 @@ def main() -> None:
     logging.info(f"Starting {Path(__file__).name} at {run_all_start_time.isoformat()}")
 
     parse_arguments(options)
-    
+
     section_header(options, "Processing soil moisture data")
 
     logging.info("Download soil moisture data files.")
@@ -144,7 +144,7 @@ def main() -> None:
 
     logging.info("Generate a time series plot of the masked soil moisture data.")
     run_script(options, "plot_timeseries.py")
-    
+
     section_header(options, "Processing reservoirs storage data")
 
     logging.info(f"Downloading reservoirs data...")
@@ -155,7 +155,7 @@ def main() -> None:
 
     logging.info("Generating reservoirs anomaly and error value time series...")
     run_script(options, "reservoirs_regional_anomaly_mean_err_vals.py")
-    
+
     logging.info("Generate a time series plot of the masked reservoirs data.")
     run_script(options, "plot_timeseries.py")
 
@@ -197,7 +197,7 @@ def main() -> None:
 
     logging.info("Generating comparison plots of all water storage components...")
     run_script(options, "plot_timeseries.py", flags=["--groundwater"])
-    
+
     run_all_end_time = dt.datetime.now()
     logging.info(f"Finished {Path(__file__).name} at {run_all_end_time.isoformat()}.")
     total_duration = run_all_end_time - run_all_start_time
