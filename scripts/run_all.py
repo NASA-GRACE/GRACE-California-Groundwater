@@ -29,7 +29,7 @@ class Options:
         self.baseline_start:           str = "2004-01-01"                     # Start of baseline calibration period
         self.baseline_end:             str = "2009-12-31"                     # End   of baseline calibration period
         self.full_start:               str = "2004-01-01"                     # Start of full timeseries
-        self.full_end:                 str = "NOW"                            # Current date/time is the end of the full timeseries
+        self.full_end:                 str = "NOW"                            # End   of full timeseries is current date/time
         self.soil_moisture_model:      str = "NLDAS"
         self.swe_model:                str = "SNODAS"
         self.reservoirs_model:         str = "CDEC"
