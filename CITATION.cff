@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use these tutorials or scripts, please cite them as follows:"
+authors:
+  - family-names: "Killett"
+    given-names: "Emmy"
+    orcid: "https://orcid.org/0000-0003-4471-1894"
+  - family-names: "Sikka"
+    given-names: "Munish"
+    orcid: "https://orcid.org/0009-0000-9586-233X"
+  - family-names: "Reager"
+    given-names: "JT"
+    orcid: "https://orcid.org/0000-0001-7575-2520"
+  - family-names: "Landerer"
+    given-names: "Felix"
+    orcid: "https://orcid.org/0000-0003-2678-095X"
+title: "GRACE-California-Groundwater"
+version: 1.0.0
+date-released: 2026-05-07
+url: "https://github.com/NASA-GRACE/GRACE-California-Groundwater"
