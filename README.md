@@ -1,6 +1,6 @@
 # Groundwater Toolkit Quickstart Guide
 
-#### J.T. Reager<sup>1</sup>, Felix Landerer<sup>1</sup>, Munish Sikka<sup>1</sup>, Emmy Killett<sup>1</sup>
+#### Emmy Killett<sup>1</sup>, Munish Sikka<sup>1</sup>, J.T. Reager<sup>1</sup>, Felix Landerer<sup>1</sup>
 #### <sup>1</sup>Jet Propulsion Laboratory, California Institute of Technology, Pasadena, CA, USA
 
 ---
