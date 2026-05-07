@@ -170,7 +170,7 @@ def main() -> None:
     logging.info("Generating GRACE TWS anomaly time series...")
     run_script(options, "grace_tws_anomaly.py")
 
-    logging.info("Interpolating GRACE TWS data to daily time steps...")
+    logging.info("Interpolating GRACE TWS data to mid-month timestamps...")
     run_script(options, "interpolate_grace.py")
 
     logging.info("Generate a time series plot of the masked GRACE data.")
