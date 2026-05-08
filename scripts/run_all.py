@@ -62,7 +62,7 @@ class Options:
         self.grace_dir:         Path = self.project_root / "input_data"    / "grace_tws"
         self.timeseries_dir:    Path = self.project_root / "input_data"    / "masked_timeseries"
         self.output_dir:        Path = self.project_root / "output"
-        self.output_dir_gw_tws: Path = self.project_root / "output_gw_tws"
+        self.output_dir_gw_tws: Path = self.project_root / "output_combined"
         self.graphics_dir:      Path = self.project_root / "graphics"
         self.swe_dir.mkdir(          parents=True, exist_ok=True)
         self.soil_moisture_dir.mkdir(parents=True, exist_ok=True)

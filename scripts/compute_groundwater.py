@@ -36,15 +36,15 @@ class Options(ra.Options):
     def __init__(self) -> None:
         """Initialize the options with values from run_all.Options and add script-specific defaults."""
         super().__init__()  # Defines script_dir, project_root, etc.
-        self.my_name:                   str = Path(__file__).stem  # The name of this script without the .py extension
-        self.default_soil_moisture_csv: str = f"LATEST_{self.soil_moisture_model}_FOR_BASIN.csv"
-        self.default_reservoirs_csv:    str = f"LATEST_{self.reservoirs_model}_FOR_BASIN.csv"
-        self.default_swe_csv:           str = f"LATEST_{self.swe_model}_FOR_BASIN.csv"
-        self.default_grace_csv:         str = "LATEST_GRACE_FOR_BASIN.csv"
-        self.default_output_csv:        str = f"anomaly_timeseries_groundwater_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
-        self.default_output_gw_tws_csv: str = f"anomaly_timeseries_groundwater_and_tws_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
-        self.default_all_output_csv:    str = f"anomaly_timeseries_all_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
-        self.default_window_size:       int = 3  # default window size for the moving average used in smoothing the output
+        self.my_name:                     str = Path(__file__).stem  # The name of this script without the .py extension
+        self.default_soil_moisture_csv:   str = f"LATEST_{self.soil_moisture_model}_FOR_BASIN.csv"
+        self.default_reservoirs_csv:      str = f"LATEST_{self.reservoirs_model}_FOR_BASIN.csv"
+        self.default_swe_csv:             str = f"LATEST_{self.swe_model}_FOR_BASIN.csv"
+        self.default_grace_csv:           str = "LATEST_GRACE_FOR_BASIN.csv"
+        self.default_output_csv:          str = f"anomaly_timeseries_groundwater_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
+        self.default_output_combined_csv: str = f"anomaly_timeseries_groundwater_and_tws_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
+        self.default_all_output_csv:      str = f"anomaly_timeseries_all_{self.default_basin_safename}_DATA_START_to_DATA_END_created_on_CURRENT_DATETIME.csv"
+        self.default_window_size:         int = 3  # default window size for the moving average used in smoothing the output
         self.timeseries_dir.mkdir(parents=True, exist_ok=True)  # Ensure the timeseries directory exists
 
 
@@ -105,11 +105,11 @@ def main() -> None:
     timestamp = ra.parse_datetime("NOW", timezone="America/Los_Angeles").strftime("%Y%m%d-%H%M%S")
     if options.args.output == options.default_output_csv:
         options.args.output = options.output_dir / options.default_output_csv.replace("CURRENT_DATETIME", timestamp)
-    options.args.output        = Path(options.args.output).expanduser().resolve()
-    options.args.output_gw_tws = options.output_dir_gw_tws / options.default_output_gw_tws_csv.replace("CURRENT_DATETIME", timestamp)
-    options.args.output_gw_tws = Path(options.args.output_gw_tws).expanduser().resolve()
-    options.args.output_all    = options.output_dir_gw_tws / options.default_all_output_csv.replace("CURRENT_DATETIME", timestamp)
-    options.args.output_all    = Path(options.args.output_all).expanduser().resolve()
+    options.args.output          = Path(options.args.output).expanduser().resolve()
+    options.args.output_combined = options.output_dir_gw_tws / options.default_output_combined_csv.replace("CURRENT_DATETIME", timestamp)
+    options.args.output_combined = Path(options.args.output_combined).expanduser().resolve()
+    options.args.output_all      = options.output_dir_gw_tws / options.default_all_output_csv.replace("CURRENT_DATETIME", timestamp)
+    options.args.output_all      = Path(options.args.output_all).expanduser().resolve()
     logging.info(f"Output will be saved to {options.args.output}")
 
     # Load input series
@@ -214,7 +214,7 @@ def main() -> None:
                           description=desc_monthly_unsmoothed)
 
     # Save separate CSV file for groundwater and tws
-    monthly_unsmoothed_output_path_gw_tws = _append_suffix_before_ext(options.args.output_gw_tws, "_monthly_unsmoothed")
+    monthly_unsmoothed_output_path_gw_tws = _append_suffix_before_ext(options.args.output_combined, "_monthly_unsmoothed")
     if "DATA_START_to_DATA_END" in monthly_unsmoothed_output_path_gw_tws.name:
         monthly_unsmoothed_output_path_gw_tws = monthly_unsmoothed_output_path_gw_tws.with_name(monthly_unsmoothed_output_path_gw_tws.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
     df_tws_gw_for_disk = df_tws_gw.rename(columns={
@@ -230,7 +230,7 @@ def main() -> None:
     smoothed_gw_tws = df_tws_gw_for_disk.copy()
     # Only smooth the groundwater component
     smoothed_gw_tws = ra.smooth_value_error(smoothed_gw_tws, value_col="groundwater", error_col="groundwater error", window=window_size)
-    smoothed_output_path_gw_tws = _append_suffix_before_ext(options.args.output_gw_tws, f"_monthly_smoothed_{window_size}mo")
+    smoothed_output_path_gw_tws = _append_suffix_before_ext(options.args.output_combined, f"_monthly_smoothed_{window_size}mo")
     if "DATA_START_to_DATA_END" in smoothed_output_path_gw_tws.name:
         smoothed_output_path_gw_tws = smoothed_output_path_gw_tws.with_name(smoothed_output_path_gw_tws.name.replace("DATA_START", data_start_monthly).replace("DATA_END", data_end_monthly))
     _write_df_with_header(options, smoothed_gw_tws, smoothed_output_path_gw_tws, index_label="date",
