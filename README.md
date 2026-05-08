@@ -49,14 +49,14 @@ All inputs are aligned monthly, converted to consistent units, mean-removed over
 - **Soil Moisture** from **NLDAS** → subset, masked, and converted to basin time series.
 - **Reservoirs** from **CDEC** → site-level storage (AF) fetched and converted to m³, summed to basin monthly volumes.
 - **GRACE TWS** (mascon solution) → JPL Mascon CRI granules from PO.DAAC, masked and area-averaged for the basin.
-- **Snow Water Equivalent (SWE)** from **SNODAS** → downloaded daily, converted to monthly means, then area-weighted and mean-removed.  
+- **Snow Water Equivalent (SWE)** from **SNODAS** → downloaded daily, converted to monthly means, then area-integrated to basin volumes (km³) and mean-removed.
 
 All four series output **(value, error)** columns and share the same monthly timestamp convention.
 
 ***
 ### How the pieces fit together
 1. **Masks**: Basin polygons are rasterized to each gridded dataset and used to extract/aggregate values.
-2. **Ingestion & Pre-processing**: Download all components (SNODAS, NLDAS, CDEC, GRACE); align GRACE TWS to mid-month.
+2. **Ingestion & Pre-processing**: Download all components (SNODAS, NLDAS, CDEC, GRACE) and prepare them for masking.
 3. **Basin Time Series**: Apply masks, compute area-weighted means/sums, and export CSVs with errors.
 4. **Anomalies & Baselines**: Remove the mean over an adaptive baseline (requested vs. available overlap).
 5. **Groundwater Synthesis**: `compute_groundwater.py` aligns months, subtracts components from GRACE, and **propagates error** assuming independence (variance additivity).  
@@ -95,7 +95,7 @@ Both produce intermediate CSVs/plots and final groundwater products in `input_da
 
 ***
 ### Audience
-Hydrologists, water resources analysts, and data practitioners who need a transparent, scriptable path from raw satellite/terrestrial data to basin-scale **groundwater anomaly** products.
+Hydrologists, water resources analysts, and data scientists who need a transparent, scriptable path from raw observational and model data to basin-scale groundwater anomaly products.
 
 ---
 
@@ -116,7 +116,7 @@ Key artifacts per stage are written under `input_data/**` and `input_data/masked
 ```bash
 python run_all.py
 ```
-Uses `test_start=2005-01-01` to `test_end=2005-03-31T23:59:59` for a fast check. Passing the `--dry_run` flag skips execution but shows what commands *would* be run.
+Uses `test_start=2005-01-01` to `test_end=2005-03-31T23:59:59` for a fast check. Passing the `--dry_run` flag skips execution but shows what commands *would* be run. Passing the `--debug` flag enables verbose logging across all stages.
 
 **Full run**:
 ```bash
@@ -235,6 +235,8 @@ Supported basins: California (default), Sacramento, San Joaquin, Tulare-Buena Vi
   - `graphics/` → plots; `output/` → final exports; `scripts/` → Python scripts
 - **File naming** examples:
   - GRACE anomalies: `anomaly_timeseries_GRACE_<basin>_mask.csv`
+  - GRACE mask CSVs: `grace_<basin>_mask.csv`
+  - NLDAS anomalies: `anomaly_timeseries_NLDAS_<basin>_mask_<timestamp>.csv` (and matching `.nc`)
   - SWE monthly mean: `monthly_mean_YYYYMM_DD_DD[_missing_..].tif`
   - CDEC regional sums: `<region>_monthly_km3.csv`
   - Groundwater: `anomaly_timeseries_groundwater_<basin>_DATA_START_to_DATA_END_*.csv`
@@ -245,5 +247,3 @@ Supported basins: California (default), Sacramento, San Joaquin, Tulare-Buena Vi
 - **Mask/grid mismatches**: ensure mask grid matches the **target** dataset grid (rasterize with the dataset’s geotransform).
 - **Missing months**: SWE monthly filenames encode missing-day info via a filename suffix. GRACE months with no solution are dropped by `interpolate_grace.py` rather than filled — `compute_groundwater.py` will then drop those months from the synthesis when it aligns components.
 - **CDEC units**: confirm converted to **m³**; check sensor numbers; scan logs for “Units not M3”.
-
----
