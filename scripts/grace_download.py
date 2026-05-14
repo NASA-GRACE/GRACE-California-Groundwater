@@ -14,17 +14,144 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-import datetime as dt
 import argparse
+import datetime as dt
 import logging
-import time
-from urllib.parse import urlparse
+import re
 import shutil
+import time
+from pathlib import Path
+from urllib.parse import urlparse
 
 import earthaccess
-
+import requests
 import run_all as ra
+
+# Module-level constants for GRACE collection discovery
+_GRACE_MASCON_PREFIX = "TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL"
+_GRACE_SHORT_NAME_RE = re.compile(
+    r"^TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL"
+    r"(?P<release_major>\d+)\.(?P<release_minor>\d+)"
+    r"_V(?P<version>\d+)$"
+)
+_CMR_COLLECTIONS_URL = "https://cmr.earthdata.nasa.gov/search/collections.umm_json"
+
+
+def parse_grace_short_name(short_name: str) -> tuple[tuple[int, int], int] | None:
+    """Parse a GRACE short name into ((release_major, release_minor), version).
+
+    Args:
+        short_name: GRACE collection short name (e.g., "TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.3_V4")
+
+    Returns:
+        Tuple of ((major, minor), version) if valid, None otherwise.
+
+    Examples:
+        >>> parse_grace_short_name("TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.3_V4")
+        ((6, 3), 4)
+        >>> parse_grace_short_name("TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL07.0_V1")
+        ((7, 0), 1)
+        >>> parse_grace_short_name("INVALID")
+        None
+    """
+    match = _GRACE_SHORT_NAME_RE.match(short_name)
+    if not match:
+        return None
+
+    major = int(match.group("release_major"))
+    minor = int(match.group("release_minor"))
+    version = int(match.group("version"))
+
+    return ((major, minor), version)
+
+
+def discover_latest_grace_collection(
+    fallback_short_name: str,
+    timeout: float = 30.0,
+) -> tuple[str, str | None]:
+    """Discover the latest GRACE Mascon CRI collection from CMR.
+
+    Queries NASA's CMR for all GRACE Mascon CRI collections, parses versions,
+    sorts by (release, version) descending, and verifies the top candidate has
+    granules. Falls back to the provided default on any error.
+
+    Args:
+        fallback_short_name: Default collection short name to use if discovery fails
+        timeout: HTTP request timeout in seconds (default: 30.0)
+
+    Returns:
+        Tuple of (short_name, doi_or_none) - the best collection found, or fallback
+    """
+    try:
+        # Query CMR for all matching collections
+        params = {
+            "provider": "POCLOUD",
+            "ShortName": f"{_GRACE_MASCON_PREFIX}*",
+            "options[ShortName][pattern]": "true",
+            "page_size": 50,
+        }
+
+        logging.debug("Querying CMR for GRACE collections: %s", params)
+        response = requests.get(_CMR_COLLECTIONS_URL, params=params, timeout=timeout)
+        response.raise_for_status()
+
+        data = response.json()
+        items = data.get("items", [])
+
+        if not items:
+            logging.warning("GRACE collection discovery: CMR returned 0 results. Using fallback: %s", fallback_short_name)
+            return (fallback_short_name, None)
+
+        # Parse and sort candidates
+        candidates: list[tuple[tuple[tuple[int, int], int], str, str | None]] = []
+        for item in items:
+            umm = item.get("umm", {})
+            short_name = umm.get("ShortName", "")
+            parsed = parse_grace_short_name(short_name)
+
+            if parsed is None:
+                logging.debug("Skipping unparseable collection: %s", short_name)
+                continue
+
+            # Extract DOI if present
+            doi_obj = umm.get("DOI")
+            doi = doi_obj.get("DOI") if doi_obj else None
+
+            candidates.append((parsed, short_name, doi))
+
+        if not candidates:
+            logging.warning("GRACE collection discovery: No parseable collections found. Using fallback: %s", fallback_short_name)
+            return (fallback_short_name, None)
+
+        # Sort by (release, version) descending
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        logging.debug("GRACE collection discovery: found %d candidate(s)", len(candidates))
+
+        # Verify candidates have granules (try from best to worst)
+        for parsed_version, short_name, doi in candidates:
+            try:
+                # Check if collection has any granules
+                logging.debug("Verifying granules for: %s", short_name)
+                granules = earthaccess.search_data(short_name=short_name, count=1)
+                if granules:
+                    logging.info("GRACE collection discovery: Selected %s (release %s.%s, version %s)",
+                                short_name, parsed_version[0][0], parsed_version[0][1], parsed_version[1])
+                    return (short_name, doi)
+                else:
+                    logging.debug("Skipping empty collection: %s", short_name)
+            except Exception as e:
+                # On granule verification error, treat as valid (optimistic)
+                # The download step will surface any real issues
+                logging.debug("Granule check failed for %s: %s. Treating as valid.", short_name, e)
+                return (short_name, doi)
+
+        # All candidates were empty
+        logging.warning("GRACE collection discovery: All candidates have no granules. Using fallback: %s", fallback_short_name)
+        return (fallback_short_name, None)
+
+    except Exception as e:
+        logging.warning("GRACE collection discovery failed: %s. Using fallback: %s", e, fallback_short_name)
+        return (fallback_short_name, None)
 
 
 class Options(ra.Options):
@@ -155,14 +282,28 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    # Login early - needed for both discovery and download
+    logging.info("Logging in to Earthdata via earthaccess...")
+    earthaccess.login()
+
+    # Auto-discover latest collection if user didn't specify a source
+    user_specified_source = (
+        options.args.short_name is not None
+        or options.args.concept_id is not None
+    )
+    if not user_specified_source:
+        discovered_name, discovered_doi = discover_latest_grace_collection(
+            fallback_short_name=options.default_short_name,
+        )
+        options.args.short_name = discovered_name
+        if discovered_doi:
+            options.args.doi = discovered_doi
+
     download_grace_data(options)
 
 
 def download_grace_data(options: Options) -> None:
     start_dt, end_dt = validate_inputs(options)
-
-    logging.info("Logging in to Earthdata via earthaccess...")
-    _ = earthaccess.login()  # requires prerequisite files (.netrc / cookies), same as your NLDAS script
 
     # Build search args for earthaccess.search_data
     search_kwargs = dict(
