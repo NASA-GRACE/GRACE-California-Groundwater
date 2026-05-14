@@ -111,6 +111,7 @@ def parse_arguments(options: Options) -> None:
         # groundwater invocation, not on every intermediate data-type call.
         options.plot_groundwater_yearly_panels = False
         options.plot_components_all_basins     = False
+        options.plot_components_one_basin      = None
         logging.info(f"--groundwater argument not set: disabling multi-panel and component plots")
 
 
