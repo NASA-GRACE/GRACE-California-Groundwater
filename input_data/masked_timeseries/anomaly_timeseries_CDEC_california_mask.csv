@@ -1,0 +1,6 @@
+# https://cdec.water.ca.gov/dynamicapp/req/CSVDataServlet?Stations=<station_id>&SensorNums=<storage or alt storage sensor>&dur_code=M&Start=YYYY-MM-DD&End=YYYY-MM-DD
+#
+date,anomaly,error
+2005-01-01,-2.295375250155601,1.2424562196788527
+2005-02-01,-0.42507881041010975,1.3359710416661272
+2005-03-01,2.7204540605657073,1.4932476852149181

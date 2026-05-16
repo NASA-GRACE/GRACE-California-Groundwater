@@ -14,7 +14,7 @@ import re  # Used to precompile regexes for performance
 import datetime as dt
 
 # This is the version of python which should be used in scripts that import this module.
-PY_VERSION = 3.11
+PY_VERSION = 3.12
 
 
 class Options:
@@ -227,13 +227,17 @@ def run_script(options: Options, the_script: str, flags: list[str] | None = None
     if getattr(options.args, "full", False):
         flags.append("--full")
     script_path = os.fspath(options.script_dir / the_script)
-    # If venv is not available, use sys.executable
+    # Try pixi environment first, then venv, fallback to sys.executable
+    pixi_python = options.project_root / "scripts" / ".pixi" / "envs" / "default" / "bin" / "python"
     venv_python = options.project_root / "scripts" / ".venv" / "bin" / "python"
-    if venv_python.is_file():
-        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Using virtual environment python at {venv_python}")
+    if pixi_python.is_file():
+        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Using pixi environment python at {pixi_python}")
+        chosen_python = str(pixi_python)
+    elif venv_python.is_file():
+        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Using virtual environment python at {venv_python}")
         chosen_python = str(venv_python)
     else:
-        logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug(f"Virtual environment python not found at {venv_python}, using system python at {sys.executable}")
+        if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug(f"Virtual environment python not found, using system python at {sys.executable}")
         chosen_python = sys.executable
     the_command = [chosen_python, script_path] + flags
     command_str = ' '.join(shlex.quote(arg) for arg in the_command)
@@ -426,7 +430,7 @@ def rasterize_shapefile_to_mask(shapefile:   str | os.PathLike[str],
     env  = geom.GetEnvelope()
     bbox = [env[0], env[2], env[1], env[3]]
 
-    logging.getLogger().isEnabledFor(logging.DEBUG) and logging.debug("Rasterized mask created: shape=(%d, %d)", n_lat, n_lon)
+    if logging.getLogger().isEnabledFor(logging.DEBUG): logging.debug("Rasterized mask created: shape=(%d, %d)", n_lat, n_lon)
     return marr, bbox
 
 
