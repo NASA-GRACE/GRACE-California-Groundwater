@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import sys
 import shutil
 from pathlib import Path
@@ -26,10 +27,10 @@ def _delete_dir_contents(target: Path) -> None:
     """
     # Succeed if directory is empty or doesn't exist
     if not target.exists():
-        logging.error(f"Path not found, skipping: {target}")
+        logging.error(f"Path not found, skipping: {os.fspath(target)}")
         return
     if not target.is_dir():
-        logging.error(f"Not a directory, skipping: {target}")
+        logging.error(f"Not a directory, skipping: {os.fspath(target)}")
         return
 
     # Extra safety: never allow nuking the whole project root itself
@@ -49,7 +50,7 @@ def _delete_dir_contents(target: Path) -> None:
                 shutil.rmtree(child, ignore_errors=True)
                 dirs_deleted += 1
         except Exception as e:
-            logging.error(f"Warning: failed to remove {child}: {e}")
+            logging.error(f"Warning: failed to remove {os.fspath(child)}: {e}")
     if files_deleted > 0:
         logging.info(f"Files deleted:       {files_deleted}")
     if dirs_deleted > 0:
@@ -63,16 +64,16 @@ def _confirm_delete_contents(target: Path, assume_yes: bool = False) -> None:
     Prompt the user: (y/N/q). "y" deletes contents, "q" quits the script,
     anything else cancels for this target.
     """
-    logging.info()  # nice spacing between prompts
-    logging.info(f"Target: {target}")
+    logging.info("")  # nice spacing between prompts
+    logging.info(f"Target: {os.fspath(target)}")
     if assume_yes:
         reply = "y"
-        logging.info(f"Are you sure you want to delete all files in '{target}'? (y/N/q) y  [--yes provided]")
+        logging.info(f"Are you sure you want to delete all files in '{os.fspath(target)}'? (y/N/q) y  [--yes provided]")
     else:
-        reply = input(f"Are you sure you want to delete all files in '{target}'? (y/N/q) ").strip().lower()[:1]
+        reply = input(f"Are you sure you want to delete all files in '{os.fspath(target)}'? (y/N/q) ").strip().lower()[:1]
 
     if reply == "y":
-        logging.info(f"Deleting files in '{target}'...")
+        logging.info(f"Deleting files in '{os.fspath(target)}'...")
         _delete_dir_contents(target)
     elif reply == "q":
         logging.info("Quitting.")
@@ -93,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="Assume 'yes' for all prompts (non-interactive).")
     args = parser.parse_args(argv)
     logging.basicConfig(level=options.log_mode, format="%(asctime)s - %(levelname)s - %(message)s",
-                        datefmt="%Y-%m-%d %H:%M:%S")
+                        datefmt="%Y-%m-%d %H:%M:%S", force=True)
 
     targets: list[Path] = [
         options.soil_moisture_dir / "data_individual",
@@ -110,8 +111,7 @@ def main(argv: list[str] | None = None) -> int:
         options.output_dir,
     ]
 
-    logging.info(f"{targets=}")
-    sys.exit(0)
+    logging.info(f"targets={[os.fspath(t) for t in targets]}")
 
     # De-dup while preserving order (e.g., if two paths resolve the same)
     seen = set()
