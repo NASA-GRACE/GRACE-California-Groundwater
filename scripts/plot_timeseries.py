@@ -275,7 +275,11 @@ def make_groundwater_yearly_panels(options: Options) -> None:
         )
         axes[0].set_title(f"Calendar-year groundwater anomalies – {basin_title}", fontsize=options.title_font)
         axes[0].set_ylabel(f"Groundwater anomaly ({effective_units}, yearly mean)")
-        axes[0].legend()
+        if cal.empty:
+            axes[0].text(0.5, 0.5, f"No calendar years with ≥{min_months} months of data",
+                         transform=axes[0].transAxes, ha="center", va="center")
+        elif axes[0].get_legend_handles_labels()[0]:
+            axes[0].legend()
         axes[0].grid(True)
 
         ra.plot_with_uncertainty(
@@ -287,7 +291,11 @@ def make_groundwater_yearly_panels(options: Options) -> None:
         axes[1].set_title(f"Water-year groundwater anomalies – {basin_title}", fontsize=options.title_font)
         axes[1].set_xlabel("Year (centered)")
         axes[1].set_ylabel(f"Groundwater anomaly ({effective_units}, yearly mean)")
-        axes[1].legend()
+        if wat.empty:
+            axes[1].text(0.5, 0.5, f"No water years with ≥{min_months} months of data",
+                         transform=axes[1].transAxes, ha="center", va="center")
+        elif axes[1].get_legend_handles_labels()[0]:
+            axes[1].legend()
         axes[1].grid(True)
 
         plt.tight_layout()
@@ -300,7 +308,13 @@ def make_groundwater_yearly_panels(options: Options) -> None:
 
 def make_components_all_basins_plot(options: Options) -> None:
     """
-    Create a figure with three panels showing SWE, reservoir anomaly, and groundwater anomaly across all basins.
+    Create a figure with three panels showing SWE, reservoir anomaly, and
+    groundwater anomaly across all basins.
+
+    A basin is included only if it has current groundwater output (the deliverable
+    of the current pipeline run). Basins that only have stale component data
+    left over in input_data/masked_timeseries/ from a prior run are skipped
+    with a logged message.
     """
     with plt.rc_context(options.rc_plot_multipanel):
         effective_units = options.thickness_units if options.plot_thickness else options.volume_units_pretty
@@ -320,10 +334,14 @@ def make_components_all_basins_plot(options: Options) -> None:
                     series_by_component[comp][basin] = df
                     basins_with_any_data.add(basin)
 
-        basin_unit_factor: dict[str, float] = {}
+        # Groundwater output is the anchor for "current data": it is the
+        # deliverable of the current pipeline run, and the area metadata
+        # required for thickness conversion lives in its CSV header.
+        gw_basins = set(series_by_component["groundwater"].keys())
 
+        basin_unit_factor: dict[str, float] = {}
         if options.plot_thickness:
-            for basin, gw_df in series_by_component.get("groundwater", {}).items():
+            for basin, gw_df in series_by_component["groundwater"].items():
                 src = gw_df.attrs.get("source_path")
                 if not src:
                     continue
@@ -333,11 +351,29 @@ def make_components_all_basins_plot(options: Options) -> None:
                 if eu == options.thickness_units:
                     basin_unit_factor[basin] = uf
 
-        if not basins_with_any_data:
-            logging.warning("No multi-basin component data found.")
+        # Restrict to basins with current groundwater output. When plotting in
+        # thickness units, additionally require a resolvable unit factor.
+        current_basins = set(gw_basins)
+        if options.plot_thickness:
+            for basin in sorted(gw_basins - set(basin_unit_factor.keys())):
+                logging.warning(
+                    f"{basin}: groundwater data found but total_area* metadata "
+                    f"could not be resolved; omitting from multi-basin component plot."
+                )
+                current_basins.discard(basin)
+
+        for basin in sorted(basins_with_any_data - current_basins):
+            logging.info(
+                f"{basin}: component data exists in {options.timeseries_dir.name}/ "
+                f"but no current groundwater output was found in {options.output_dir.name}/; "
+                f"omitting from multi-basin component plot (likely stale leftover from a prior run)."
+            )
+
+        if not current_basins:
+            logging.warning("No basins with current groundwater output; nothing to plot.")
             return
 
-        basin_list  = sorted(basins_with_any_data)
+        basin_list  = sorted(current_basins)
         color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
         basin_color = {b: color_cycle[i % len(color_cycle)] for i, b in enumerate(basin_list)}
 
@@ -347,15 +383,13 @@ def make_components_all_basins_plot(options: Options) -> None:
         _apply_axes_theme(options, axes[2])
 
         for ax, (comp, title, ylab) in zip(axes, components):
-            comp_dict = series_by_component[comp]
+            comp_dict = {b: df for b, df in series_by_component[comp].items() if b in current_basins}
             if not comp_dict:
                 ax.text(0.5, 0.5, f"No {comp} data found", transform=ax.transAxes, ha="center", va="center")
                 ax.set_axis_off()
                 continue
 
             for basin, df in comp_dict.items():
-                if options.plot_thickness and basin not in basin_unit_factor:
-                    raise ValueError(f"{basin}: plot_thickness=True but could not compute mean area.")
                 unit_factor = basin_unit_factor.get(basin, 1.0)
 
                 ra.plot_prepped_with_uncertainty(

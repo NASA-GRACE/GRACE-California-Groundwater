@@ -15,6 +15,15 @@ import argparse
 
 import run_all as ra
 
+# Suppress this warning: ~/repo/GRACE-California-Groundwater/scripts/.pixi/envs/default/lib/python3.12/site-packages/shapely/creation.py:730: RuntimeWarning: invalid value encountered in create_collection
+import warnings
+warnings.filterwarnings(
+    "ignore",
+    category=RuntimeWarning,
+    message="invalid value encountered in create_collection",
+    module=r"shapely(\..*)?",
+)
+
 
 class Options(ra.Options):
     """Class that has all global options in one place."""
